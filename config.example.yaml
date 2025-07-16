@@ -1,0 +1,21 @@
+server:
+  host: "localhost"
+  port: 8080
+  read_timeout: 30s
+  write_timeout: 30s
+
+database:
+  postgres:
+    host: "localhost"
+    port: 5433
+    user: "admin"
+    password: "CHANGE_ME"  # ← Заглушка
+    dbname: "postgres"
+    sslmode: "disable"
+    max_open_conns: 25
+    max_idle_conns: 25
+    conn_max_lifetime: 300s
+
+jwt:
+  secret: "GENERATE_YOUR_SECRET_KEY_HERE"  # ← Заглушка
+  expires_in: "24h"
