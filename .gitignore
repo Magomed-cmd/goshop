@@ -83,8 +83,8 @@ yarn-error.log*
 
 /testdata/local/
 
-# GoShop specific
-goshop
+# GoShop specific - только бинарники!
+/goshop
 cmd/goshop/goshop
 /init.sql.bak
 *.pem
