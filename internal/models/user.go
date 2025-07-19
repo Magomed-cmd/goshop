@@ -23,14 +23,3 @@ type User struct {
 	Role         *Role     `db:"-" json:"role,omitempty"`
 	CreatedAt    time.Time `db:"created_at" json:"created_at"`
 }
-
-type UserAddress struct {
-	ID         int64     `db:"id" json:"id"`
-	UUID       uuid.UUID `db:"uuid" json:"uuid"`
-	UserID     int64     `db:"user_id" json:"user_id"`
-	Address    string    `db:"address" json:"address"`
-	City       *string   `db:"city" json:"city"`
-	PostalCode *string   `db:"postal_code" json:"postal_code"`
-	Country    *string   `db:"country" json:"country"`
-	CreatedAt  time.Time `db:"created_at" json:"created_at"`
-}

@@ -3,21 +3,22 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 	"goshop/internal/dto"
-	"goshop/internal/service/auth"
+	"goshop/internal/middleware"
+	"goshop/internal/service/user"
 	"strings"
 )
 
-type AuthHandler struct {
-	service *auth.AuthService
+type UserHandler struct {
+	service *user.UserService
 }
 
-func NewAuthHandler(s *auth.AuthService) *AuthHandler {
-	return &AuthHandler{
+func NewUserHandler(s *user.UserService) *UserHandler {
+	return &UserHandler{
 		service: s,
 	}
 }
 
-func (h *AuthHandler) Register(c *gin.Context) {
+func (h *UserHandler) Register(c *gin.Context) {
 
 	var req dto.RegisterRequest
 	ctx := c.Request.Context()
@@ -56,7 +57,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	c.JSON(201, resp)
 }
 
-func (h *AuthHandler) Login(c *gin.Context) {
+func (h *UserHandler) Login(c *gin.Context) {
 
 	var req dto.LoginRequest
 	ctx := c.Request.Context()
@@ -89,4 +90,48 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	c.JSON(200, resp)
+}
+
+func (h *UserHandler) GetProfile(c *gin.Context) {
+
+	userID, exists := middleware.GetUserID(c)
+	if !exists {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	ctx := c.Request.Context()
+	profile, err := h.service.GetUserProfile(ctx, userID)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Internal server error"})
+		return
+	}
+	c.JSON(200, profile)
+}
+
+func (h *UserHandler) UpdateProfile(c *gin.Context) {
+	userID, exists := middleware.GetUserID(c)
+	if !exists {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var req dto.UpdateProfileRequest
+	ctx := c.Request.Context()
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.UpdateProfile(ctx, userID, &req); err != nil {
+		if strings.Contains(err.Error(), "no fields to update") {
+			c.JSON(400, gin.H{"error": "No fields to update"})
+			return
+		}
+		c.JSON(500, gin.H{"error": "Internal server error"})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "Profile updated successfully"})
 }

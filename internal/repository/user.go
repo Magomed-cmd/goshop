@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"gorm.io/gorm"
 	"goshop/internal/models"
 )
@@ -27,10 +27,34 @@ func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*mod
 	var user models.User
 	result := r.dbConnection.WithContext(ctx).Where("email = ?", email).First(&user)
 	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
 		return nil, result.Error
 	}
 	return &user, nil
+}
+
+func (r *UserRepository) GetUserByID(ctx context.Context, id int64) (*models.User, error) {
+	var user models.User
+	result := r.dbConnection.WithContext(ctx).First(&user, id)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return &user, nil
+}
+
+func (r *UserRepository) UpdateUserProfile(ctx context.Context, userID int64, name *string, phone *string) error {
+	updates := make(map[string]interface{})
+
+	if name != nil {
+		updates["name"] = *name
+	}
+	if phone != nil {
+		updates["phone"] = *phone
+	}
+
+	if len(updates) == 0 {
+		return fmt.Errorf("no fields to update") // Добавь проверку!
+	}
+	query := r.dbConnection.WithContext(ctx).Model(&models.User{}).Where("id = ?", userID)
+
+	return query.Updates(updates).Error
 }

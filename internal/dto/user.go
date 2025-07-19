@@ -12,6 +12,16 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
+type UpdateProfileRequest struct {
+	Name  *string `json:"name" binding:"omitempty,min=2,max=100"`
+	Phone *string `json:"phone" binding:"omitempty,min=10,max=20"`
+}
+
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password" binding:"required"`
+	NewPassword     string `json:"new_password" binding:"required,min=8"`
+}
+
 type AuthResponse struct {
 	Token string      `json:"token"`
 	User  UserProfile `json:"user"`

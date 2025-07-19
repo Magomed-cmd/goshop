@@ -5,9 +5,8 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/rs/zerolog/log"
-	"goshop/internal/service/auth"
+	"goshop/internal/utils"
 )
 
 func JWTMiddleware(jwtSecret string) gin.HandlerFunc {
@@ -18,7 +17,6 @@ func JWTMiddleware(jwtSecret string) gin.HandlerFunc {
 		if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
 			tokenString = strings.TrimPrefix(authHeader, "Bearer ")
 		} else {
-
 			cookie, err := c.Cookie("token")
 			if err != nil {
 				log.Debug().Msg("No token found in header or cookie")
@@ -35,24 +33,9 @@ func JWTMiddleware(jwtSecret string) gin.HandlerFunc {
 			return
 		}
 
-		claims := &auth.Claims{}
-		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, jwt.ErrSignatureInvalid
-			}
-			return []byte(jwtSecret), nil
-		})
-
+		claims, err := utils.ParseJWT(tokenString, jwtSecret)
 		if err != nil {
 			log.Debug().Err(err).Msg("Token parsing failed")
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
-			c.Abort()
-			return
-		}
-
-		if !token.Valid {
-			log.Debug().Msg("Token is not valid")
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			c.Abort()
 			return
@@ -85,7 +68,6 @@ func AdminMiddleware() gin.HandlerFunc {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
 			c.Abort()
 			return
-
 		}
 
 		c.Next()
