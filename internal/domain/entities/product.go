@@ -1,4 +1,4 @@
-package models
+package entities
 
 import (
 	"time"
@@ -12,6 +12,13 @@ type Category struct {
 	UUID        uuid.UUID `db:"uuid" json:"uuid"`
 	Name        string    `db:"name" json:"name"`
 	Description *string   `db:"description" json:"description"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
+}
+
+type CategoryWithCount struct {
+	Category
+	ProductCount int64
 }
 
 type Product struct {
@@ -21,9 +28,9 @@ type Product struct {
 	Description *string         `db:"description" json:"description"`
 	Price       decimal.Decimal `db:"price" json:"price"`
 	Stock       int             `db:"stock" json:"stock"`
+	IsActive    bool            `db:"is_active" json:"is_active"`
 	CreatedAt   time.Time       `db:"created_at" json:"created_at"`
 	UpdatedAt   time.Time       `db:"updated_at" json:"updated_at"`
-	Categories  []Category      `db:"-" json:"categories,omitempty"`
 }
 
 type ProductCategory struct {

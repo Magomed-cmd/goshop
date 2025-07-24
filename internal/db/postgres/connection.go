@@ -1,23 +1,30 @@
 package postgres
 
 import (
-	log "github.com/rs/zerolog/log"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
+	"context"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/rs/zerolog/log"
 	"goshop/internal/config"
 	"strings"
 )
 
-func NewConnection(cfg *config.PostgresConfig) (*gorm.DB, error) {
-
+func NewConnection(cfg *config.PostgresConfig) (*pgxpool.Pool, error) {
 	dsn := cfg.GetDSN()
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 
+	dbpool, err := pgxpool.New(context.Background(), dsn)
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to connect to Postgres")
 		return nil, err
 	}
 
-	log.Info().Str("dsn", strings.Replace(dsn, cfg.Password, "**hidden*", 1)).Msg("PostgresSQL connection established")
+	if err := dbpool.Ping(context.Background()); err != nil {
+		dbpool.Close()
+		log.Error().Err(err).Msg("Failed to ping Postgres")
+		return nil, err
+	}
 
-	return db, nil
+	safeDSN := strings.Replace(dsn, cfg.Password, "**hidden**", 1)
+	log.Info().Str("dsn", safeDSN).Msg("PostgreSQL connection established")
+
+	return dbpool, nil
 }

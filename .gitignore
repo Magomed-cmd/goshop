@@ -36,6 +36,8 @@ config.production.yaml
 config.staging.yaml
 
 *.log
+plan.md
+TT.md
 logs/
 
 /bin/

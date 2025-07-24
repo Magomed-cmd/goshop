@@ -2,59 +2,110 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"gorm.io/gorm"
-	"goshop/internal/models"
+	"github.com/Masterminds/squirrel"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"goshop/internal/domain/entities"
+	"goshop/internal/service/user"
 )
 
 type UserRepository struct {
-	dbConnection *gorm.DB
+	db   *pgxpool.Pool
+	psql squirrel.StatementBuilderType
 }
 
-func NewUserRepository(conn *gorm.DB) *UserRepository {
-	return &UserRepository{dbConnection: conn}
-}
-
-func (r *UserRepository) CreateUser(ctx context.Context, user *models.User) error {
-	result := r.dbConnection.WithContext(ctx).Create(user)
-	if result.Error != nil {
-		return result.Error
+func NewUserRepository(conn *pgxpool.Pool) user.UserRepositoryInterface {
+	return &UserRepository{
+		db:   conn,
+		psql: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
 	}
-	return nil
 }
 
-func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
-	var user models.User
-	result := r.dbConnection.WithContext(ctx).Where("email = ?", email).First(&user)
-	if result.Error != nil {
-		return nil, result.Error
-	}
-	return &user, nil
+func (r *UserRepository) CreateUser(ctx context.Context, user *entities.User) error {
+	query := `
+       INSERT INTO users (uuid, email, password_hash, name, phone, role_id, created_at) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7) 
+       RETURNING id`
+
+	err := r.db.QueryRow(ctx, query,
+		user.UUID, user.Email, user.PasswordHash,
+		user.Name, user.Phone, user.RoleID, user.CreatedAt,
+	).Scan(&user.ID)
+
+	return err
 }
 
-func (r *UserRepository) GetUserByID(ctx context.Context, id int64) (*models.User, error) {
-	var user models.User
-	result := r.dbConnection.WithContext(ctx).First(&user, id)
-	if result.Error != nil {
-		return nil, result.Error
+func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*entities.User, error) {
+	query := "SELECT id, uuid, email, password_hash, name, phone, role_id, created_at FROM users WHERE email = $1"
+
+	var userStruct entities.User
+	err := r.db.QueryRow(ctx, query, email).Scan(
+		&userStruct.ID, &userStruct.UUID, &userStruct.Email, &userStruct.PasswordHash,
+		&userStruct.Name, &userStruct.Phone, &userStruct.RoleID, &userStruct.CreatedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, pgx.ErrNoRows
+		}
+		return nil, err
 	}
-	return &user, nil
+
+	return &userStruct, nil
+}
+
+func (r *UserRepository) GetUserByID(ctx context.Context, id int64) (*entities.User, error) {
+	query := "SELECT id, uuid, email, password_hash, name, phone, role_id, created_at FROM users WHERE id = $1"
+
+	var userStruct entities.User
+	err := r.db.QueryRow(ctx, query, id).Scan(
+		&userStruct.ID, &userStruct.UUID, &userStruct.Email, &userStruct.PasswordHash,
+		&userStruct.Name, &userStruct.Phone, &userStruct.RoleID, &userStruct.CreatedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, pgx.ErrNoRows
+		}
+		return nil, err
+	}
+
+	return &userStruct, nil
 }
 
 func (r *UserRepository) UpdateUserProfile(ctx context.Context, userID int64, name *string, phone *string) error {
-	updates := make(map[string]interface{})
+
+	query := r.psql.Update("users")
+	paramsCnt := 0
 
 	if name != nil {
-		updates["name"] = *name
+		query = query.Set("name", *name)
+		paramsCnt++
 	}
+
 	if phone != nil {
-		updates["phone"] = *phone
+		query = query.Set("phone", *phone)
+		paramsCnt++
 	}
 
-	if len(updates) == 0 {
-		return fmt.Errorf("no fields to update") // Добавь проверку!
+	if paramsCnt == 0 {
+		return fmt.Errorf("no fields to update")
 	}
-	query := r.dbConnection.WithContext(ctx).Model(&models.User{}).Where("id = ?", userID)
 
-	return query.Updates(updates).Error
+	query = query.Where(squirrel.Eq{"id": userID})
+
+	sql, args, err := query.ToSql()
+
+	result, err := r.db.Exec(ctx, sql, args...)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("user with ID %d not found", userID)
+	}
+
+	return nil
 }

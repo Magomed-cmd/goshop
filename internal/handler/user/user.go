@@ -1,18 +1,26 @@
-package handler
+package user
 
 import (
+	"context"
 	"github.com/gin-gonic/gin"
+	"goshop/internal/domain/entities"
 	"goshop/internal/dto"
 	"goshop/internal/middleware"
-	"goshop/internal/service/user"
 	"strings"
 )
 
-type UserHandler struct {
-	service *user.UserService
+type UserServiceInterface interface {
+	Register(ctx context.Context, req *dto.RegisterRequest) (*entities.User, string, error)
+	Login(ctx context.Context, req *dto.LoginRequest) (*entities.User, string, error)
+	GetUserProfile(ctx context.Context, userID int64) (*dto.UserProfile, error)
+	UpdateProfile(ctx context.Context, userID int64, req *dto.UpdateProfileRequest) error
 }
 
-func NewUserHandler(s *user.UserService) *UserHandler {
+type UserHandler struct {
+	service UserServiceInterface
+}
+
+func NewUserHandler(s UserServiceInterface) *UserHandler {
 	return &UserHandler{
 		service: s,
 	}

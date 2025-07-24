@@ -1,19 +1,29 @@
-package handler
+package address
 
 import (
+	"context"
 	"github.com/gin-gonic/gin"
+	"goshop/internal/domain/entities"
 	"goshop/internal/dto"
 	"goshop/internal/middleware"
-	"goshop/internal/service/address"
 	"strconv"
-	"strings" // 🔧 ДОБАВИЛ: для strings.Contains
+	"strings"
 )
 
-type AddressHandler struct {
-	AddressService *address.AddressService
+type AddressServiceInterface interface {
+	CreateAddress(ctx context.Context, userID int64, req *dto.CreateAddressRequest) (*entities.UserAddress, error)
+	GetUserAddresses(ctx context.Context, userID int64) ([]*entities.UserAddress, error)
+	GetAddressByID(ctx context.Context, addressID int64) (*entities.UserAddress, error)
+	UpdateAddress(ctx context.Context, userID int64, addressID int64, req *dto.UpdateAddressRequest) (*entities.UserAddress, error)
+	GetAddressByIDForUser(ctx context.Context, userID, addressID int64) (*entities.UserAddress, error)
+	DeleteAddress(ctx context.Context, userID int64, addressID int64) error
 }
 
-func NewAddressHandler(s *address.AddressService) *AddressHandler {
+type AddressHandler struct {
+	AddressService AddressServiceInterface
+}
+
+func NewAddressHandler(s AddressServiceInterface) *AddressHandler {
 	return &AddressHandler{
 		AddressService: s,
 	}

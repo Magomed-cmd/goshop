@@ -1,0 +1,33 @@
+with-expecter: true
+outpkg: mocks
+dir: "{{.InterfaceDir}}/mocks"
+mockname: "Mock{{.InterfaceName}}"
+filename: "{{.MockName}}.go"
+packages:
+  #handler mocks
+  goshop/internal/handler/user:
+    interfaces:
+      UserServiceInterface:
+  goshop/internal/handler/category:
+    interfaces:
+      CategoryServiceInterface:
+  goshop/internal/handler/address:
+    interfaces:
+      AddressServiceInterface:
+
+  #service mocks
+  goshop/internal/service/user:
+    interfaces:
+      RoleRepositoryInterface:
+      UserRepositoryInterface:
+
+  goshop/internal/service/category:
+    interfaces:
+      CategoryRepositoryInterface:
+
+  goshop/internal/service/address:
+    interfaces:
+      AddressRepositoryInterface:
+  goshop/internal/service/product:
+    interfaces:
+      ProductRepositoryInterface:

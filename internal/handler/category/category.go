@@ -1,0 +1,186 @@
+package category
+
+import (
+	"context"
+	"errors"
+	"github.com/gin-gonic/gin"
+	"goshop/internal/domain/entities"
+	"goshop/internal/domain_errors"
+	"goshop/internal/dto"
+	"strconv"
+)
+
+type CategoryServiceInterface interface {
+	GetAllCategories(ctx context.Context) ([]*entities.CategoryWithCount, error)
+	GetCategoryByID(ctx context.Context, id int64) (*entities.CategoryWithCount, error)
+	CreateCategory(ctx context.Context, req *dto.CreateCategoryRequest) (*entities.Category, error)
+	UpdateCategory(ctx context.Context, category *entities.Category) error
+	DeleteCategory(ctx context.Context, id int64) error
+}
+
+type CategoryHandler struct {
+	CategoryService CategoryServiceInterface
+}
+
+func NewCategoryHandler(s CategoryServiceInterface) *CategoryHandler {
+	return &CategoryHandler{
+		CategoryService: s,
+	}
+}
+
+func (h *CategoryHandler) GetAllCategories(c *gin.Context) {
+	ctx := c.Request.Context()
+	categories, err := h.CategoryService.GetAllCategories(ctx)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to fetch categories"})
+		return
+	}
+
+	c.JSON(200, categories)
+}
+
+func (h *CategoryHandler) GetCategoryByID(c *gin.Context) {
+	ctx := c.Request.Context()
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		c.JSON(400, gin.H{"error": "Invalid category ID"})
+		return
+	}
+
+	category, err := h.CategoryService.GetCategoryByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, domain_errors.ErrCategoryNotFound) {
+			c.JSON(404, gin.H{"error": "Category not found"})
+			return
+		}
+		c.JSON(500, gin.H{"error": "Failed to fetch category"})
+		return
+	}
+
+	c.JSON(200, category)
+}
+
+func (h *CategoryHandler) CreateCategory(c *gin.Context) {
+	ctx := c.Request.Context()
+	var req dto.CreateCategoryRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	createdCategory, err := h.CategoryService.CreateCategory(ctx, &req)
+	if err != nil {
+		if errors.Is(err, domain_errors.ErrInvalidInput) {
+			c.JSON(400, gin.H{"error": "Invalid category data"})
+			return
+		}
+		c.JSON(500, gin.H{"error": "Failed to create category"})
+		return
+	}
+
+	response := dto.CategoryResponse{
+		ID:           createdCategory.ID,
+		UUID:         createdCategory.UUID.String(),
+		Name:         createdCategory.Name,
+		Description:  createdCategory.Description,
+		ProductCount: 0,
+	}
+
+	c.JSON(201, response)
+}
+
+func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
+	ctx := c.Request.Context()
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		c.JSON(400, gin.H{"error": "Invalid category ID"})
+		return
+	}
+
+	var req dto.UpdateCategoryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	existingCategory, err := h.CategoryService.GetCategoryByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, domain_errors.ErrCategoryNotFound) {
+			c.JSON(404, gin.H{"error": "Category not found"})
+			return
+		}
+		c.JSON(500, gin.H{"error": "Failed to fetch category"})
+		return
+	}
+
+	categoryToUpdate := &existingCategory.Category
+	if req.Name != nil {
+		categoryToUpdate.Name = *req.Name
+	}
+	if req.Description != nil {
+		categoryToUpdate.Description = req.Description
+	}
+
+	err = h.CategoryService.UpdateCategory(ctx, categoryToUpdate)
+	if err != nil {
+		if errors.Is(err, domain_errors.ErrCategoryNotFound) {
+			c.JSON(404, gin.H{"error": "Category not found"})
+			return
+		}
+		if errors.Is(err, domain_errors.ErrInvalidInput) {
+			c.JSON(400, gin.H{"error": "Invalid category data"})
+			return
+		}
+		if errors.Is(err, domain_errors.ErrInvalidCategoryData) {
+			c.JSON(400, gin.H{"error": "Invalid category data"})
+			return
+		}
+		c.JSON(500, gin.H{"error": "Failed to update category"})
+		return
+	}
+
+	updatedCategory, err := h.CategoryService.GetCategoryByID(ctx, id)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to fetch updated category"})
+		return
+	}
+
+	response := dto.CategoryResponse{
+		ID:           updatedCategory.Category.ID,
+		UUID:         updatedCategory.Category.UUID.String(),
+		Name:         updatedCategory.Category.Name,
+		Description:  updatedCategory.Category.Description,
+		ProductCount: int(updatedCategory.ProductCount),
+	}
+
+	c.JSON(200, response)
+}
+
+func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
+	ctx := c.Request.Context()
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		c.JSON(400, gin.H{"error": "Invalid category ID"})
+		return
+	}
+
+	err = h.CategoryService.DeleteCategory(ctx, id)
+	if err != nil {
+		if errors.Is(err, domain_errors.ErrCategoryNotFound) {
+			c.JSON(404, gin.H{"error": "Category not found"})
+			return
+		}
+		if errors.Is(err, domain_errors.ErrInvalidInput) {
+			c.JSON(400, gin.H{"error": "Invalid category ID"})
+			return
+		}
+		c.JSON(500, gin.H{"error": "Failed to delete category"})
+		return
+	}
+
+	c.JSON(204, nil)
+}

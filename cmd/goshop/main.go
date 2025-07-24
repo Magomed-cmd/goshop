@@ -23,6 +23,7 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to connect to Postgres")
 	}
+	defer db.Close()
 
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
