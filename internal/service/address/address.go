@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-type AddressRepositoryInterface interface {
+type AddressRepository interface {
 	CreateAddress(ctx context.Context, address *entities.UserAddress) error
 	GetUserAddresses(ctx context.Context, userID int64) ([]*entities.UserAddress, error)
 	GetAddressByID(ctx context.Context, addressID int64) (*entities.UserAddress, error)
@@ -18,10 +18,10 @@ type AddressRepositoryInterface interface {
 }
 
 type AddressService struct {
-	addressRepo AddressRepositoryInterface
+	addressRepo AddressRepository
 }
 
-func NewAddressService(addressRepo AddressRepositoryInterface) *AddressService {
+func NewAddressService(addressRepo AddressRepository) *AddressService {
 	return &AddressService{
 		addressRepo: addressRepo,
 	}

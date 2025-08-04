@@ -36,7 +36,7 @@ func TestAddressHandler_CreateAddress(t *testing.T) {
 		name           string
 		requestBody    interface{}
 		setupContext   func(*gin.Context)
-		mockSetup      func(*addressMocks.MockAddressServiceInterface)
+		mockSetup      func(*addressMocks.MockAddressService)
 		expectedStatus int
 		checkResponse  func(*testing.T, *httptest.ResponseRecorder)
 	}{
@@ -51,7 +51,7 @@ func TestAddressHandler_CreateAddress(t *testing.T) {
 			setupContext: func(c *gin.Context) {
 				setupContext(c, 1)
 			},
-			mockSetup: func(m *addressMocks.MockAddressServiceInterface) {
+			mockSetup: func(m *addressMocks.MockAddressService) {
 				createdAddress := &entities.UserAddress{
 					ID:         1,
 					UUID:       uuid.New(),
@@ -83,7 +83,7 @@ func TestAddressHandler_CreateAddress(t *testing.T) {
 			setupContext: func(c *gin.Context) {
 				// Не устанавливаем user_id
 			},
-			mockSetup:      func(m *addressMocks.MockAddressServiceInterface) {},
+			mockSetup:      func(m *addressMocks.MockAddressService) {},
 			expectedStatus: 401,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]string
@@ -98,7 +98,7 @@ func TestAddressHandler_CreateAddress(t *testing.T) {
 			setupContext: func(c *gin.Context) {
 				setupContext(c, 1)
 			},
-			mockSetup:      func(m *addressMocks.MockAddressServiceInterface) {},
+			mockSetup:      func(m *addressMocks.MockAddressService) {},
 			expectedStatus: 400,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]string
@@ -115,7 +115,7 @@ func TestAddressHandler_CreateAddress(t *testing.T) {
 			setupContext: func(c *gin.Context) {
 				setupContext(c, 1)
 			},
-			mockSetup: func(m *addressMocks.MockAddressServiceInterface) {
+			mockSetup: func(m *addressMocks.MockAddressService) {
 				m.EXPECT().CreateAddress(mock.Anything, int64(1), mock.AnythingOfType("*dto.CreateAddressRequest")).
 					Return(nil, errors.New("database error"))
 			},
@@ -131,7 +131,7 @@ func TestAddressHandler_CreateAddress(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := addressMocks.NewMockAddressServiceInterface(t)
+			mockService := addressMocks.NewMockAddressService(t)
 			tt.mockSetup(mockService)
 
 			addressHandler := address.NewAddressHandler(mockService)
@@ -166,7 +166,7 @@ func TestAddressHandler_GetUserAddresses(t *testing.T) {
 	tests := []struct {
 		name           string
 		setupContext   func(*gin.Context)
-		mockSetup      func(*addressMocks.MockAddressServiceInterface)
+		mockSetup      func(*addressMocks.MockAddressService)
 		expectedStatus int
 		checkResponse  func(*testing.T, *httptest.ResponseRecorder)
 	}{
@@ -175,7 +175,7 @@ func TestAddressHandler_GetUserAddresses(t *testing.T) {
 			setupContext: func(c *gin.Context) {
 				setupContext(c, 1)
 			},
-			mockSetup: func(m *addressMocks.MockAddressServiceInterface) {
+			mockSetup: func(m *addressMocks.MockAddressService) {
 				addresses := []*entities.UserAddress{
 					{
 						ID:         1,
@@ -215,7 +215,7 @@ func TestAddressHandler_GetUserAddresses(t *testing.T) {
 			setupContext: func(c *gin.Context) {
 				setupContext(c, 1)
 			},
-			mockSetup: func(m *addressMocks.MockAddressServiceInterface) {
+			mockSetup: func(m *addressMocks.MockAddressService) {
 				m.EXPECT().GetUserAddresses(mock.Anything, int64(1)).Return([]*entities.UserAddress{}, nil)
 			},
 			expectedStatus: 200,
@@ -231,7 +231,7 @@ func TestAddressHandler_GetUserAddresses(t *testing.T) {
 			setupContext: func(c *gin.Context) {
 				// Не устанавливаем user_id
 			},
-			mockSetup:      func(m *addressMocks.MockAddressServiceInterface) {},
+			mockSetup:      func(m *addressMocks.MockAddressService) {},
 			expectedStatus: 401,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]string
@@ -245,7 +245,7 @@ func TestAddressHandler_GetUserAddresses(t *testing.T) {
 			setupContext: func(c *gin.Context) {
 				setupContext(c, 1)
 			},
-			mockSetup: func(m *addressMocks.MockAddressServiceInterface) {
+			mockSetup: func(m *addressMocks.MockAddressService) {
 				m.EXPECT().GetUserAddresses(mock.Anything, int64(1)).Return(nil, errors.New("database error"))
 			},
 			expectedStatus: 500,
@@ -260,7 +260,7 @@ func TestAddressHandler_GetUserAddresses(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := addressMocks.NewMockAddressServiceInterface(t)
+			mockService := addressMocks.NewMockAddressService(t)
 			tt.mockSetup(mockService)
 
 			addressHandler := address.NewAddressHandler(mockService)
@@ -286,7 +286,7 @@ func TestAddressHandler_GetAddressByID(t *testing.T) {
 		name           string
 		addressID      string
 		setupContext   func(*gin.Context)
-		mockSetup      func(*addressMocks.MockAddressServiceInterface)
+		mockSetup      func(*addressMocks.MockAddressService)
 		expectedStatus int
 		checkResponse  func(*testing.T, *httptest.ResponseRecorder)
 	}{
@@ -296,7 +296,7 @@ func TestAddressHandler_GetAddressByID(t *testing.T) {
 			setupContext: func(c *gin.Context) {
 				setupContext(c, 1)
 			},
-			mockSetup: func(m *addressMocks.MockAddressServiceInterface) {
+			mockSetup: func(m *addressMocks.MockAddressService) {
 				address := &entities.UserAddress{
 					ID:         1,
 					UUID:       uuid.New(),
@@ -324,7 +324,7 @@ func TestAddressHandler_GetAddressByID(t *testing.T) {
 			setupContext: func(c *gin.Context) {
 				// Не устанавливаем user_id
 			},
-			mockSetup:      func(m *addressMocks.MockAddressServiceInterface) {},
+			mockSetup:      func(m *addressMocks.MockAddressService) {},
 			expectedStatus: 401,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]string
@@ -339,7 +339,7 @@ func TestAddressHandler_GetAddressByID(t *testing.T) {
 			setupContext: func(c *gin.Context) {
 				setupContext(c, 1)
 			},
-			mockSetup:      func(m *addressMocks.MockAddressServiceInterface) {},
+			mockSetup:      func(m *addressMocks.MockAddressService) {},
 			expectedStatus: 400,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]string
@@ -354,7 +354,7 @@ func TestAddressHandler_GetAddressByID(t *testing.T) {
 			setupContext: func(c *gin.Context) {
 				setupContext(c, 2) // Другой пользователь
 			},
-			mockSetup: func(m *addressMocks.MockAddressServiceInterface) {
+			mockSetup: func(m *addressMocks.MockAddressService) {
 				m.EXPECT().GetAddressByIDForUser(mock.Anything, int64(2), int64(1)).
 					Return(nil, errors.New("access denied"))
 			},
@@ -370,7 +370,7 @@ func TestAddressHandler_GetAddressByID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := addressMocks.NewMockAddressServiceInterface(t)
+			mockService := addressMocks.NewMockAddressService(t)
 			tt.mockSetup(mockService)
 
 			addressHandler := address.NewAddressHandler(mockService)
@@ -397,7 +397,7 @@ func TestAddressHandler_UpdateAddress(t *testing.T) {
 		addressID      string
 		requestBody    interface{}
 		setupContext   func(*gin.Context)
-		mockSetup      func(*addressMocks.MockAddressServiceInterface)
+		mockSetup      func(*addressMocks.MockAddressService)
 		expectedStatus int
 		checkResponse  func(*testing.T, *httptest.ResponseRecorder)
 	}{
@@ -411,7 +411,7 @@ func TestAddressHandler_UpdateAddress(t *testing.T) {
 			setupContext: func(c *gin.Context) {
 				setupContext(c, 1)
 			},
-			mockSetup: func(m *addressMocks.MockAddressServiceInterface) {
+			mockSetup: func(m *addressMocks.MockAddressService) {
 				updatedAddress := &entities.UserAddress{
 					ID:         1,
 					UUID:       uuid.New(),
@@ -443,7 +443,7 @@ func TestAddressHandler_UpdateAddress(t *testing.T) {
 			setupContext: func(c *gin.Context) {
 				// Не устанавливаем user_id
 			},
-			mockSetup:      func(m *addressMocks.MockAddressServiceInterface) {},
+			mockSetup:      func(m *addressMocks.MockAddressService) {},
 			expectedStatus: 401,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]string
@@ -459,7 +459,7 @@ func TestAddressHandler_UpdateAddress(t *testing.T) {
 			setupContext: func(c *gin.Context) {
 				setupContext(c, 1)
 			},
-			mockSetup:      func(m *addressMocks.MockAddressServiceInterface) {},
+			mockSetup:      func(m *addressMocks.MockAddressService) {},
 			expectedStatus: 400,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]string
@@ -472,7 +472,7 @@ func TestAddressHandler_UpdateAddress(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := addressMocks.NewMockAddressServiceInterface(t)
+			mockService := addressMocks.NewMockAddressService(t)
 			tt.mockSetup(mockService)
 
 			addressHandler := address.NewAddressHandler(mockService)
@@ -508,7 +508,7 @@ func TestAddressHandler_DeleteAddress(t *testing.T) {
 		name           string
 		addressID      string
 		setupContext   func(*gin.Context)
-		mockSetup      func(*addressMocks.MockAddressServiceInterface)
+		mockSetup      func(*addressMocks.MockAddressService)
 		expectedStatus int
 		checkResponse  func(*testing.T, *httptest.ResponseRecorder)
 	}{
@@ -518,7 +518,7 @@ func TestAddressHandler_DeleteAddress(t *testing.T) {
 			setupContext: func(c *gin.Context) {
 				setupContext(c, 1)
 			},
-			mockSetup: func(m *addressMocks.MockAddressServiceInterface) {
+			mockSetup: func(m *addressMocks.MockAddressService) {
 				m.EXPECT().DeleteAddress(mock.Anything, int64(1), int64(1)).Return(nil)
 			},
 			expectedStatus: 204,
@@ -532,7 +532,7 @@ func TestAddressHandler_DeleteAddress(t *testing.T) {
 			setupContext: func(c *gin.Context) {
 				// Не устанавливаем user_id
 			},
-			mockSetup:      func(m *addressMocks.MockAddressServiceInterface) {},
+			mockSetup:      func(m *addressMocks.MockAddressService) {},
 			expectedStatus: 401,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]string
@@ -547,7 +547,7 @@ func TestAddressHandler_DeleteAddress(t *testing.T) {
 			setupContext: func(c *gin.Context) {
 				setupContext(c, 1)
 			},
-			mockSetup:      func(m *addressMocks.MockAddressServiceInterface) {},
+			mockSetup:      func(m *addressMocks.MockAddressService) {},
 			expectedStatus: 400,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]string
@@ -562,7 +562,7 @@ func TestAddressHandler_DeleteAddress(t *testing.T) {
 			setupContext: func(c *gin.Context) {
 				setupContext(c, 2)
 			},
-			mockSetup: func(m *addressMocks.MockAddressServiceInterface) {
+			mockSetup: func(m *addressMocks.MockAddressService) {
 				m.EXPECT().DeleteAddress(mock.Anything, int64(2), int64(1)).
 					Return(errors.New("access denied"))
 			},
@@ -578,7 +578,7 @@ func TestAddressHandler_DeleteAddress(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := addressMocks.NewMockAddressServiceInterface(t)
+			mockService := addressMocks.NewMockAddressService(t)
 			tt.mockSetup(mockService)
 
 			addressHandler := address.NewAddressHandler(mockService)

@@ -2,14 +2,16 @@ package user
 
 import (
 	"context"
+	"errors"
 	"github.com/gin-gonic/gin"
 	"goshop/internal/domain/entities"
+	"goshop/internal/domain_errors"
 	"goshop/internal/dto"
 	"goshop/internal/middleware"
 	"strings"
 )
 
-type UserServiceInterface interface {
+type UserService interface {
 	Register(ctx context.Context, req *dto.RegisterRequest) (*entities.User, string, error)
 	Login(ctx context.Context, req *dto.LoginRequest) (*entities.User, string, error)
 	GetUserProfile(ctx context.Context, userID int64) (*dto.UserProfile, error)
@@ -17,10 +19,10 @@ type UserServiceInterface interface {
 }
 
 type UserHandler struct {
-	service UserServiceInterface
+	service UserService
 }
 
-func NewUserHandler(s UserServiceInterface) *UserHandler {
+func NewUserHandler(s UserService) *UserHandler {
 	return &UserHandler{
 		service: s,
 	}
@@ -133,6 +135,10 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateProfile(ctx, userID, &req); err != nil {
+		if errors.Is(err, domain_errors.ErrInvalidInput) {
+			c.JSON(400, gin.H{"error": "No fields to update"})
+			return
+		}
 		if strings.Contains(err.Error(), "no fields to update") {
 			c.JSON(400, gin.H{"error": "No fields to update"})
 			return

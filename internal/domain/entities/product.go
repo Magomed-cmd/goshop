@@ -28,7 +28,6 @@ type Product struct {
 	Description *string         `db:"description" json:"description"`
 	Price       decimal.Decimal `db:"price" json:"price"`
 	Stock       int             `db:"stock" json:"stock"`
-	IsActive    bool            `db:"is_active" json:"is_active"`
 	CreatedAt   time.Time       `db:"created_at" json:"created_at"`
 	UpdatedAt   time.Time       `db:"updated_at" json:"updated_at"`
 }

@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-type CategoryRepositoryInterface interface {
+type CategoryRepository interface {
 	GetAllCategories(ctx context.Context) ([]*entities.CategoryWithCount, error)
 	GetCategoryByID(ctx context.Context, id int64) (*entities.CategoryWithCount, error)
 	CreateCategory(ctx context.Context, category *entities.Category) error
@@ -19,10 +19,10 @@ type CategoryRepositoryInterface interface {
 }
 
 type CategoryService struct {
-	categoryRepo CategoryRepositoryInterface
+	categoryRepo CategoryRepository
 }
 
-func NewCategoryService(categoryRepo CategoryRepositoryInterface) *CategoryService {
+func NewCategoryService(categoryRepo CategoryRepository) *CategoryService {
 	return &CategoryService{
 		categoryRepo: categoryRepo,
 	}

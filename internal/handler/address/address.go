@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-type AddressServiceInterface interface {
+type AddressService interface {
 	CreateAddress(ctx context.Context, userID int64, req *dto.CreateAddressRequest) (*entities.UserAddress, error)
 	GetUserAddresses(ctx context.Context, userID int64) ([]*entities.UserAddress, error)
 	GetAddressByID(ctx context.Context, addressID int64) (*entities.UserAddress, error)
@@ -20,10 +20,10 @@ type AddressServiceInterface interface {
 }
 
 type AddressHandler struct {
-	AddressService AddressServiceInterface
+	AddressService AddressService
 }
 
-func NewAddressHandler(s AddressServiceInterface) *AddressHandler {
+func NewAddressHandler(s AddressService) *AddressHandler {
 	return &AddressHandler{
 		AddressService: s,
 	}

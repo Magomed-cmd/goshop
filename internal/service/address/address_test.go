@@ -23,7 +23,7 @@ func TestAddressService_CreateAddress(t *testing.T) {
 		name        string
 		userID      int64
 		request     *dto.CreateAddressRequest
-		mockSetup   func(*mocks.MockAddressRepositoryInterface)
+		mockSetup   func(*mocks.MockAddressRepository)
 		wantErr     bool
 		errType     error
 		checkResult bool
@@ -37,7 +37,7 @@ func TestAddressService_CreateAddress(t *testing.T) {
 				PostalCode: stringPtr("10001"),
 				Country:    stringPtr("USA"),
 			},
-			mockSetup: func(m *mocks.MockAddressRepositoryInterface) {
+			mockSetup: func(m *mocks.MockAddressRepository) {
 				m.EXPECT().CreateAddress(mock.Anything, mock.MatchedBy(func(addr *entities.UserAddress) bool {
 					return addr.UserID == 1 && addr.Address == "123 Main St"
 				})).Run(func(ctx context.Context, addr *entities.UserAddress) {
@@ -56,7 +56,7 @@ func TestAddressService_CreateAddress(t *testing.T) {
 				PostalCode: stringPtr("10001"),
 				Country:    stringPtr("USA"),
 			},
-			mockSetup: func(m *mocks.MockAddressRepositoryInterface) {},
+			mockSetup: func(m *mocks.MockAddressRepository) {},
 			wantErr:   true,
 			errType:   domain_errors.ErrInvalidInput,
 		},
@@ -69,7 +69,7 @@ func TestAddressService_CreateAddress(t *testing.T) {
 				PostalCode: stringPtr("10001"),
 				Country:    stringPtr("USA"),
 			},
-			mockSetup: func(m *mocks.MockAddressRepositoryInterface) {
+			mockSetup: func(m *mocks.MockAddressRepository) {
 				m.EXPECT().CreateAddress(mock.Anything, mock.Anything).Return(errors.New("database error"))
 			},
 			wantErr: true,
@@ -78,7 +78,7 @@ func TestAddressService_CreateAddress(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := mocks.NewMockAddressRepositoryInterface(t)
+			mockRepo := mocks.NewMockAddressRepository(t)
 			tt.mockSetup(mockRepo)
 
 			service := address.NewAddressService(mockRepo)
@@ -110,7 +110,7 @@ func TestAddressService_GetUserAddresses(t *testing.T) {
 	tests := []struct {
 		name          string
 		userID        int64
-		mockSetup     func(*mocks.MockAddressRepositoryInterface)
+		mockSetup     func(*mocks.MockAddressRepository)
 		wantErr       bool
 		errType       error
 		expectedCount int
@@ -118,7 +118,7 @@ func TestAddressService_GetUserAddresses(t *testing.T) {
 		{
 			name:   "Success_ValidUserID",
 			userID: 1,
-			mockSetup: func(m *mocks.MockAddressRepositoryInterface) {
+			mockSetup: func(m *mocks.MockAddressRepository) {
 				addresses := []*entities.UserAddress{
 					{
 						ID:      1,
@@ -141,7 +141,7 @@ func TestAddressService_GetUserAddresses(t *testing.T) {
 		{
 			name:   "Success_EmptyAddresses",
 			userID: 1,
-			mockSetup: func(m *mocks.MockAddressRepositoryInterface) {
+			mockSetup: func(m *mocks.MockAddressRepository) {
 				m.EXPECT().GetUserAddresses(mock.Anything, int64(1)).Return([]*entities.UserAddress{}, nil)
 			},
 			wantErr:       false,
@@ -150,14 +150,14 @@ func TestAddressService_GetUserAddresses(t *testing.T) {
 		{
 			name:      "Error_InvalidUserID",
 			userID:    0,
-			mockSetup: func(m *mocks.MockAddressRepositoryInterface) {},
+			mockSetup: func(m *mocks.MockAddressRepository) {},
 			wantErr:   true,
 			errType:   domain_errors.ErrInvalidInput,
 		},
 		{
 			name:   "Error_RepositoryFails",
 			userID: 1,
-			mockSetup: func(m *mocks.MockAddressRepositoryInterface) {
+			mockSetup: func(m *mocks.MockAddressRepository) {
 				m.EXPECT().GetUserAddresses(mock.Anything, int64(1)).Return([]*entities.UserAddress(nil), errors.New("database error"))
 			},
 			wantErr: true,
@@ -166,7 +166,7 @@ func TestAddressService_GetUserAddresses(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := mocks.NewMockAddressRepositoryInterface(t)
+			mockRepo := mocks.NewMockAddressRepository(t)
 			tt.mockSetup(mockRepo)
 
 			service := address.NewAddressService(mockRepo)
@@ -192,14 +192,14 @@ func TestAddressService_GetAddressByID(t *testing.T) {
 	tests := []struct {
 		name      string
 		addressID int64
-		mockSetup func(*mocks.MockAddressRepositoryInterface)
+		mockSetup func(*mocks.MockAddressRepository)
 		wantErr   bool
 		errType   error
 	}{
 		{
 			name:      "Success_ValidAddressID",
 			addressID: 1,
-			mockSetup: func(m *mocks.MockAddressRepositoryInterface) {
+			mockSetup: func(m *mocks.MockAddressRepository) {
 				address := &entities.UserAddress{
 					ID:      1,
 					UserID:  1,
@@ -213,14 +213,14 @@ func TestAddressService_GetAddressByID(t *testing.T) {
 		{
 			name:      "Error_InvalidAddressID",
 			addressID: 0,
-			mockSetup: func(m *mocks.MockAddressRepositoryInterface) {},
+			mockSetup: func(m *mocks.MockAddressRepository) {},
 			wantErr:   true,
 			errType:   domain_errors.ErrInvalidInput,
 		},
 		{
 			name:      "Error_AddressNotFound",
 			addressID: 999,
-			mockSetup: func(m *mocks.MockAddressRepositoryInterface) {
+			mockSetup: func(m *mocks.MockAddressRepository) {
 				m.EXPECT().GetAddressByID(mock.Anything, int64(999)).Return(nil, domain_errors.ErrAddressNotFound)
 			},
 			wantErr: true,
@@ -230,7 +230,7 @@ func TestAddressService_GetAddressByID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := mocks.NewMockAddressRepositoryInterface(t)
+			mockRepo := mocks.NewMockAddressRepository(t)
 			tt.mockSetup(mockRepo)
 
 			service := address.NewAddressService(mockRepo)
@@ -266,7 +266,7 @@ func TestAddressService_UpdateAddress(t *testing.T) {
 		userID    int64
 		addressID int64
 		request   *dto.UpdateAddressRequest
-		mockSetup func(*mocks.MockAddressRepositoryInterface)
+		mockSetup func(*mocks.MockAddressRepository)
 		wantErr   bool
 		errType   error
 	}{
@@ -278,7 +278,7 @@ func TestAddressService_UpdateAddress(t *testing.T) {
 				Address: stringPtr("456 Oak Ave"),
 				City:    stringPtr("Boston"),
 			},
-			mockSetup: func(m *mocks.MockAddressRepositoryInterface) {
+			mockSetup: func(m *mocks.MockAddressRepository) {
 				m.EXPECT().GetAddressByID(mock.Anything, int64(1)).Return(existingAddress, nil)
 				m.EXPECT().UpdateAddress(mock.Anything, mock.MatchedBy(func(addr *entities.UserAddress) bool {
 					return addr.ID == 1 && addr.Address == "456 Oak Ave"
@@ -293,7 +293,7 @@ func TestAddressService_UpdateAddress(t *testing.T) {
 			request: &dto.UpdateAddressRequest{
 				Address: stringPtr("456 Oak Ave"),
 			},
-			mockSetup: func(m *mocks.MockAddressRepositoryInterface) {},
+			mockSetup: func(m *mocks.MockAddressRepository) {},
 			wantErr:   true,
 			errType:   domain_errors.ErrInvalidInput,
 		},
@@ -307,7 +307,7 @@ func TestAddressService_UpdateAddress(t *testing.T) {
 				PostalCode: nil,
 				Country:    nil,
 			},
-			mockSetup: func(m *mocks.MockAddressRepositoryInterface) {},
+			mockSetup: func(m *mocks.MockAddressRepository) {},
 			wantErr:   true,
 			errType:   domain_errors.ErrInvalidAddressData,
 		},
@@ -318,7 +318,7 @@ func TestAddressService_UpdateAddress(t *testing.T) {
 			request: &dto.UpdateAddressRequest{
 				Address: stringPtr("456 Oak Ave"),
 			},
-			mockSetup: func(m *mocks.MockAddressRepositoryInterface) {
+			mockSetup: func(m *mocks.MockAddressRepository) {
 				m.EXPECT().GetAddressByID(mock.Anything, int64(1)).Return(existingAddress, nil)
 			},
 			wantErr: true,
@@ -331,7 +331,7 @@ func TestAddressService_UpdateAddress(t *testing.T) {
 			request: &dto.UpdateAddressRequest{
 				Address: stringPtr("456 Oak Ave"),
 			},
-			mockSetup: func(m *mocks.MockAddressRepositoryInterface) {
+			mockSetup: func(m *mocks.MockAddressRepository) {
 				m.EXPECT().GetAddressByID(mock.Anything, int64(999)).Return(nil, domain_errors.ErrAddressNotFound)
 			},
 			wantErr: true,
@@ -341,7 +341,7 @@ func TestAddressService_UpdateAddress(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := mocks.NewMockAddressRepositoryInterface(t)
+			mockRepo := mocks.NewMockAddressRepository(t)
 			tt.mockSetup(mockRepo)
 
 			service := address.NewAddressService(mockRepo)
@@ -377,7 +377,7 @@ func TestAddressService_GetAddressByIDForUser(t *testing.T) {
 		name      string
 		userID    int64
 		addressID int64
-		mockSetup func(*mocks.MockAddressRepositoryInterface)
+		mockSetup func(*mocks.MockAddressRepository)
 		wantErr   bool
 		errType   error
 	}{
@@ -385,7 +385,7 @@ func TestAddressService_GetAddressByIDForUser(t *testing.T) {
 			name:      "Success_ValidAccess",
 			userID:    1,
 			addressID: 1,
-			mockSetup: func(m *mocks.MockAddressRepositoryInterface) {
+			mockSetup: func(m *mocks.MockAddressRepository) {
 				m.EXPECT().GetAddressByID(mock.Anything, int64(1)).Return(existingAddress, nil)
 			},
 			wantErr: false,
@@ -394,7 +394,7 @@ func TestAddressService_GetAddressByIDForUser(t *testing.T) {
 			name:      "Error_InvalidIDs",
 			userID:    0,
 			addressID: 1,
-			mockSetup: func(m *mocks.MockAddressRepositoryInterface) {},
+			mockSetup: func(m *mocks.MockAddressRepository) {},
 			wantErr:   true,
 			errType:   domain_errors.ErrInvalidInput,
 		},
@@ -402,7 +402,7 @@ func TestAddressService_GetAddressByIDForUser(t *testing.T) {
 			name:      "Error_AccessDenied",
 			userID:    2,
 			addressID: 1,
-			mockSetup: func(m *mocks.MockAddressRepositoryInterface) {
+			mockSetup: func(m *mocks.MockAddressRepository) {
 				m.EXPECT().GetAddressByID(mock.Anything, int64(1)).Return(existingAddress, nil)
 			},
 			wantErr: true,
@@ -412,7 +412,7 @@ func TestAddressService_GetAddressByIDForUser(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := mocks.NewMockAddressRepositoryInterface(t)
+			mockRepo := mocks.NewMockAddressRepository(t)
 			tt.mockSetup(mockRepo)
 
 			service := address.NewAddressService(mockRepo)
@@ -448,7 +448,7 @@ func TestAddressService_DeleteAddress(t *testing.T) {
 		name      string
 		userID    int64
 		addressID int64
-		mockSetup func(*mocks.MockAddressRepositoryInterface)
+		mockSetup func(*mocks.MockAddressRepository)
 		wantErr   bool
 		errType   error
 	}{
@@ -456,7 +456,7 @@ func TestAddressService_DeleteAddress(t *testing.T) {
 			name:      "Success_ValidDelete",
 			userID:    1,
 			addressID: 1,
-			mockSetup: func(m *mocks.MockAddressRepositoryInterface) {
+			mockSetup: func(m *mocks.MockAddressRepository) {
 				m.EXPECT().GetAddressByID(mock.Anything, int64(1)).Return(existingAddress, nil)
 				m.EXPECT().DeleteAddress(mock.Anything, int64(1)).Return(nil)
 			},
@@ -466,7 +466,7 @@ func TestAddressService_DeleteAddress(t *testing.T) {
 			name:      "Error_InvalidIDs",
 			userID:    0,
 			addressID: 1,
-			mockSetup: func(m *mocks.MockAddressRepositoryInterface) {},
+			mockSetup: func(m *mocks.MockAddressRepository) {},
 			wantErr:   true,
 			errType:   domain_errors.ErrInvalidInput,
 		},
@@ -474,7 +474,7 @@ func TestAddressService_DeleteAddress(t *testing.T) {
 			name:      "Error_AccessDenied",
 			userID:    2,
 			addressID: 1,
-			mockSetup: func(m *mocks.MockAddressRepositoryInterface) {
+			mockSetup: func(m *mocks.MockAddressRepository) {
 				m.EXPECT().GetAddressByID(mock.Anything, int64(1)).Return(existingAddress, nil)
 			},
 			wantErr: true,
@@ -484,7 +484,7 @@ func TestAddressService_DeleteAddress(t *testing.T) {
 			name:      "Error_AddressNotFound",
 			userID:    1,
 			addressID: 999,
-			mockSetup: func(m *mocks.MockAddressRepositoryInterface) {
+			mockSetup: func(m *mocks.MockAddressRepository) {
 				m.EXPECT().GetAddressByID(mock.Anything, int64(999)).Return(nil, domain_errors.ErrAddressNotFound)
 			},
 			wantErr: true,
@@ -494,7 +494,7 @@ func TestAddressService_DeleteAddress(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := mocks.NewMockAddressRepositoryInterface(t)
+			mockRepo := mocks.NewMockAddressRepository(t)
 			tt.mockSetup(mockRepo)
 
 			service := address.NewAddressService(mockRepo)

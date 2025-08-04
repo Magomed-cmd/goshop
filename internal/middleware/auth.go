@@ -5,11 +5,11 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/rs/zerolog/log"
+	"go.uber.org/zap"
 	"goshop/internal/utils"
 )
 
-func JWTMiddleware(jwtSecret string) gin.HandlerFunc {
+func JWTMiddleware(jwtSecret string, logger *zap.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var tokenString string
 
@@ -19,7 +19,7 @@ func JWTMiddleware(jwtSecret string) gin.HandlerFunc {
 		} else {
 			cookie, err := c.Cookie("token")
 			if err != nil {
-				log.Debug().Msg("No token found in header or cookie")
+				logger.Debug("No token found in header or cookie")
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "Missing authentication token"})
 				c.Abort()
 				return
@@ -35,7 +35,7 @@ func JWTMiddleware(jwtSecret string) gin.HandlerFunc {
 
 		claims, err := utils.ParseJWT(tokenString, jwtSecret)
 		if err != nil {
-			log.Debug().Err(err).Msg("Token parsing failed")
+			logger.Debug("Token parsing failed", zap.Error(err))
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			c.Abort()
 			return
@@ -45,11 +45,10 @@ func JWTMiddleware(jwtSecret string) gin.HandlerFunc {
 		c.Set("email", claims.Email)
 		c.Set("role", claims.Role)
 
-		log.Debug().
-			Int64("user_id", claims.UserID).
-			Str("email", claims.Email).
-			Str("role", claims.Role).
-			Msg("User authenticated successfully")
+		logger.Debug("User authenticated successfully",
+			zap.Int64("user_id", claims.UserID),
+			zap.String("email", claims.Email),
+			zap.String("role", claims.Role))
 
 		c.Next()
 	}

@@ -7,23 +7,32 @@ import (
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.uber.org/zap"
 	"goshop/internal/domain/entities"
+	"goshop/internal/domain_errors"
 	"goshop/internal/service/user"
 )
 
 type UserRepository struct {
-	db   *pgxpool.Pool
-	psql squirrel.StatementBuilderType
+	db     *pgxpool.Pool
+	psql   squirrel.StatementBuilderType
+	logger *zap.Logger
 }
 
-func NewUserRepository(conn *pgxpool.Pool) user.UserRepositoryInterface {
+func NewUserRepository(conn *pgxpool.Pool, logger *zap.Logger) user.UserRepository {
 	return &UserRepository{
-		db:   conn,
-		psql: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
+		db:     conn,
+		psql:   squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
+		logger: logger,
 	}
 }
 
 func (r *UserRepository) CreateUser(ctx context.Context, user *entities.User) error {
+	r.logger.Debug("Creating user in database",
+		zap.String("email", user.Email),
+		zap.String("name", *user.Name),
+		zap.Int64("role_id", *user.RoleID))
+
 	query := `
        INSERT INTO users (uuid, email, password_hash, name, phone, role_id, created_at) 
        VALUES ($1, $2, $3, $4, $5, $6, $7) 
@@ -34,10 +43,26 @@ func (r *UserRepository) CreateUser(ctx context.Context, user *entities.User) er
 		user.Name, user.Phone, user.RoleID, user.CreatedAt,
 	).Scan(&user.ID)
 
-	return err
+	if err != nil {
+		r.logger.Error("Failed to create user in database",
+			zap.Error(err),
+			zap.String("email", user.Email),
+			zap.String("name", *user.Name),
+			zap.Int64("role_id", *user.RoleID))
+		return err
+	}
+
+	r.logger.Info("User created successfully in database",
+		zap.Int64("user_id", user.ID),
+		zap.String("email", user.Email),
+		zap.String("name", *user.Name))
+
+	return nil
 }
 
 func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*entities.User, error) {
+	r.logger.Debug("Getting user by email from database", zap.String("email", email))
+
 	query := "SELECT id, uuid, email, password_hash, name, phone, role_id, created_at FROM users WHERE email = $1"
 
 	var userStruct entities.User
@@ -48,15 +73,23 @@ func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*ent
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, pgx.ErrNoRows
+			r.logger.Debug("User not found in database", zap.String("email", email))
+			return nil, domain_errors.ErrUserNotFound
 		}
+		r.logger.Error("Failed to get user by email from database", zap.Error(err), zap.String("email", email))
 		return nil, err
 	}
+
+	r.logger.Debug("User retrieved successfully from database",
+		zap.Int64("user_id", userStruct.ID),
+		zap.String("email", email))
 
 	return &userStruct, nil
 }
 
 func (r *UserRepository) GetUserByID(ctx context.Context, id int64) (*entities.User, error) {
+	r.logger.Debug("Getting user by ID from database", zap.Int64("user_id", id))
+
 	query := "SELECT id, uuid, email, password_hash, name, phone, role_id, created_at FROM users WHERE id = $1"
 
 	var userStruct entities.User
@@ -67,45 +100,70 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id int64) (*entities.U
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, pgx.ErrNoRows
+			r.logger.Debug("User not found in database", zap.Int64("user_id", id))
+			return nil, domain_errors.ErrUserNotFound
 		}
+		r.logger.Error("Failed to get user by ID from database", zap.Error(err), zap.Int64("user_id", id))
 		return nil, err
 	}
+
+	r.logger.Debug("User retrieved successfully from database",
+		zap.Int64("user_id", id),
+		zap.String("email", userStruct.Email))
 
 	return &userStruct, nil
 }
 
 func (r *UserRepository) UpdateUserProfile(ctx context.Context, userID int64, name *string, phone *string) error {
+	r.logger.Debug("Updating user profile in database",
+		zap.Int64("user_id", userID),
+		zap.Any("name", name),
+		zap.Any("phone", phone))
 
 	query := r.psql.Update("users")
 	paramsCnt := 0
 
 	if name != nil {
+		r.logger.Debug("Setting new name", zap.Int64("user_id", userID), zap.String("new_name", *name))
 		query = query.Set("name", *name)
 		paramsCnt++
 	}
 
 	if phone != nil {
+		r.logger.Debug("Setting new phone", zap.Int64("user_id", userID), zap.String("new_phone", *phone))
 		query = query.Set("phone", *phone)
 		paramsCnt++
 	}
 
 	if paramsCnt == 0 {
+		r.logger.Warn("No fields to update", zap.Int64("user_id", userID))
 		return fmt.Errorf("no fields to update")
 	}
 
 	query = query.Where(squirrel.Eq{"id": userID})
 
 	sql, args, err := query.ToSql()
+	if err != nil {
+		r.logger.Error("Failed to build update query", zap.Error(err), zap.Int64("user_id", userID))
+		return err
+	}
+
+	r.logger.Debug("Executing update query", zap.Int64("user_id", userID), zap.String("query", sql))
 
 	result, err := r.db.Exec(ctx, sql, args...)
 	if err != nil {
+		r.logger.Error("Failed to execute update query", zap.Error(err), zap.Int64("user_id", userID))
 		return err
 	}
 
 	if result.RowsAffected() == 0 {
+		r.logger.Warn("User not found for update", zap.Int64("user_id", userID))
 		return fmt.Errorf("user with ID %d not found", userID)
 	}
+
+	r.logger.Info("User profile updated successfully",
+		zap.Int64("user_id", userID),
+		zap.Int("params_updated", paramsCnt))
 
 	return nil
 }

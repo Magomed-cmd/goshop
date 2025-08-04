@@ -7,27 +7,45 @@ packages:
   #handler mocks
   goshop/internal/handler/user:
     interfaces:
-      UserServiceInterface:
+      UserService:
   goshop/internal/handler/category:
     interfaces:
-      CategoryServiceInterface:
+      CategoryService:
   goshop/internal/handler/address:
     interfaces:
-      AddressServiceInterface:
+      AddressService:
+  goshop/internal/handler/product:
+    interfaces:
+      ProductService:
+  goshop/internal/handler/cart:
+    interfaces:
+      CartService:
 
   #service mocks
   goshop/internal/service/user:
     interfaces:
-      RoleRepositoryInterface:
-      UserRepositoryInterface:
+      RoleRepository:
+      UserRepository:
 
   goshop/internal/service/category:
     interfaces:
-      CategoryRepositoryInterface:
+      CategoryRepository:
 
   goshop/internal/service/address:
     interfaces:
-      AddressRepositoryInterface:
+      AddressRepository:
   goshop/internal/service/product:
     interfaces:
-      ProductRepositoryInterface:
+      ProductRepository:
+      CategoryRepository:
+  goshop/internal/service/cart:
+    interfaces:
+      CartRepository:
+      ProductRepository:
+  goshop/internal/service/order:
+    interfaces:
+      OrderRepository:
+      CartRepository:
+      UserRepository:
+      AddressRepository:
+      OrderItemRepository:

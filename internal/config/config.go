@@ -5,14 +5,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
 type Config struct {
 	Server   ServerConfig   `mapstructure:"server"`
 	Database DatabaseConfig `mapstructure:"database"`
 	JWT      JWTConfig      `mapstructure:"jwt"`
+	Security SecurityConfig `mapstructure:"security"`
+	Gin      GinConfig      `mapstructure:"gin"`
+	Logger   LoggerConfig   `mapstructure:"logger"`
 }
 
 type ServerConfig struct {
@@ -43,7 +46,24 @@ type JWTConfig struct {
 	ExpiresIn time.Duration `mapstructure:"expires_in"`
 }
 
-func LoadConfig(path string) (*Config, error) {
+type SecurityConfig struct {
+	BcryptCost int `mapstructure:"bcrypt_cost"`
+}
+
+type GinConfig struct {
+	Mode               string   `mapstructure:"mode"`
+	EnableCORS         bool     `mapstructure:"enable_cors"`
+	TrustedProxies     []string `mapstructure:"trusted_proxies"`
+	MaxMultipartMemory int      `mapstructure:"max_multipart_memory"`
+}
+
+type LoggerConfig struct {
+	Level       string `mapstructure:"level"`
+	Encoding    string `mapstructure:"encoding"`
+	Development bool   `mapstructure:"development"`
+}
+
+func LoadConfig(path string, logger *zap.Logger) (*Config, error) {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(path)
@@ -52,30 +72,40 @@ func LoadConfig(path string) (*Config, error) {
 	viper.SetEnvPrefix("GOSHOP")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
-	log.Debug().Str("path", path).Msg("Loading configuration")
+	viper.SetDefault("security.bcrypt_cost", 12)
+	viper.SetDefault("gin.mode", "debug")
+	viper.SetDefault("gin.enable_cors", true)
+	viper.SetDefault("gin.max_multipart_memory", 32)
+	viper.SetDefault("logger.level", "info")
+	viper.SetDefault("logger.encoding", "console")
+	viper.SetDefault("logger.development", true)
+
+	logger.Debug("Loading configuration", zap.String("path", path))
 
 	if err := viper.ReadInConfig(); err != nil {
-		log.Error().Err(err).Str("path", path).Msg("Failed to read config file")
+		logger.Error("Failed to read config file", zap.Error(err), zap.String("path", path))
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	log.Info().Str("file", viper.ConfigFileUsed()).Msg("Configuration file loaded")
+	logger.Info("Configuration file loaded", zap.String("file", viper.ConfigFileUsed()))
 
 	var cfg Config
 	if err := viper.Unmarshal(&cfg); err != nil {
-		log.Error().Err(err).Msg("Failed to unmarshal config")
+		logger.Error("Failed to unmarshal config", zap.Error(err))
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
-	if err := cfg.Validate(); err != nil {
+	if err := cfg.Validate(logger); err != nil {
 		return nil, fmt.Errorf("config validation failed: %w", err)
 	}
 
-	log.Info().
-		Str("db_host", cfg.Database.Postgres.Host).
-		Int("db_port", cfg.Database.Postgres.Port).
-		Str("server_addr", cfg.Server.GetServerAddr()).
-		Msg("Configuration loaded successfully")
+	logger.Info("Configuration loaded successfully",
+		zap.String("db_host", cfg.Database.Postgres.Host),
+		zap.Int("db_port", cfg.Database.Postgres.Port),
+		zap.String("server_addr", cfg.Server.GetServerAddr()),
+		zap.Int("bcrypt_cost", cfg.Security.BcryptCost),
+		zap.String("gin_mode", cfg.Gin.Mode),
+		zap.String("log_level", cfg.Logger.Level))
 
 	return &cfg, nil
 }
@@ -89,53 +119,90 @@ func (s *ServerConfig) GetServerAddr() string {
 	return fmt.Sprintf("%s:%d", s.Host, s.Port)
 }
 
-func (c *Config) Validate() error {
+func (c *Config) Validate(logger *zap.Logger) error {
 	if c.Server.Host == "" {
+		logger.Error("Validation failed", zap.String("field", "server.host"), zap.String("error", "required"))
 		return fmt.Errorf("server host is required")
 	}
 
 	if c.Server.Port < 1 || c.Server.Port > 65535 {
+		logger.Error("Validation failed", zap.String("field", "server.port"), zap.Int("value", c.Server.Port), zap.String("error", "invalid range"))
 		return fmt.Errorf("invalid server port: %d", c.Server.Port)
 	}
 
 	if c.Database.Postgres.Host == "" {
+		logger.Error("Validation failed", zap.String("field", "database.postgres.host"), zap.String("error", "required"))
 		return fmt.Errorf("postgres host is required")
 	}
 
 	if c.Database.Postgres.Port < 1 || c.Database.Postgres.Port > 65535 {
+		logger.Error("Validation failed", zap.String("field", "database.postgres.port"), zap.Int("value", c.Database.Postgres.Port), zap.String("error", "invalid range"))
 		return fmt.Errorf("invalid postgres port: %d", c.Database.Postgres.Port)
 	}
 
 	if c.Database.Postgres.User == "" {
+		logger.Error("Validation failed", zap.String("field", "database.postgres.user"), zap.String("error", "required"))
 		return fmt.Errorf("postgres user is required")
 	}
 
 	if c.Database.Postgres.Password == "" {
+		logger.Error("Validation failed", zap.String("field", "database.postgres.password"), zap.String("error", "required"))
 		return fmt.Errorf("postgres password is required")
 	}
 
 	if c.Database.Postgres.DBName == "" {
+		logger.Error("Validation failed", zap.String("field", "database.postgres.dbname"), zap.String("error", "required"))
 		return fmt.Errorf("postgres database name is required")
 	}
 
 	if c.JWT.Secret == "" {
+		logger.Error("Validation failed", zap.String("field", "jwt.secret"), zap.String("error", "required"))
 		return fmt.Errorf("JWT secret is required")
 	}
 
 	if len(c.JWT.Secret) < 32 {
+		logger.Error("Validation failed", zap.String("field", "jwt.secret"), zap.Int("length", len(c.JWT.Secret)), zap.String("error", "too short"))
 		return fmt.Errorf("JWT secret must be at least 32 characters long")
 	}
 
 	if c.JWT.ExpiresIn <= 0 {
+		logger.Error("Validation failed", zap.String("field", "jwt.expires_in"), zap.Duration("value", c.JWT.ExpiresIn), zap.String("error", "must be positive"))
 		return fmt.Errorf("JWT expires_in must be positive")
 	}
 
 	if c.Database.Postgres.MaxOpenConns <= 0 {
+		logger.Error("Validation failed", zap.String("field", "database.postgres.max_open_conns"), zap.Int("value", c.Database.Postgres.MaxOpenConns), zap.String("error", "must be positive"))
 		return fmt.Errorf("max_open_conns must be positive")
 	}
 
 	if c.Database.Postgres.MaxIdleConns <= 0 {
+		logger.Error("Validation failed", zap.String("field", "database.postgres.max_idle_conns"), zap.Int("value", c.Database.Postgres.MaxIdleConns), zap.String("error", "must be positive"))
 		return fmt.Errorf("max_idle_conns must be positive")
+	}
+
+	if c.Security.BcryptCost < 4 || c.Security.BcryptCost > 15 {
+		logger.Error("Validation failed", zap.String("field", "security.bcrypt_cost"), zap.Int("value", c.Security.BcryptCost), zap.String("error", "invalid range"))
+		return fmt.Errorf("bcrypt_cost must be between 4 and 15, got: %d", c.Security.BcryptCost)
+	}
+
+	if c.Gin.Mode != "debug" && c.Gin.Mode != "release" && c.Gin.Mode != "test" {
+		logger.Error("Validation failed", zap.String("field", "gin.mode"), zap.String("value", c.Gin.Mode), zap.String("error", "invalid value"))
+		return fmt.Errorf("gin mode must be debug, release or test, got: %s", c.Gin.Mode)
+	}
+
+	if c.Gin.MaxMultipartMemory <= 0 {
+		logger.Error("Validation failed", zap.String("field", "gin.max_multipart_memory"), zap.Int("value", c.Gin.MaxMultipartMemory), zap.String("error", "must be positive"))
+		return fmt.Errorf("max_multipart_memory must be positive")
+	}
+
+	if c.Logger.Level != "debug" && c.Logger.Level != "info" && c.Logger.Level != "warn" && c.Logger.Level != "error" {
+		logger.Error("Validation failed", zap.String("field", "logger.level"), zap.String("value", c.Logger.Level), zap.String("error", "invalid value"))
+		return fmt.Errorf("logger level must be debug, info, warn or error, got: %s", c.Logger.Level)
+	}
+
+	if c.Logger.Encoding != "console" && c.Logger.Encoding != "json" {
+		logger.Error("Validation failed", zap.String("field", "logger.encoding"), zap.String("value", c.Logger.Encoding), zap.String("error", "invalid value"))
+		return fmt.Errorf("logger encoding must be console or json, got: %s", c.Logger.Encoding)
 	}
 
 	return nil

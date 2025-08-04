@@ -3,6 +3,7 @@ package user_test
 import (
 	"context"
 	"errors"
+	"go.uber.org/zap"
 	"testing"
 	"time"
 
@@ -17,6 +18,8 @@ import (
 	"goshop/internal/utils"
 )
 
+const bcryptCost = 4
+
 func stringPtr(s string) *string {
 	return &s
 }
@@ -30,8 +33,8 @@ func TestUserService_Register(t *testing.T) {
 	tests := []struct {
 		name          string
 		request       *dto.RegisterRequest
-		mockUserSetup func(*mocks.MockUserRepositoryInterface)
-		mockRoleSetup func(*mocks.MockRoleRepositoryInterface)
+		mockUserSetup func(*mocks.MockUserRepository)
+		mockRoleSetup func(*mocks.MockRoleRepository)
 		wantErr       bool
 		expectedError error
 		checkResult   bool
@@ -44,7 +47,7 @@ func TestUserService_Register(t *testing.T) {
 				Name:     stringPtr("Test User"),
 				Phone:    stringPtr("+1234567890"),
 			},
-			mockUserSetup: func(m *mocks.MockUserRepositoryInterface) {
+			mockUserSetup: func(m *mocks.MockUserRepository) {
 				m.EXPECT().GetUserByEmail(mock.Anything, "test@example.com").Return(nil, domain_errors.ErrUserNotFound)
 				m.EXPECT().CreateUser(mock.Anything, mock.MatchedBy(func(u *entities.User) bool {
 					return u.Email == "test@example.com" && *u.Name == "Test User"
@@ -52,7 +55,7 @@ func TestUserService_Register(t *testing.T) {
 					u.ID = 1
 				}).Return(nil)
 			},
-			mockRoleSetup: func(m *mocks.MockRoleRepositoryInterface) {
+			mockRoleSetup: func(m *mocks.MockRoleRepository) {
 				m.EXPECT().GetByName(mock.Anything, "user").Return(userRole, nil)
 			},
 			wantErr:     false,
@@ -66,14 +69,14 @@ func TestUserService_Register(t *testing.T) {
 				Name:     stringPtr("Test User"),
 				Phone:    stringPtr("+1234567890"),
 			},
-			mockUserSetup: func(m *mocks.MockUserRepositoryInterface) {
+			mockUserSetup: func(m *mocks.MockUserRepository) {
 				existingUser := &entities.User{
 					ID:    1,
 					Email: "existing@example.com",
 				}
 				m.EXPECT().GetUserByEmail(mock.Anything, "existing@example.com").Return(existingUser, nil)
 			},
-			mockRoleSetup: func(m *mocks.MockRoleRepositoryInterface) {},
+			mockRoleSetup: func(m *mocks.MockRoleRepository) {},
 			wantErr:       true,
 			expectedError: domain_errors.ErrEmailExists,
 		},
@@ -85,10 +88,10 @@ func TestUserService_Register(t *testing.T) {
 				Name:     stringPtr("Test User"),
 				Phone:    stringPtr("+1234567890"),
 			},
-			mockUserSetup: func(m *mocks.MockUserRepositoryInterface) {
+			mockUserSetup: func(m *mocks.MockUserRepository) {
 				m.EXPECT().GetUserByEmail(mock.Anything, "test@example.com").Return(nil, domain_errors.ErrUserNotFound)
 			},
-			mockRoleSetup: func(m *mocks.MockRoleRepositoryInterface) {
+			mockRoleSetup: func(m *mocks.MockRoleRepository) {
 				m.EXPECT().GetByName(mock.Anything, "user").Return(nil, errors.New("role not found"))
 			},
 			wantErr: true,
@@ -101,11 +104,11 @@ func TestUserService_Register(t *testing.T) {
 				Name:     stringPtr("Test User"),
 				Phone:    stringPtr("+1234567890"),
 			},
-			mockUserSetup: func(m *mocks.MockUserRepositoryInterface) {
+			mockUserSetup: func(m *mocks.MockUserRepository) {
 				m.EXPECT().GetUserByEmail(mock.Anything, "test@example.com").Return(nil, domain_errors.ErrUserNotFound)
 				m.EXPECT().CreateUser(mock.Anything, mock.Anything).Return(errors.New("database error"))
 			},
-			mockRoleSetup: func(m *mocks.MockRoleRepositoryInterface) {
+			mockRoleSetup: func(m *mocks.MockRoleRepository) {
 				m.EXPECT().GetByName(mock.Anything, "user").Return(userRole, nil)
 			},
 			wantErr: true,
@@ -114,13 +117,13 @@ func TestUserService_Register(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockUserRepo := mocks.NewMockUserRepositoryInterface(t)
-			mockRoleRepo := mocks.NewMockRoleRepositoryInterface(t)
+			mockUserRepo := mocks.NewMockUserRepository(t)
+			mockRoleRepo := mocks.NewMockRoleRepository(t)
 
 			tt.mockUserSetup(mockUserRepo)
 			tt.mockRoleSetup(mockRoleRepo)
 
-			service := user.NewUserService(mockRoleRepo, mockUserRepo, "test-secret")
+			service := user.NewUserService(mockRoleRepo, mockUserRepo, "test-secret", bcryptCost, zap.NewNop())
 			ctx := context.Background()
 
 			result, token, err := service.Register(ctx, tt.request)
@@ -154,13 +157,13 @@ func TestUserService_Login(t *testing.T) {
 		Name: "user",
 	}
 
-	hashedPassword, _ := utils.HashPassword("password123")
+	hashedPassword, _ := utils.HashPasswordWithCost("password123", bcryptCost)
 
 	tests := []struct {
 		name          string
 		request       *dto.LoginRequest
-		mockUserSetup func(*mocks.MockUserRepositoryInterface)
-		mockRoleSetup func(*mocks.MockRoleRepositoryInterface)
+		mockUserSetup func(*mocks.MockUserRepository)
+		mockRoleSetup func(*mocks.MockRoleRepository)
 		wantErr       bool
 		expectedError error
 		checkResult   bool
@@ -171,7 +174,7 @@ func TestUserService_Login(t *testing.T) {
 				Email:    "test@example.com",
 				Password: "password123",
 			},
-			mockUserSetup: func(m *mocks.MockUserRepositoryInterface) {
+			mockUserSetup: func(m *mocks.MockUserRepository) {
 				user := &entities.User{
 					ID:           1,
 					Email:        "test@example.com",
@@ -181,7 +184,7 @@ func TestUserService_Login(t *testing.T) {
 				}
 				m.EXPECT().GetUserByEmail(mock.Anything, "test@example.com").Return(user, nil)
 			},
-			mockRoleSetup: func(m *mocks.MockRoleRepositoryInterface) {
+			mockRoleSetup: func(m *mocks.MockRoleRepository) {
 				m.EXPECT().GetByID(mock.Anything, int64(1)).Return(userRole, nil)
 			},
 			wantErr:     false,
@@ -193,10 +196,10 @@ func TestUserService_Login(t *testing.T) {
 				Email:    "nonexistent@example.com",
 				Password: "password123",
 			},
-			mockUserSetup: func(m *mocks.MockUserRepositoryInterface) {
+			mockUserSetup: func(m *mocks.MockUserRepository) {
 				m.EXPECT().GetUserByEmail(mock.Anything, "nonexistent@example.com").Return(nil, domain_errors.ErrUserNotFound)
 			},
-			mockRoleSetup: func(m *mocks.MockRoleRepositoryInterface) {},
+			mockRoleSetup: func(m *mocks.MockRoleRepository) {},
 			wantErr:       true,
 			expectedError: domain_errors.ErrUserNotFound,
 		},
@@ -206,7 +209,7 @@ func TestUserService_Login(t *testing.T) {
 				Email:    "test@example.com",
 				Password: "wrongpassword",
 			},
-			mockUserSetup: func(m *mocks.MockUserRepositoryInterface) {
+			mockUserSetup: func(m *mocks.MockUserRepository) {
 				user := &entities.User{
 					ID:           1,
 					Email:        "test@example.com",
@@ -215,7 +218,7 @@ func TestUserService_Login(t *testing.T) {
 				}
 				m.EXPECT().GetUserByEmail(mock.Anything, "test@example.com").Return(user, nil)
 			},
-			mockRoleSetup: func(m *mocks.MockRoleRepositoryInterface) {},
+			mockRoleSetup: func(m *mocks.MockRoleRepository) {},
 			wantErr:       true,
 			expectedError: domain_errors.ErrInvalidPassword,
 		},
@@ -225,7 +228,7 @@ func TestUserService_Login(t *testing.T) {
 				Email:    "test@example.com",
 				Password: "password123",
 			},
-			mockUserSetup: func(m *mocks.MockUserRepositoryInterface) {
+			mockUserSetup: func(m *mocks.MockUserRepository) {
 				user := &entities.User{
 					ID:           1,
 					Email:        "test@example.com",
@@ -234,7 +237,7 @@ func TestUserService_Login(t *testing.T) {
 				}
 				m.EXPECT().GetUserByEmail(mock.Anything, "test@example.com").Return(user, nil)
 			},
-			mockRoleSetup: func(m *mocks.MockRoleRepositoryInterface) {
+			mockRoleSetup: func(m *mocks.MockRoleRepository) {
 				m.EXPECT().GetByID(mock.Anything, int64(1)).Return(nil, errors.New("role not found"))
 			},
 			wantErr: true,
@@ -243,13 +246,13 @@ func TestUserService_Login(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockUserRepo := mocks.NewMockUserRepositoryInterface(t)
-			mockRoleRepo := mocks.NewMockRoleRepositoryInterface(t)
+			mockUserRepo := mocks.NewMockUserRepository(t)
+			mockRoleRepo := mocks.NewMockRoleRepository(t)
 
 			tt.mockUserSetup(mockUserRepo)
 			tt.mockRoleSetup(mockRoleRepo)
 
-			service := user.NewUserService(mockRoleRepo, mockUserRepo, "test-secret")
+			service := user.NewUserService(mockRoleRepo, mockUserRepo, "test-secret", bcryptCost, zap.NewNop())
 			ctx := context.Background()
 
 			result, token, err := service.Login(ctx, tt.request)
@@ -282,8 +285,8 @@ func TestUserService_GetUserProfile(t *testing.T) {
 	tests := []struct {
 		name          string
 		userID        int64
-		mockUserSetup func(*mocks.MockUserRepositoryInterface)
-		mockRoleSetup func(*mocks.MockRoleRepositoryInterface)
+		mockUserSetup func(*mocks.MockUserRepository)
+		mockRoleSetup func(*mocks.MockRoleRepository)
 		wantErr       bool
 		expectedError error
 		checkResult   bool
@@ -291,7 +294,7 @@ func TestUserService_GetUserProfile(t *testing.T) {
 		{
 			name:   "Success_ValidUserID",
 			userID: 1,
-			mockUserSetup: func(m *mocks.MockUserRepositoryInterface) {
+			mockUserSetup: func(m *mocks.MockUserRepository) {
 				user := &entities.User{
 					ID:        1,
 					UUID:      userUUID,
@@ -303,7 +306,7 @@ func TestUserService_GetUserProfile(t *testing.T) {
 				}
 				m.EXPECT().GetUserByID(mock.Anything, int64(1)).Return(user, nil)
 			},
-			mockRoleSetup: func(m *mocks.MockRoleRepositoryInterface) {
+			mockRoleSetup: func(m *mocks.MockRoleRepository) {
 				role := &entities.Role{
 					ID:   1,
 					Name: "user",
@@ -316,17 +319,17 @@ func TestUserService_GetUserProfile(t *testing.T) {
 		{
 			name:   "Error_UserNotFound",
 			userID: 999,
-			mockUserSetup: func(m *mocks.MockUserRepositoryInterface) {
+			mockUserSetup: func(m *mocks.MockUserRepository) {
 				m.EXPECT().GetUserByID(mock.Anything, int64(999)).Return(nil, domain_errors.ErrUserNotFound)
 			},
-			mockRoleSetup: func(m *mocks.MockRoleRepositoryInterface) {},
+			mockRoleSetup: func(m *mocks.MockRoleRepository) {},
 			wantErr:       true,
 			expectedError: domain_errors.ErrUserNotFound,
 		},
 		{
 			name:   "Error_RoleNotFound",
 			userID: 1,
-			mockUserSetup: func(m *mocks.MockUserRepositoryInterface) {
+			mockUserSetup: func(m *mocks.MockUserRepository) {
 				user := &entities.User{
 					ID:     1,
 					UUID:   userUUID,
@@ -335,7 +338,7 @@ func TestUserService_GetUserProfile(t *testing.T) {
 				}
 				m.EXPECT().GetUserByID(mock.Anything, int64(1)).Return(user, nil)
 			},
-			mockRoleSetup: func(m *mocks.MockRoleRepositoryInterface) {
+			mockRoleSetup: func(m *mocks.MockRoleRepository) {
 				m.EXPECT().GetByID(mock.Anything, int64(1)).Return(nil, errors.New("role not found"))
 			},
 			wantErr: true,
@@ -344,13 +347,13 @@ func TestUserService_GetUserProfile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockUserRepo := mocks.NewMockUserRepositoryInterface(t)
-			mockRoleRepo := mocks.NewMockRoleRepositoryInterface(t)
+			mockUserRepo := mocks.NewMockUserRepository(t)
+			mockRoleRepo := mocks.NewMockRoleRepository(t)
 
 			tt.mockUserSetup(mockUserRepo)
 			tt.mockRoleSetup(mockRoleRepo)
 
-			service := user.NewUserService(mockRoleRepo, mockUserRepo, "test-secret")
+			service := user.NewUserService(mockRoleRepo, mockUserRepo, "test-secret", bcryptCost, zap.NewNop())
 			ctx := context.Background()
 
 			result, err := service.GetUserProfile(ctx, tt.userID)
@@ -381,7 +384,7 @@ func TestUserService_UpdateProfile(t *testing.T) {
 		name          string
 		userID        int64
 		request       *dto.UpdateProfileRequest
-		mockSetup     func(*mocks.MockUserRepositoryInterface)
+		mockSetup     func(*mocks.MockUserRepository)
 		wantErr       bool
 		expectedError error
 	}{
@@ -391,7 +394,7 @@ func TestUserService_UpdateProfile(t *testing.T) {
 			request: &dto.UpdateProfileRequest{
 				Name: stringPtr("Updated Name"),
 			},
-			mockSetup: func(m *mocks.MockUserRepositoryInterface) {
+			mockSetup: func(m *mocks.MockUserRepository) {
 				m.EXPECT().UpdateUserProfile(mock.Anything, int64(1), stringPtr("Updated Name"), (*string)(nil)).Return(nil)
 			},
 			wantErr: false,
@@ -402,7 +405,7 @@ func TestUserService_UpdateProfile(t *testing.T) {
 			request: &dto.UpdateProfileRequest{
 				Phone: stringPtr("+9876543210"),
 			},
-			mockSetup: func(m *mocks.MockUserRepositoryInterface) {
+			mockSetup: func(m *mocks.MockUserRepository) {
 				m.EXPECT().UpdateUserProfile(mock.Anything, int64(1), (*string)(nil), stringPtr("+9876543210")).Return(nil)
 			},
 			wantErr: false,
@@ -414,7 +417,7 @@ func TestUserService_UpdateProfile(t *testing.T) {
 				Name:  stringPtr("Updated Name"),
 				Phone: stringPtr("+9876543210"),
 			},
-			mockSetup: func(m *mocks.MockUserRepositoryInterface) {
+			mockSetup: func(m *mocks.MockUserRepository) {
 				m.EXPECT().UpdateUserProfile(mock.Anything, int64(1), stringPtr("Updated Name"), stringPtr("+9876543210")).Return(nil)
 			},
 			wantErr: false,
@@ -426,7 +429,7 @@ func TestUserService_UpdateProfile(t *testing.T) {
 				Name:  nil,
 				Phone: nil,
 			},
-			mockSetup:     func(m *mocks.MockUserRepositoryInterface) {},
+			mockSetup:     func(m *mocks.MockUserRepository) {},
 			wantErr:       true,
 			expectedError: domain_errors.ErrInvalidInput,
 		},
@@ -436,7 +439,7 @@ func TestUserService_UpdateProfile(t *testing.T) {
 			request: &dto.UpdateProfileRequest{
 				Name: stringPtr("Updated Name"),
 			},
-			mockSetup: func(m *mocks.MockUserRepositoryInterface) {
+			mockSetup: func(m *mocks.MockUserRepository) {
 				m.EXPECT().UpdateUserProfile(mock.Anything, int64(1), stringPtr("Updated Name"), (*string)(nil)).Return(errors.New("database error"))
 			},
 			wantErr: true,
@@ -445,12 +448,12 @@ func TestUserService_UpdateProfile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockUserRepo := mocks.NewMockUserRepositoryInterface(t)
-			mockRoleRepo := mocks.NewMockRoleRepositoryInterface(t)
+			mockUserRepo := mocks.NewMockUserRepository(t)
+			mockRoleRepo := mocks.NewMockRoleRepository(t)
 
 			tt.mockSetup(mockUserRepo)
 
-			service := user.NewUserService(mockRoleRepo, mockUserRepo, "test-secret")
+			service := user.NewUserService(mockRoleRepo, mockUserRepo, "test-secret", bcryptCost, zap.NewNop())
 			ctx := context.Background()
 
 			err := service.UpdateProfile(ctx, tt.userID, tt.request)

@@ -6,7 +6,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Claims структура для JWT токенов
 type Claims struct {
 	UserID int64  `json:"user_id"`
 	Email  string `json:"email"`
@@ -14,7 +13,6 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-// GenerateJWT создает JWT токен
 func GenerateJWT(userID int64, email, role, secret string) (string, error) {
 	claims := Claims{
 		UserID: userID,
@@ -31,7 +29,6 @@ func GenerateJWT(userID int64, email, role, secret string) (string, error) {
 	return token.SignedString([]byte(secret))
 }
 
-// ParseJWT парсит JWT токен и возвращает claims
 func ParseJWT(tokenString, secret string) (*Claims, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {

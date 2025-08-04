@@ -30,7 +30,7 @@ func TestUserHandler_Register(t *testing.T) {
 	tests := []struct {
 		name           string
 		requestBody    interface{}
-		mockSetup      func(*mocks.MockUserServiceInterface)
+		mockSetup      func(*mocks.MockUserService)
 		expectedStatus int
 		checkResponse  func(*testing.T, *httptest.ResponseRecorder)
 	}{
@@ -42,7 +42,7 @@ func TestUserHandler_Register(t *testing.T) {
 				Name:     stringPtr("Test User"),
 				Phone:    stringPtr("+1234567890"),
 			},
-			mockSetup: func(m *mocks.MockUserServiceInterface) {
+			mockSetup: func(m *mocks.MockUserService) {
 				user := &entities.User{
 					ID:    1,
 					UUID:  uuid.New(),
@@ -73,7 +73,7 @@ func TestUserHandler_Register(t *testing.T) {
 				Email:    "minimal@example.com",
 				Password: "password123",
 			},
-			mockSetup: func(m *mocks.MockUserServiceInterface) {
+			mockSetup: func(m *mocks.MockUserService) {
 				user := &entities.User{
 					ID:    2,
 					UUID:  uuid.New(),
@@ -101,7 +101,7 @@ func TestUserHandler_Register(t *testing.T) {
 				Email:    "existing@example.com",
 				Password: "password123",
 			},
-			mockSetup: func(m *mocks.MockUserServiceInterface) {
+			mockSetup: func(m *mocks.MockUserService) {
 				m.EXPECT().Register(mock.Anything, mock.AnythingOfType("*dto.RegisterRequest")).
 					Return(nil, "", errors.New("user with this email already exists"))
 			},
@@ -119,7 +119,7 @@ func TestUserHandler_Register(t *testing.T) {
 				Email:    "test@example.com",
 				Password: "password123",
 			},
-			mockSetup: func(m *mocks.MockUserServiceInterface) {
+			mockSetup: func(m *mocks.MockUserService) {
 				m.EXPECT().Register(mock.Anything, mock.AnythingOfType("*dto.RegisterRequest")).
 					Return(nil, "", errors.New("database connection failed"))
 			},
@@ -134,7 +134,7 @@ func TestUserHandler_Register(t *testing.T) {
 		{
 			name:           "Error_InvalidJSON",
 			requestBody:    "invalid json",
-			mockSetup:      func(m *mocks.MockUserServiceInterface) {},
+			mockSetup:      func(m *mocks.MockUserService) {},
 			expectedStatus: 400,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]string
@@ -149,7 +149,7 @@ func TestUserHandler_Register(t *testing.T) {
 				"password": "password123",
 				"name":     "Test User",
 			},
-			mockSetup:      func(m *mocks.MockUserServiceInterface) {},
+			mockSetup:      func(m *mocks.MockUserService) {},
 			expectedStatus: 400,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]string
@@ -162,7 +162,7 @@ func TestUserHandler_Register(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := mocks.NewMockUserServiceInterface(t)
+			mockService := mocks.NewMockUserService(t)
 			tt.mockSetup(mockService)
 
 			userHandler := user.NewUserHandler(mockService)
@@ -194,7 +194,7 @@ func TestUserHandler_Login(t *testing.T) {
 	tests := []struct {
 		name           string
 		requestBody    interface{}
-		mockSetup      func(*mocks.MockUserServiceInterface)
+		mockSetup      func(*mocks.MockUserService)
 		expectedStatus int
 		checkResponse  func(*testing.T, *httptest.ResponseRecorder)
 	}{
@@ -204,7 +204,7 @@ func TestUserHandler_Login(t *testing.T) {
 				Email:    "test@example.com",
 				Password: "password123",
 			},
-			mockSetup: func(m *mocks.MockUserServiceInterface) {
+			mockSetup: func(m *mocks.MockUserService) {
 				user := &entities.User{
 					ID:    1,
 					UUID:  uuid.New(),
@@ -234,7 +234,7 @@ func TestUserHandler_Login(t *testing.T) {
 				Email:    "test@example.com",
 				Password: "wrongpassword",
 			},
-			mockSetup: func(m *mocks.MockUserServiceInterface) {
+			mockSetup: func(m *mocks.MockUserService) {
 				m.EXPECT().Login(mock.Anything, mock.AnythingOfType("*dto.LoginRequest")).
 					Return(nil, "", errors.New("invalid email or password"))
 			},
@@ -249,7 +249,7 @@ func TestUserHandler_Login(t *testing.T) {
 		{
 			name:           "Error_InvalidJSON",
 			requestBody:    "invalid json",
-			mockSetup:      func(m *mocks.MockUserServiceInterface) {},
+			mockSetup:      func(m *mocks.MockUserService) {},
 			expectedStatus: 400,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]string
@@ -263,7 +263,7 @@ func TestUserHandler_Login(t *testing.T) {
 			requestBody: map[string]interface{}{
 				"email": "test@example.com",
 			},
-			mockSetup:      func(m *mocks.MockUserServiceInterface) {},
+			mockSetup:      func(m *mocks.MockUserService) {},
 			expectedStatus: 400,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]string
@@ -276,7 +276,7 @@ func TestUserHandler_Login(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := mocks.NewMockUserServiceInterface(t)
+			mockService := mocks.NewMockUserService(t)
 			tt.mockSetup(mockService)
 
 			userHandler := user.NewUserHandler(mockService)
@@ -308,7 +308,7 @@ func TestUserHandler_GetProfile(t *testing.T) {
 	tests := []struct {
 		name           string
 		setupContext   func(*gin.Context)
-		mockSetup      func(*mocks.MockUserServiceInterface)
+		mockSetup      func(*mocks.MockUserService)
 		expectedStatus int
 		checkResponse  func(*testing.T, *httptest.ResponseRecorder)
 	}{
@@ -319,7 +319,7 @@ func TestUserHandler_GetProfile(t *testing.T) {
 				c.Set("email", "test@example.com")
 				c.Set("role", "user")
 			},
-			mockSetup: func(m *mocks.MockUserServiceInterface) {
+			mockSetup: func(m *mocks.MockUserService) {
 				profile := &dto.UserProfile{
 					UUID:  uuid.New().String(),
 					Email: "test@example.com",
@@ -342,7 +342,7 @@ func TestUserHandler_GetProfile(t *testing.T) {
 			name: "Error_NoUserID",
 			setupContext: func(c *gin.Context) {
 			},
-			mockSetup:      func(m *mocks.MockUserServiceInterface) {},
+			mockSetup:      func(m *mocks.MockUserService) {},
 			expectedStatus: 401,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]string
@@ -356,7 +356,7 @@ func TestUserHandler_GetProfile(t *testing.T) {
 			setupContext: func(c *gin.Context) {
 				c.Set("user_id", int64(1))
 			},
-			mockSetup: func(m *mocks.MockUserServiceInterface) {
+			mockSetup: func(m *mocks.MockUserService) {
 				m.EXPECT().GetUserProfile(mock.Anything, int64(1)).
 					Return(nil, errors.New("database error"))
 			},
@@ -372,7 +372,7 @@ func TestUserHandler_GetProfile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := mocks.NewMockUserServiceInterface(t)
+			mockService := mocks.NewMockUserService(t)
 			tt.mockSetup(mockService)
 
 			userHandler := user.NewUserHandler(mockService)
@@ -399,7 +399,7 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 		name           string
 		requestBody    interface{}
 		setupContext   func(*gin.Context)
-		mockSetup      func(*mocks.MockUserServiceInterface)
+		mockSetup      func(*mocks.MockUserService)
 		expectedStatus int
 		checkResponse  func(*testing.T, *httptest.ResponseRecorder)
 	}{
@@ -412,7 +412,7 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 			setupContext: func(c *gin.Context) {
 				c.Set("user_id", int64(1))
 			},
-			mockSetup: func(m *mocks.MockUserServiceInterface) {
+			mockSetup: func(m *mocks.MockUserService) {
 				m.EXPECT().UpdateProfile(mock.Anything, int64(1), mock.AnythingOfType("*dto.UpdateProfileRequest")).
 					Return(nil)
 			},
@@ -432,7 +432,7 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 			setupContext: func(c *gin.Context) {
 				c.Set("user_id", int64(1))
 			},
-			mockSetup: func(m *mocks.MockUserServiceInterface) {
+			mockSetup: func(m *mocks.MockUserService) {
 				m.EXPECT().UpdateProfile(mock.Anything, int64(1), mock.AnythingOfType("*dto.UpdateProfileRequest")).
 					Return(nil)
 			},
@@ -451,7 +451,7 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 			},
 			setupContext: func(c *gin.Context) {
 			},
-			mockSetup:      func(m *mocks.MockUserServiceInterface) {},
+			mockSetup:      func(m *mocks.MockUserService) {},
 			expectedStatus: 401,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]string
@@ -468,7 +468,7 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 			setupContext: func(c *gin.Context) {
 				c.Set("user_id", int64(1))
 			},
-			mockSetup: func(m *mocks.MockUserServiceInterface) {
+			mockSetup: func(m *mocks.MockUserService) {
 				m.EXPECT().UpdateProfile(mock.Anything, int64(1), mock.AnythingOfType("*dto.UpdateProfileRequest")).
 					Return(errors.New("no fields to update"))
 			},
@@ -486,7 +486,7 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 			setupContext: func(c *gin.Context) {
 				c.Set("user_id", int64(1))
 			},
-			mockSetup:      func(m *mocks.MockUserServiceInterface) {},
+			mockSetup:      func(m *mocks.MockUserService) {},
 			expectedStatus: 400,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]string
@@ -503,7 +503,7 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 			setupContext: func(c *gin.Context) {
 				c.Set("user_id", int64(1))
 			},
-			mockSetup: func(m *mocks.MockUserServiceInterface) {
+			mockSetup: func(m *mocks.MockUserService) {
 				m.EXPECT().UpdateProfile(mock.Anything, int64(1), mock.AnythingOfType("*dto.UpdateProfileRequest")).
 					Return(errors.New("database error"))
 			},
@@ -519,7 +519,7 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := mocks.NewMockUserServiceInterface(t)
+			mockService := mocks.NewMockUserService(t)
 			tt.mockSetup(mockService)
 
 			userHandler := user.NewUserHandler(mockService)

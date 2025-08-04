@@ -92,3 +92,5 @@ cmd/goshop/goshop
 *.pem
 *.key
 .env.goshop
+__pycache__/
+*.pyc

@@ -3,28 +3,30 @@ package postgres
 import (
 	"context"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/rs/zerolog/log"
+	"go.uber.org/zap"
 	"goshop/internal/config"
 	"strings"
 )
 
-func NewConnection(cfg *config.PostgresConfig) (*pgxpool.Pool, error) {
+func NewConnection(cfg *config.PostgresConfig, logger *zap.Logger) (*pgxpool.Pool, error) {
 	dsn := cfg.GetDSN()
+
+	logger.Debug("Connecting to PostgreSQL", zap.String("host", cfg.Host), zap.Int("port", cfg.Port))
 
 	dbpool, err := pgxpool.New(context.Background(), dsn)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to connect to Postgres")
+		logger.Error("Failed to connect to Postgres", zap.Error(err))
 		return nil, err
 	}
 
 	if err := dbpool.Ping(context.Background()); err != nil {
 		dbpool.Close()
-		log.Error().Err(err).Msg("Failed to ping Postgres")
+		logger.Error("Failed to ping Postgres", zap.Error(err))
 		return nil, err
 	}
 
 	safeDSN := strings.Replace(dsn, cfg.Password, "**hidden**", 1)
-	log.Info().Str("dsn", safeDSN).Msg("PostgreSQL connection established")
+	logger.Info("PostgreSQL connection established", zap.String("dsn", safeDSN))
 
 	return dbpool, nil
 }

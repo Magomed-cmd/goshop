@@ -2,37 +2,38 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	"go.uber.org/zap"
 	"goshop/internal/app"
 	"goshop/internal/config"
 	"goshop/internal/db/postgres"
+	"goshop/internal/logger"
 	"goshop/internal/routes"
-	"os"
 )
 
 func main() {
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
-	cfg, err := config.LoadConfig(".")
+	log := logger.NewFromGinMode("debug")
+
+	cfg, err := config.LoadConfig(".", log)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to load configuration")
+		log.Fatal("Failed to load configuration", zap.Error(err))
 	}
 
-	db, err := postgres.NewConnection(&cfg.Database.Postgres)
+	db, err := postgres.NewConnection(&cfg.Database.Postgres, log)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to connect to Postgres")
+		log.Fatal("Failed to connect to Postgres", zap.Error(err))
 	}
 	defer db.Close()
 
 	gin.SetMode(gin.ReleaseMode)
+
 	r := gin.Default()
 
-	handlers := app.InitApp(cfg, db)
-	routes.RegisterRoutes(r, handlers, cfg.JWT.Secret)
+	handlers := app.InitApp(cfg, db, log)
+	routes.RegisterRoutes(r, handlers, cfg.JWT.Secret, log)
 
-	log.Info().Str("address", cfg.Server.GetServerAddr()).Msg("Server starting")
+	log.Info("Server starting", zap.String("address", cfg.Server.GetServerAddr()))
 	if err := r.Run(cfg.Server.GetServerAddr()); err != nil {
-		log.Fatal().Err(err).Msg("Failed to start server")
+		log.Fatal("Failed to start server", zap.Error(err))
 	}
 }

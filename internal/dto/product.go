@@ -2,7 +2,6 @@ package dto
 
 import "github.com/shopspring/decimal"
 
-// Requests
 type CreateProductRequest struct {
 	Name        string          `json:"name" binding:"required,min=2,max=200"`
 	Description *string         `json:"description" binding:"omitempty,max=1000"`
@@ -19,13 +18,12 @@ type UpdateProductRequest struct {
 	CategoryIDs []int64          `json:"category_ids" binding:"omitempty"`
 }
 
-// Responses
 type ProductResponse struct {
 	ID          int64              `json:"id"`
 	UUID        string             `json:"uuid"`
 	Name        string             `json:"name"`
 	Description *string            `json:"description"`
-	Price       decimal.Decimal    `json:"price"`
+	Price       string             `json:"price"`
 	Stock       int                `json:"stock"`
 	Categories  []CategoryResponse `json:"categories"`
 	CreatedAt   string             `json:"created_at"`
@@ -43,7 +41,7 @@ type ProductCatalogItem struct {
 	ID         int64              `json:"id"`
 	UUID       string             `json:"uuid"`
 	Name       string             `json:"name"`
-	Price      decimal.Decimal    `json:"price"`
+	Price      string             `json:"price"`
 	Stock      int                `json:"stock"`
 	Categories []CategoryResponse `json:"categories"`
 }

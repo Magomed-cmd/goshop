@@ -22,14 +22,14 @@ func stringPtr(s string) *string {
 func TestCategoryService_GetAllCategories(t *testing.T) {
 	tests := []struct {
 		name          string
-		mockSetup     func(*mocks.MockCategoryRepositoryInterface)
+		mockSetup     func(*mocks.MockCategoryRepository)
 		expectedCount int
 		wantErr       bool
 		errMsg        string
 	}{
 		{
 			name: "Success_ReturnsAllCategories",
-			mockSetup: func(m *mocks.MockCategoryRepositoryInterface) {
+			mockSetup: func(m *mocks.MockCategoryRepository) {
 				categories := []*entities.CategoryWithCount{
 					{
 						Category: entities.Category{
@@ -53,7 +53,7 @@ func TestCategoryService_GetAllCategories(t *testing.T) {
 		},
 		{
 			name: "Success_EmptyCategories",
-			mockSetup: func(m *mocks.MockCategoryRepositoryInterface) {
+			mockSetup: func(m *mocks.MockCategoryRepository) {
 				m.EXPECT().GetAllCategories(mock.Anything).Return([]*entities.CategoryWithCount{}, nil)
 			},
 			expectedCount: 0,
@@ -61,7 +61,7 @@ func TestCategoryService_GetAllCategories(t *testing.T) {
 		},
 		{
 			name: "Error_RepositoryFails",
-			mockSetup: func(m *mocks.MockCategoryRepositoryInterface) {
+			mockSetup: func(m *mocks.MockCategoryRepository) {
 				m.EXPECT().GetAllCategories(mock.Anything).Return([]*entities.CategoryWithCount(nil), errors.New("database error"))
 			},
 			wantErr: true,
@@ -71,7 +71,7 @@ func TestCategoryService_GetAllCategories(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := mocks.NewMockCategoryRepositoryInterface(t)
+			mockRepo := mocks.NewMockCategoryRepository(t)
 			tt.mockSetup(mockRepo)
 
 			service := category.NewCategoryService(mockRepo)
@@ -95,14 +95,14 @@ func TestCategoryService_GetCategoryByID(t *testing.T) {
 	tests := []struct {
 		name      string
 		id        int64
-		mockSetup func(*mocks.MockCategoryRepositoryInterface)
+		mockSetup func(*mocks.MockCategoryRepository)
 		wantErr   bool
 		errType   error
 	}{
 		{
 			name: "Success_ValidID",
 			id:   1,
-			mockSetup: func(m *mocks.MockCategoryRepositoryInterface) {
+			mockSetup: func(m *mocks.MockCategoryRepository) {
 				categoryWithCount := &entities.CategoryWithCount{
 					Category: entities.Category{
 						ID:   1,
@@ -117,21 +117,21 @@ func TestCategoryService_GetCategoryByID(t *testing.T) {
 		{
 			name:      "Error_InvalidID_Zero",
 			id:        0,
-			mockSetup: func(m *mocks.MockCategoryRepositoryInterface) {},
+			mockSetup: func(m *mocks.MockCategoryRepository) {},
 			wantErr:   true,
 			errType:   domain_errors.ErrInvalidInput,
 		},
 		{
 			name:      "Error_InvalidID_Negative",
 			id:        -1,
-			mockSetup: func(m *mocks.MockCategoryRepositoryInterface) {},
+			mockSetup: func(m *mocks.MockCategoryRepository) {},
 			wantErr:   true,
 			errType:   domain_errors.ErrInvalidInput,
 		},
 		{
 			name: "Error_CategoryNotFound",
 			id:   999,
-			mockSetup: func(m *mocks.MockCategoryRepositoryInterface) {
+			mockSetup: func(m *mocks.MockCategoryRepository) {
 				m.EXPECT().GetCategoryByID(mock.Anything, int64(999)).Return(nil, domain_errors.ErrCategoryNotFound)
 			},
 			wantErr: true,
@@ -141,7 +141,7 @@ func TestCategoryService_GetCategoryByID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := mocks.NewMockCategoryRepositoryInterface(t)
+			mockRepo := mocks.NewMockCategoryRepository(t)
 			tt.mockSetup(mockRepo)
 
 			service := category.NewCategoryService(mockRepo)
@@ -168,7 +168,7 @@ func TestCategoryService_CreateCategory(t *testing.T) {
 	tests := []struct {
 		name      string
 		request   *dto.CreateCategoryRequest
-		mockSetup func(*mocks.MockCategoryRepositoryInterface)
+		mockSetup func(*mocks.MockCategoryRepository)
 		wantErr   bool
 		errMsg    string
 	}{
@@ -178,7 +178,7 @@ func TestCategoryService_CreateCategory(t *testing.T) {
 				Name:        "Electronics",
 				Description: stringPtr("Electronic devices and gadgets"),
 			},
-			mockSetup: func(m *mocks.MockCategoryRepositoryInterface) {
+			mockSetup: func(m *mocks.MockCategoryRepository) {
 				m.EXPECT().CreateCategory(mock.Anything, mock.MatchedBy(func(cat *entities.Category) bool {
 					return cat.Name == "Electronics" && *cat.Description == "Electronic devices and gadgets"
 				})).Run(func(ctx context.Context, cat *entities.Category) {
@@ -193,7 +193,7 @@ func TestCategoryService_CreateCategory(t *testing.T) {
 				Name:        "Books",
 				Description: stringPtr("All kinds of books"),
 			},
-			mockSetup: func(m *mocks.MockCategoryRepositoryInterface) {
+			mockSetup: func(m *mocks.MockCategoryRepository) {
 				m.EXPECT().CreateCategory(mock.Anything, mock.Anything).Return(errors.New("database error"))
 			},
 			wantErr: true,
@@ -203,7 +203,7 @@ func TestCategoryService_CreateCategory(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := mocks.NewMockCategoryRepositoryInterface(t)
+			mockRepo := mocks.NewMockCategoryRepository(t)
 			tt.mockSetup(mockRepo)
 
 			service := category.NewCategoryService(mockRepo)
@@ -240,14 +240,14 @@ func TestCategoryService_UpdateCategory(t *testing.T) {
 	tests := []struct {
 		name      string
 		category  *entities.Category
-		mockSetup func(*mocks.MockCategoryRepositoryInterface)
+		mockSetup func(*mocks.MockCategoryRepository)
 		wantErr   bool
 		errType   error
 	}{
 		{
 			name:     "Success_ValidCategory",
 			category: validCategory,
-			mockSetup: func(m *mocks.MockCategoryRepositoryInterface) {
+			mockSetup: func(m *mocks.MockCategoryRepository) {
 				m.EXPECT().UpdateCategory(mock.Anything, mock.MatchedBy(func(cat *entities.Category) bool {
 					return cat.ID == 1 && cat.Name == "Updated Electronics"
 				})).Return(nil)
@@ -261,7 +261,7 @@ func TestCategoryService_UpdateCategory(t *testing.T) {
 				Name:        "Test",
 				Description: stringPtr("Test desc"),
 			},
-			mockSetup: func(m *mocks.MockCategoryRepositoryInterface) {},
+			mockSetup: func(m *mocks.MockCategoryRepository) {},
 			wantErr:   true,
 			errType:   domain_errors.ErrInvalidInput,
 		},
@@ -272,14 +272,14 @@ func TestCategoryService_UpdateCategory(t *testing.T) {
 				Name:        "Test",
 				Description: stringPtr("Test desc"),
 			},
-			mockSetup: func(m *mocks.MockCategoryRepositoryInterface) {},
+			mockSetup: func(m *mocks.MockCategoryRepository) {},
 			wantErr:   true,
 			errType:   domain_errors.ErrInvalidInput,
 		},
 		{
 			name:      "Error_NilCategory",
 			category:  nil,
-			mockSetup: func(m *mocks.MockCategoryRepositoryInterface) {},
+			mockSetup: func(m *mocks.MockCategoryRepository) {},
 			wantErr:   true,
 			errType:   domain_errors.ErrInvalidCategoryData,
 		},
@@ -290,7 +290,7 @@ func TestCategoryService_UpdateCategory(t *testing.T) {
 				Name:        "",
 				Description: stringPtr("Test desc"),
 			},
-			mockSetup: func(m *mocks.MockCategoryRepositoryInterface) {},
+			mockSetup: func(m *mocks.MockCategoryRepository) {},
 			wantErr:   true,
 			errType:   domain_errors.ErrInvalidCategoryData,
 		},
@@ -301,14 +301,14 @@ func TestCategoryService_UpdateCategory(t *testing.T) {
 				Name:        "Test",
 				Description: nil,
 			},
-			mockSetup: func(m *mocks.MockCategoryRepositoryInterface) {},
+			mockSetup: func(m *mocks.MockCategoryRepository) {},
 			wantErr:   true,
 			errType:   domain_errors.ErrInvalidCategoryData,
 		},
 		{
 			name:     "Error_RepositoryFails",
 			category: validCategory,
-			mockSetup: func(m *mocks.MockCategoryRepositoryInterface) {
+			mockSetup: func(m *mocks.MockCategoryRepository) {
 				m.EXPECT().UpdateCategory(mock.Anything, mock.Anything).Return(domain_errors.ErrCategoryNotFound)
 			},
 			wantErr: true,
@@ -318,7 +318,7 @@ func TestCategoryService_UpdateCategory(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := mocks.NewMockCategoryRepositoryInterface(t)
+			mockRepo := mocks.NewMockCategoryRepository(t)
 			tt.mockSetup(mockRepo)
 
 			service := category.NewCategoryService(mockRepo)
@@ -343,14 +343,14 @@ func TestCategoryService_DeleteCategory(t *testing.T) {
 	tests := []struct {
 		name      string
 		id        int64
-		mockSetup func(*mocks.MockCategoryRepositoryInterface)
+		mockSetup func(*mocks.MockCategoryRepository)
 		wantErr   bool
 		errType   error
 	}{
 		{
 			name: "Success_ValidID",
 			id:   1,
-			mockSetup: func(m *mocks.MockCategoryRepositoryInterface) {
+			mockSetup: func(m *mocks.MockCategoryRepository) {
 				m.EXPECT().DeleteCategory(mock.Anything, int64(1)).Return(nil)
 			},
 			wantErr: false,
@@ -358,21 +358,21 @@ func TestCategoryService_DeleteCategory(t *testing.T) {
 		{
 			name:      "Error_InvalidID_Zero",
 			id:        0,
-			mockSetup: func(m *mocks.MockCategoryRepositoryInterface) {},
+			mockSetup: func(m *mocks.MockCategoryRepository) {},
 			wantErr:   true,
 			errType:   domain_errors.ErrInvalidInput,
 		},
 		{
 			name:      "Error_InvalidID_Negative",
 			id:        -1,
-			mockSetup: func(m *mocks.MockCategoryRepositoryInterface) {},
+			mockSetup: func(m *mocks.MockCategoryRepository) {},
 			wantErr:   true,
 			errType:   domain_errors.ErrInvalidInput,
 		},
 		{
 			name: "Error_CategoryNotFound",
 			id:   999,
-			mockSetup: func(m *mocks.MockCategoryRepositoryInterface) {
+			mockSetup: func(m *mocks.MockCategoryRepository) {
 				m.EXPECT().DeleteCategory(mock.Anything, int64(999)).Return(domain_errors.ErrCategoryNotFound)
 			},
 			wantErr: true,
@@ -382,7 +382,7 @@ func TestCategoryService_DeleteCategory(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := mocks.NewMockCategoryRepositoryInterface(t)
+			mockRepo := mocks.NewMockCategoryRepository(t)
 			tt.mockSetup(mockRepo)
 
 			service := category.NewCategoryService(mockRepo)

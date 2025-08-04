@@ -10,7 +10,7 @@ import (
 	"strconv"
 )
 
-type CategoryServiceInterface interface {
+type CategoryService interface {
 	GetAllCategories(ctx context.Context) ([]*entities.CategoryWithCount, error)
 	GetCategoryByID(ctx context.Context, id int64) (*entities.CategoryWithCount, error)
 	CreateCategory(ctx context.Context, req *dto.CreateCategoryRequest) (*entities.Category, error)
@@ -19,10 +19,10 @@ type CategoryServiceInterface interface {
 }
 
 type CategoryHandler struct {
-	CategoryService CategoryServiceInterface
+	CategoryService CategoryService
 }
 
-func NewCategoryHandler(s CategoryServiceInterface) *CategoryHandler {
+func NewCategoryHandler(s CategoryService) *CategoryHandler {
 	return &CategoryHandler{
 		CategoryService: s,
 	}
@@ -36,7 +36,19 @@ func (h *CategoryHandler) GetAllCategories(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, categories)
+	// Преобразуем entities в DTO
+	var response []dto.CategoryResponse
+	for _, category := range categories {
+		response = append(response, dto.CategoryResponse{
+			ID:           category.Category.ID,
+			UUID:         category.Category.UUID.String(),
+			Name:         category.Category.Name,
+			Description:  category.Category.Description,
+			ProductCount: int(category.ProductCount),
+		})
+	}
+
+	c.JSON(200, response)
 }
 
 func (h *CategoryHandler) GetCategoryByID(c *gin.Context) {
@@ -58,7 +70,16 @@ func (h *CategoryHandler) GetCategoryByID(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, category)
+	// Преобразуем entity в DTO
+	response := dto.CategoryResponse{
+		ID:           category.Category.ID,
+		UUID:         category.Category.UUID.String(),
+		Name:         category.Category.Name,
+		Description:  category.Category.Description,
+		ProductCount: int(category.ProductCount),
+	}
+
+	c.JSON(200, response)
 }
 
 func (h *CategoryHandler) CreateCategory(c *gin.Context) {

@@ -30,13 +30,13 @@ func stringPtr(s string) *string {
 func TestCategoryHandler_GetAllCategories(t *testing.T) {
 	tests := []struct {
 		name           string
-		mockSetup      func(*mocks.MockCategoryServiceInterface)
+		mockSetup      func(*mocks.MockCategoryService)
 		expectedStatus int
 		checkResponse  func(*testing.T, *httptest.ResponseRecorder)
 	}{
 		{
 			name: "Success_ReturnsCategoriesList",
-			mockSetup: func(m *mocks.MockCategoryServiceInterface) {
+			mockSetup: func(m *mocks.MockCategoryService) {
 				categories := []*entities.CategoryWithCount{
 					{
 						Category: entities.Category{
@@ -61,17 +61,17 @@ func TestCategoryHandler_GetAllCategories(t *testing.T) {
 			},
 			expectedStatus: 200,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
-				var categories []*entities.CategoryWithCount
+				var categories []dto.CategoryResponse
 				err := json.Unmarshal(w.Body.Bytes(), &categories)
 				assert.NoError(t, err)
 				assert.Len(t, categories, 2)
 				assert.Equal(t, "Electronics", categories[0].Name)
-				assert.Equal(t, int64(5), categories[0].ProductCount)
+				assert.Equal(t, 5, categories[0].ProductCount)
 			},
 		},
 		{
 			name: "Success_EmptyList",
-			mockSetup: func(m *mocks.MockCategoryServiceInterface) {
+			mockSetup: func(m *mocks.MockCategoryService) {
 				m.EXPECT().GetAllCategories(mock.Anything).Return([]*entities.CategoryWithCount{}, nil)
 			},
 			expectedStatus: 200,
@@ -84,7 +84,7 @@ func TestCategoryHandler_GetAllCategories(t *testing.T) {
 		},
 		{
 			name: "Error_ServiceFailure",
-			mockSetup: func(m *mocks.MockCategoryServiceInterface) {
+			mockSetup: func(m *mocks.MockCategoryService) {
 				m.EXPECT().GetAllCategories(mock.Anything).Return(nil, errors.New("database error"))
 			},
 			expectedStatus: 500,
@@ -99,7 +99,7 @@ func TestCategoryHandler_GetAllCategories(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := mocks.NewMockCategoryServiceInterface(t)
+			mockService := mocks.NewMockCategoryService(t)
 			tt.mockSetup(mockService)
 
 			categoryHandler := category.NewCategoryHandler(mockService)
@@ -121,14 +121,14 @@ func TestCategoryHandler_GetCategoryByID(t *testing.T) {
 	tests := []struct {
 		name           string
 		categoryID     string
-		mockSetup      func(*mocks.MockCategoryServiceInterface)
+		mockSetup      func(*mocks.MockCategoryService)
 		expectedStatus int
 		checkResponse  func(*testing.T, *httptest.ResponseRecorder)
 	}{
 		{
 			name:       "Success_ValidID",
 			categoryID: "1",
-			mockSetup: func(m *mocks.MockCategoryServiceInterface) {
+			mockSetup: func(m *mocks.MockCategoryService) {
 				category := &entities.CategoryWithCount{
 					Category: entities.Category{
 						ID:          1,
@@ -142,17 +142,17 @@ func TestCategoryHandler_GetCategoryByID(t *testing.T) {
 			},
 			expectedStatus: 200,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
-				var category entities.CategoryWithCount
+				var category dto.CategoryResponse
 				err := json.Unmarshal(w.Body.Bytes(), &category)
 				assert.NoError(t, err)
 				assert.Equal(t, "Electronics", category.Name)
-				assert.Equal(t, int64(5), category.ProductCount)
+				assert.Equal(t, 5, category.ProductCount)
 			},
 		},
 		{
 			name:           "Error_InvalidID",
 			categoryID:     "invalid",
-			mockSetup:      func(m *mocks.MockCategoryServiceInterface) {},
+			mockSetup:      func(m *mocks.MockCategoryService) {},
 			expectedStatus: 400,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]string
@@ -164,7 +164,7 @@ func TestCategoryHandler_GetCategoryByID(t *testing.T) {
 		{
 			name:       "Error_CategoryNotFound",
 			categoryID: "999",
-			mockSetup: func(m *mocks.MockCategoryServiceInterface) {
+			mockSetup: func(m *mocks.MockCategoryService) {
 				// Только GetCategoryByID вызывается, UpdateCategory НЕ вызывается при ошибке
 				m.EXPECT().GetCategoryByID(mock.Anything, int64(999)).Return(nil, domain_errors.ErrCategoryNotFound)
 			},
@@ -179,7 +179,7 @@ func TestCategoryHandler_GetCategoryByID(t *testing.T) {
 		{
 			name:       "Error_ServiceFailure",
 			categoryID: "1",
-			mockSetup: func(m *mocks.MockCategoryServiceInterface) {
+			mockSetup: func(m *mocks.MockCategoryService) {
 				m.EXPECT().GetCategoryByID(mock.Anything, int64(1)).Return(nil, errors.New("database error"))
 			},
 			expectedStatus: 500,
@@ -194,7 +194,7 @@ func TestCategoryHandler_GetCategoryByID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := mocks.NewMockCategoryServiceInterface(t)
+			mockService := mocks.NewMockCategoryService(t)
 			tt.mockSetup(mockService)
 
 			categoryHandler := category.NewCategoryHandler(mockService)
@@ -216,7 +216,7 @@ func TestCategoryHandler_CreateCategory(t *testing.T) {
 	tests := []struct {
 		name           string
 		requestBody    interface{}
-		mockSetup      func(*mocks.MockCategoryServiceInterface)
+		mockSetup      func(*mocks.MockCategoryService)
 		expectedStatus int
 		checkResponse  func(*testing.T, *httptest.ResponseRecorder)
 	}{
@@ -226,7 +226,7 @@ func TestCategoryHandler_CreateCategory(t *testing.T) {
 				"name":        "Electronics",
 				"description": "Electronic devices",
 			},
-			mockSetup: func(m *mocks.MockCategoryServiceInterface) {
+			mockSetup: func(m *mocks.MockCategoryService) {
 				createdCategory := &entities.Category{
 					ID:          1,
 					UUID:        uuid.New(),
@@ -248,7 +248,7 @@ func TestCategoryHandler_CreateCategory(t *testing.T) {
 		{
 			name:           "Error_InvalidJSON",
 			requestBody:    "invalid json",
-			mockSetup:      func(m *mocks.MockCategoryServiceInterface) {},
+			mockSetup:      func(m *mocks.MockCategoryService) {},
 			expectedStatus: 400,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]string
@@ -263,7 +263,7 @@ func TestCategoryHandler_CreateCategory(t *testing.T) {
 				"name":        "Electronics",
 				"description": "Electronic devices",
 			},
-			mockSetup: func(m *mocks.MockCategoryServiceInterface) {
+			mockSetup: func(m *mocks.MockCategoryService) {
 				m.EXPECT().CreateCategory(mock.Anything, mock.AnythingOfType("*dto.CreateCategoryRequest")).
 					Return(nil, errors.New("database error"))
 			},
@@ -279,7 +279,7 @@ func TestCategoryHandler_CreateCategory(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := mocks.NewMockCategoryServiceInterface(t)
+			mockService := mocks.NewMockCategoryService(t)
 			tt.mockSetup(mockService)
 
 			categoryHandler := category.NewCategoryHandler(mockService)
@@ -312,7 +312,7 @@ func TestCategoryHandler_UpdateCategory(t *testing.T) {
 		name           string
 		categoryID     string
 		requestBody    interface{}
-		mockSetup      func(*mocks.MockCategoryServiceInterface)
+		mockSetup      func(*mocks.MockCategoryService)
 		expectedStatus int
 		checkResponse  func(*testing.T, *httptest.ResponseRecorder)
 	}{
@@ -323,7 +323,7 @@ func TestCategoryHandler_UpdateCategory(t *testing.T) {
 				"name":        "Updated Electronics",
 				"description": "Updated description",
 			},
-			mockSetup: func(m *mocks.MockCategoryServiceInterface) {
+			mockSetup: func(m *mocks.MockCategoryService) {
 				// First, expect GetCategoryByID call
 				category := &entities.CategoryWithCount{
 					Category: entities.Category{
@@ -352,7 +352,7 @@ func TestCategoryHandler_UpdateCategory(t *testing.T) {
 			requestBody: map[string]interface{}{
 				"name": "Updated",
 			},
-			mockSetup:      func(m *mocks.MockCategoryServiceInterface) {},
+			mockSetup:      func(m *mocks.MockCategoryService) {},
 			expectedStatus: 400,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]string
@@ -367,7 +367,7 @@ func TestCategoryHandler_UpdateCategory(t *testing.T) {
 			requestBody: map[string]interface{}{
 				"name": "Updated",
 			},
-			mockSetup: func(m *mocks.MockCategoryServiceInterface) {
+			mockSetup: func(m *mocks.MockCategoryService) {
 				m.EXPECT().GetCategoryByID(mock.Anything, int64(999)).Return(nil, domain_errors.ErrCategoryNotFound)
 			},
 			expectedStatus: 404,
@@ -382,7 +382,7 @@ func TestCategoryHandler_UpdateCategory(t *testing.T) {
 			name:           "Error_InvalidJSON",
 			categoryID:     "1",
 			requestBody:    "invalid json",
-			mockSetup:      func(m *mocks.MockCategoryServiceInterface) {},
+			mockSetup:      func(m *mocks.MockCategoryService) {},
 			expectedStatus: 400,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]string
@@ -395,7 +395,7 @@ func TestCategoryHandler_UpdateCategory(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := mocks.NewMockCategoryServiceInterface(t)
+			mockService := mocks.NewMockCategoryService(t)
 			tt.mockSetup(mockService)
 
 			categoryHandler := category.NewCategoryHandler(mockService)
@@ -427,14 +427,14 @@ func TestCategoryHandler_DeleteCategory(t *testing.T) {
 	tests := []struct {
 		name           string
 		categoryID     string
-		mockSetup      func(*mocks.MockCategoryServiceInterface)
+		mockSetup      func(*mocks.MockCategoryService)
 		expectedStatus int
 		checkResponse  func(*testing.T, *httptest.ResponseRecorder)
 	}{
 		{
 			name:       "Success_ValidDelete",
 			categoryID: "1",
-			mockSetup: func(m *mocks.MockCategoryServiceInterface) {
+			mockSetup: func(m *mocks.MockCategoryService) {
 				m.EXPECT().DeleteCategory(mock.Anything, int64(1)).Return(nil)
 			},
 			expectedStatus: 204,
@@ -445,7 +445,7 @@ func TestCategoryHandler_DeleteCategory(t *testing.T) {
 		{
 			name:           "Error_InvalidID",
 			categoryID:     "invalid",
-			mockSetup:      func(m *mocks.MockCategoryServiceInterface) {},
+			mockSetup:      func(m *mocks.MockCategoryService) {},
 			expectedStatus: 400,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]string
@@ -457,7 +457,7 @@ func TestCategoryHandler_DeleteCategory(t *testing.T) {
 		{
 			name:       "Error_CategoryNotFound",
 			categoryID: "999",
-			mockSetup: func(m *mocks.MockCategoryServiceInterface) {
+			mockSetup: func(m *mocks.MockCategoryService) {
 				m.EXPECT().DeleteCategory(mock.Anything, int64(999)).Return(domain_errors.ErrCategoryNotFound)
 			},
 			expectedStatus: 404,
@@ -471,7 +471,7 @@ func TestCategoryHandler_DeleteCategory(t *testing.T) {
 		{
 			name:       "Error_ServiceFailure",
 			categoryID: "1",
-			mockSetup: func(m *mocks.MockCategoryServiceInterface) {
+			mockSetup: func(m *mocks.MockCategoryService) {
 				m.EXPECT().DeleteCategory(mock.Anything, int64(1)).Return(errors.New("database error"))
 			},
 			expectedStatus: 500,
@@ -486,7 +486,7 @@ func TestCategoryHandler_DeleteCategory(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := mocks.NewMockCategoryServiceInterface(t)
+			mockService := mocks.NewMockCategoryService(t)
 			tt.mockSetup(mockService)
 
 			categoryHandler := category.NewCategoryHandler(mockService)

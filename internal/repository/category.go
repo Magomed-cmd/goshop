@@ -19,7 +19,7 @@ type CategoryRepository struct {
 func NewCategoryRepository(db *pgxpool.Pool) *CategoryRepository {
 	return &CategoryRepository{
 		db:   db,
-		psql: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar), // ← добавь это!
+		psql: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
 	}
 }
 
@@ -162,4 +162,16 @@ func (r *CategoryRepository) DeleteCategory(ctx context.Context, id int64) error
 	}
 
 	return nil
+}
+
+func (r *CategoryRepository) CheckCategoriesExist(ctx context.Context, categoryIDs []int64) (bool, error) {
+	query := `SELECT COUNT(*) FROM categories WHERE id = ANY($1)`
+
+	var count int
+	err := r.db.QueryRow(ctx, query, categoryIDs).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+
+	return count == len(categoryIDs), nil
 }
