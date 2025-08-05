@@ -28,8 +28,11 @@ type OrderItemResponse struct {
 }
 
 type OrdersListResponse struct {
-	Orders []OrderResponse `json:"orders"`
-	Total  int             `json:"total"`
+	Orders      []OrderResponse `json:"orders"`
+	TotalCount  int64           `json:"total_count"`
+	TotalAmount string          `json:"total_amount"`
+	Page        int             `json:"page,omitempty"`
+	Limit       int             `json:"limit,omitempty"`
 }
 
 type UpdateOrderStatusRequest struct {

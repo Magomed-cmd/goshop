@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"goshop/internal/domain/entities"
+	"goshop/internal/domain/types"
 	"goshop/internal/domain_errors"
 	"strings"
 )
@@ -62,13 +63,62 @@ func (r *OrderRepository) CreateOrder(ctx context.Context, order *entities.Order
 	return &id, nil
 }
 
-func (r *OrderRepository) GetUserOrders(ctx context.Context, userID int) ([]*entities.Order, error) {
+func (r *OrderRepository) GetUserOrders(ctx context.Context, userID int64, filters types.OrderFilters) ([]*entities.Order, int64, error) {
 
-	query := `SELECT * FROM orders WHERE user_id = $1`
+	offset := (filters.Page - 1) * filters.Limit
 
-	rows, err := r.db.Query(ctx, query, userID)
+	countQuery := r.psql.Select("COUNT(*)").From("orders").Where(squirrel.Eq{"user_id": userID})
+	dataQuery := r.psql.Select("*").From("orders").Where(squirrel.Eq{"user_id": userID})
+
+	dataQuery = dataQuery.Limit(uint64(filters.Limit)).Offset(uint64(offset))
+
+	if filters.Status != nil {
+		countQuery = countQuery.Where(squirrel.Eq{"status": filters.Status})
+		dataQuery = dataQuery.Where(squirrel.Eq{"status": filters.Status})
+	}
+
+	if filters.DateFrom != nil {
+		countQuery = countQuery.Where(squirrel.GtOrEq{"created_at": filters.DateFrom})
+		dataQuery = dataQuery.Where(squirrel.GtOrEq{"created_at": filters.DateFrom})
+	}
+
+	if filters.DateTo != nil {
+		countQuery = countQuery.Where(squirrel.LtOrEq{"created_at": filters.DateTo})
+		dataQuery = dataQuery.Where(squirrel.LtOrEq{"created_at": filters.DateTo})
+	}
+
+	if filters.MinAmount != nil {
+		countQuery = countQuery.Where(squirrel.GtOrEq{"total_price": filters.MinAmount})
+		dataQuery = dataQuery.Where(squirrel.GtOrEq{"total_price": filters.MinAmount})
+	}
+
+	if filters.MaxAmount != nil {
+		countQuery = countQuery.Where(squirrel.LtOrEq{"total_price": filters.MaxAmount})
+		dataQuery = dataQuery.Where(squirrel.LtOrEq{"total_price": filters.MaxAmount})
+	}
+
+	if filters.SortBy != nil && filters.SortOrder != nil {
+		dataQuery = dataQuery.OrderBy(*filters.SortBy + " " + *filters.SortOrder)
+	}
+
+	countSql, countArgs, err := countQuery.ToSql()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
+	}
+
+	var totalCount int64
+	err = r.db.QueryRow(ctx, countSql, countArgs...).Scan(&totalCount)
+	if err != nil {
+		return nil, 0, err
+	}
+	sql, args, err := dataQuery.ToSql()
+	if err != nil {
+		return nil, 0, err
+	}
+
+	rows, err := r.db.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -87,16 +137,16 @@ func (r *OrderRepository) GetUserOrders(ctx context.Context, userID int) ([]*ent
 			&order.CreatedAt,
 			&order.UpdatedAt,
 		); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		orders = append(orders, order)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return orders, nil
+	return orders, totalCount, nil
 }
 
 func (r *OrderRepository) GetOrderByID(ctx context.Context, orderID int) (*entities.Order, error) {

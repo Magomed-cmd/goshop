@@ -6,18 +6,20 @@ import (
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 	"goshop/internal/domain/entities"
+	"goshop/internal/domain/types"
 	"goshop/internal/domain_errors"
 	"goshop/internal/dto"
+	"strconv"
 	"time"
 )
 
 type OrderRepository interface {
-	CreateOrder(ctx context.Context, order *entities.Order) (*int, error)
-	GetUserOrders(ctx context.Context, userID int) ([]*entities.Order, error)
+	CreateOrder(ctx context.Context, order *entities.Order) (*int64, error)
+	GetUserOrders(ctx context.Context, userID int64, filters types.OrderFilters) ([]*entities.Order, int64, error)
 	GetOrderByID(ctx context.Context, orderID int) (*entities.Order, error)
 	UpdateOrderStatus(ctx context.Context, orderID int, status string) error
 	CancelOrder(ctx context.Context, orderID int) error
-	ClearCart(ctx context.Context, cartID int64) error
+	//ClearCart(ctx context.Context, cartID int64) error
 }
 
 type CartRepository interface {
@@ -171,4 +173,66 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID int64, req *dto.C
 		zap.String("total_price", totalPrice.StringFixed(2)))
 
 	return response, nil
+}
+
+func (s *OrderService) GetUserOrders(ctx context.Context, userID int64, filters types.OrderFilters) (*dto.OrdersListResponse, error) {
+
+	orders, totalCount, err := s.orderRepo.GetUserOrders(ctx, userID, filters)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &dto.OrdersListResponse{}
+	orderResponses := make([]dto.OrderResponse, 10)
+	total := 0
+
+	for _, order := range orders {
+		items := make([]dto.OrderItemResponse, 10)
+		for _, orderItem := range order.Items {
+
+			subTotal := orderItem.PriceAtOrder.Mul(decimal.NewFromInt(int64(orderItem.Quantity)))
+
+			total += int(subTotal.IntPart())
+			item := dto.OrderItemResponse{
+				ProductID:    orderItem.ProductID,
+				ProductName:  orderItem.ProductName,
+				PriceAtOrder: orderItem.PriceAtOrder.String(),
+				Quantity:     orderItem.Quantity,
+				Subtotal:     subTotal.StringFixed(2),
+			}
+			items = append(items, item)
+		}
+
+		Address := &dto.AddressResponse{
+			ID:         order.Address.ID,
+			UUID:       order.Address.UUID.String(),
+			Address:    order.Address.Address,
+			City:       order.Address.City,
+			PostalCode: order.Address.PostalCode,
+			Country:    order.Address.Country,
+			CreatedAt:  order.Address.CreatedAt.String(),
+		}
+
+		orderResponse := dto.OrderResponse{
+			ID:         order.ID,
+			UUID:       order.UUID.String(),
+			UserID:     order.UserID,
+			AddressID:  order.AddressID,
+			TotalPrice: order.TotalPrice.String(),
+			Status:     string(order.Status),
+			CreatedAt:  order.CreatedAt,
+			UpdatedAt:  order.UpdatedAt,
+			Items:      items,
+			Address:    Address,
+		}
+		orderResponses = append(orderResponses, orderResponse)
+	}
+
+	resp.Orders = orderResponses
+	resp.TotalCount = totalCount
+	resp.TotalAmount = strconv.Itoa(total)
+	resp.Page = filters.Page
+	resp.Limit = filters.Limit
+
+	return resp, nil
 }
