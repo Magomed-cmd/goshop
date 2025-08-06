@@ -6,13 +6,13 @@ import (
 	"net/http"
 	"strconv"
 
-	"go.uber.org/zap"
 	"goshop/internal/domain/types"
 	"goshop/internal/domain_errors"
 	"goshop/internal/dto"
 
+	"go.uber.org/zap"
+
 	"github.com/gin-gonic/gin"
-	"github.com/shopspring/decimal"
 )
 
 type ProductService interface {
@@ -38,10 +38,9 @@ func NewProductHandler(productService ProductService, logger *zap.Logger) *Produ
 func (h *ProductHandler) GetProducts(c *gin.Context) {
 	h.logger.Debug("GetProducts handler started")
 
-	filters, err := h.parseProductFilters(c)
-	if err != nil {
-		h.logger.Error("Failed to parse product filters", zap.Error(err))
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid filter parameters"})
+	filters := types.ProductFilters{}
+	if err := c.ShouldBindQuery(&filters); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid query parameters"})
 		return
 	}
 
@@ -93,7 +92,12 @@ func (h *ProductHandler) GetProductsByCategory(c *gin.Context) {
 		return
 	}
 
-	filters, err := h.parseProductFilters(c)
+	filters := types.ProductFilters{}
+	if err := c.ShouldBindQuery(&filters); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid query parameters"})
+		return
+	}
+
 	if err != nil {
 		h.logger.Error("Failed to parse product filters", zap.Error(err))
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid filter parameters"})
@@ -220,59 +224,6 @@ func (h *ProductHandler) parseID(c *gin.Context, param string) (int64, error) {
 		return 0, err
 	}
 	return id, nil
-}
-
-func (h *ProductHandler) parseProductFilters(c *gin.Context) (types.ProductFilters, error) {
-	filters := types.ProductFilters{
-		Page:  1,
-		Limit: 20,
-	}
-
-	if pageStr := c.Query("page"); pageStr != "" {
-		if page, err := strconv.Atoi(pageStr); err == nil && page > 0 {
-			filters.Page = page
-		}
-	}
-
-	if limitStr := c.Query("limit"); limitStr != "" {
-		if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 && limit <= 100 {
-			filters.Limit = limit
-		}
-	}
-
-	if categoryIDStr := c.Query("category_id"); categoryIDStr != "" {
-		if categoryID, err := strconv.ParseInt(categoryIDStr, 10, 64); err == nil && categoryID > 0 {
-			filters.CategoryID = &categoryID
-		}
-	}
-
-	if sortBy := c.Query("sort_by"); sortBy != "" {
-		switch sortBy {
-		case "price", "name", "created_at":
-			filters.SortBy = &sortBy
-		}
-	}
-
-	if sortOrder := c.Query("sort_order"); sortOrder != "" {
-		switch sortOrder {
-		case "asc", "desc":
-			filters.SortOrder = &sortOrder
-		}
-	}
-
-	if minPriceStr := c.Query("min_price"); minPriceStr != "" {
-		if minPrice, err := decimal.NewFromString(minPriceStr); err == nil && minPrice.IsPositive() {
-			filters.MinPrice = &minPrice
-		}
-	}
-
-	if maxPriceStr := c.Query("max_price"); maxPriceStr != "" {
-		if maxPrice, err := decimal.NewFromString(maxPriceStr); err == nil && maxPrice.IsPositive() {
-			filters.MaxPrice = &maxPrice
-		}
-	}
-
-	return filters, nil
 }
 
 func (h *ProductHandler) mapServiceError(err error) (int, string) {

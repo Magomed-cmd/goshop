@@ -130,9 +130,75 @@ func (_c *MockOrderRepository_CreateOrder_Call) RunAndReturn(run func(context.Co
 	return _c
 }
 
-// GetOrderByID provides a mock function with given fields: ctx, orderID
-func (_m *MockOrderRepository) GetOrderByID(ctx context.Context, orderID int64) (*entities.Order, error) {
-	ret := _m.Called(ctx, orderID)
+// GetAllOrders provides a mock function with given fields: ctx, filters
+func (_m *MockOrderRepository) GetAllOrders(ctx context.Context, filters types.AdminOrderFilters) ([]*entities.Order, int64, error) {
+	ret := _m.Called(ctx, filters)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAllOrders")
+	}
+
+	var r0 []*entities.Order
+	var r1 int64
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, types.AdminOrderFilters) ([]*entities.Order, int64, error)); ok {
+		return rf(ctx, filters)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, types.AdminOrderFilters) []*entities.Order); ok {
+		r0 = rf(ctx, filters)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*entities.Order)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, types.AdminOrderFilters) int64); ok {
+		r1 = rf(ctx, filters)
+	} else {
+		r1 = ret.Get(1).(int64)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, types.AdminOrderFilters) error); ok {
+		r2 = rf(ctx, filters)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrderRepository_GetAllOrders_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAllOrders'
+type MockOrderRepository_GetAllOrders_Call struct {
+	*mock.Call
+}
+
+// GetAllOrders is a helper method to define mock.On call
+//   - ctx context.Context
+//   - filters types.AdminOrderFilters
+func (_e *MockOrderRepository_Expecter) GetAllOrders(ctx interface{}, filters interface{}) *MockOrderRepository_GetAllOrders_Call {
+	return &MockOrderRepository_GetAllOrders_Call{Call: _e.mock.On("GetAllOrders", ctx, filters)}
+}
+
+func (_c *MockOrderRepository_GetAllOrders_Call) Run(run func(ctx context.Context, filters types.AdminOrderFilters)) *MockOrderRepository_GetAllOrders_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(types.AdminOrderFilters))
+	})
+	return _c
+}
+
+func (_c *MockOrderRepository_GetAllOrders_Call) Return(_a0 []*entities.Order, _a1 int64, _a2 error) *MockOrderRepository_GetAllOrders_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrderRepository_GetAllOrders_Call) RunAndReturn(run func(context.Context, types.AdminOrderFilters) ([]*entities.Order, int64, error)) *MockOrderRepository_GetAllOrders_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetOrderByID provides a mock function with given fields: ctx, userID, orderID
+func (_m *MockOrderRepository) GetOrderByID(ctx context.Context, userID int64, orderID int64) (*entities.Order, error) {
+	ret := _m.Called(ctx, userID, orderID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetOrderByID")
@@ -140,19 +206,19 @@ func (_m *MockOrderRepository) GetOrderByID(ctx context.Context, orderID int64) 
 
 	var r0 *entities.Order
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, int64) (*entities.Order, error)); ok {
-		return rf(ctx, orderID)
+	if rf, ok := ret.Get(0).(func(context.Context, int64, int64) (*entities.Order, error)); ok {
+		return rf(ctx, userID, orderID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, int64) *entities.Order); ok {
-		r0 = rf(ctx, orderID)
+	if rf, ok := ret.Get(0).(func(context.Context, int64, int64) *entities.Order); ok {
+		r0 = rf(ctx, userID, orderID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*entities.Order)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
-		r1 = rf(ctx, orderID)
+	if rf, ok := ret.Get(1).(func(context.Context, int64, int64) error); ok {
+		r1 = rf(ctx, userID, orderID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -167,14 +233,15 @@ type MockOrderRepository_GetOrderByID_Call struct {
 
 // GetOrderByID is a helper method to define mock.On call
 //   - ctx context.Context
+//   - userID int64
 //   - orderID int64
-func (_e *MockOrderRepository_Expecter) GetOrderByID(ctx interface{}, orderID interface{}) *MockOrderRepository_GetOrderByID_Call {
-	return &MockOrderRepository_GetOrderByID_Call{Call: _e.mock.On("GetOrderByID", ctx, orderID)}
+func (_e *MockOrderRepository_Expecter) GetOrderByID(ctx interface{}, userID interface{}, orderID interface{}) *MockOrderRepository_GetOrderByID_Call {
+	return &MockOrderRepository_GetOrderByID_Call{Call: _e.mock.On("GetOrderByID", ctx, userID, orderID)}
 }
 
-func (_c *MockOrderRepository_GetOrderByID_Call) Run(run func(ctx context.Context, orderID int64)) *MockOrderRepository_GetOrderByID_Call {
+func (_c *MockOrderRepository_GetOrderByID_Call) Run(run func(ctx context.Context, userID int64, orderID int64)) *MockOrderRepository_GetOrderByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(int64))
+		run(args[0].(context.Context), args[1].(int64), args[2].(int64))
 	})
 	return _c
 }
@@ -184,7 +251,7 @@ func (_c *MockOrderRepository_GetOrderByID_Call) Return(_a0 *entities.Order, _a1
 	return _c
 }
 
-func (_c *MockOrderRepository_GetOrderByID_Call) RunAndReturn(run func(context.Context, int64) (*entities.Order, error)) *MockOrderRepository_GetOrderByID_Call {
+func (_c *MockOrderRepository_GetOrderByID_Call) RunAndReturn(run func(context.Context, int64, int64) (*entities.Order, error)) *MockOrderRepository_GetOrderByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
