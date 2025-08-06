@@ -31,6 +31,11 @@ type OrderFilters struct {
 	MaxAmount *decimal.Decimal `json:"max_amount,omitempty"` // До 50000₽
 
 	// Сортировка
-	SortBy    *string `json:"sort_by,omitempty"`    // "created_at", "total_price", "status"
-	SortOrder *string `json:"sort_order,omitempty"` // "asc", "desc"
+	SortBy    *string `json:"sort_by,omitempty"`
+	SortOrder *string `json:"sort_order,omitempty"`
+}
+
+type AdminOrderFilters struct {
+	OrderFilters
+	UserID *int64 `json:"user_id,omitempty"`
 }

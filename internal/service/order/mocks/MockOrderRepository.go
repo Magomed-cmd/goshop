@@ -25,7 +25,7 @@ func (_m *MockOrderRepository) EXPECT() *MockOrderRepository_Expecter {
 }
 
 // CancelOrder provides a mock function with given fields: ctx, orderID
-func (_m *MockOrderRepository) CancelOrder(ctx context.Context, orderID int) error {
+func (_m *MockOrderRepository) CancelOrder(ctx context.Context, orderID int64) error {
 	ret := _m.Called(ctx, orderID)
 
 	if len(ret) == 0 {
@@ -33,7 +33,7 @@ func (_m *MockOrderRepository) CancelOrder(ctx context.Context, orderID int) err
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, int) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, int64) error); ok {
 		r0 = rf(ctx, orderID)
 	} else {
 		r0 = ret.Error(0)
@@ -49,14 +49,14 @@ type MockOrderRepository_CancelOrder_Call struct {
 
 // CancelOrder is a helper method to define mock.On call
 //   - ctx context.Context
-//   - orderID int
+//   - orderID int64
 func (_e *MockOrderRepository_Expecter) CancelOrder(ctx interface{}, orderID interface{}) *MockOrderRepository_CancelOrder_Call {
 	return &MockOrderRepository_CancelOrder_Call{Call: _e.mock.On("CancelOrder", ctx, orderID)}
 }
 
-func (_c *MockOrderRepository_CancelOrder_Call) Run(run func(ctx context.Context, orderID int)) *MockOrderRepository_CancelOrder_Call {
+func (_c *MockOrderRepository_CancelOrder_Call) Run(run func(ctx context.Context, orderID int64)) *MockOrderRepository_CancelOrder_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(int))
+		run(args[0].(context.Context), args[1].(int64))
 	})
 	return _c
 }
@@ -66,7 +66,7 @@ func (_c *MockOrderRepository_CancelOrder_Call) Return(_a0 error) *MockOrderRepo
 	return _c
 }
 
-func (_c *MockOrderRepository_CancelOrder_Call) RunAndReturn(run func(context.Context, int) error) *MockOrderRepository_CancelOrder_Call {
+func (_c *MockOrderRepository_CancelOrder_Call) RunAndReturn(run func(context.Context, int64) error) *MockOrderRepository_CancelOrder_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -131,7 +131,7 @@ func (_c *MockOrderRepository_CreateOrder_Call) RunAndReturn(run func(context.Co
 }
 
 // GetOrderByID provides a mock function with given fields: ctx, orderID
-func (_m *MockOrderRepository) GetOrderByID(ctx context.Context, orderID int) (*entities.Order, error) {
+func (_m *MockOrderRepository) GetOrderByID(ctx context.Context, orderID int64) (*entities.Order, error) {
 	ret := _m.Called(ctx, orderID)
 
 	if len(ret) == 0 {
@@ -140,10 +140,10 @@ func (_m *MockOrderRepository) GetOrderByID(ctx context.Context, orderID int) (*
 
 	var r0 *entities.Order
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, int) (*entities.Order, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (*entities.Order, error)); ok {
 		return rf(ctx, orderID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, int) *entities.Order); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, int64) *entities.Order); ok {
 		r0 = rf(ctx, orderID)
 	} else {
 		if ret.Get(0) != nil {
@@ -151,7 +151,7 @@ func (_m *MockOrderRepository) GetOrderByID(ctx context.Context, orderID int) (*
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, int) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
 		r1 = rf(ctx, orderID)
 	} else {
 		r1 = ret.Error(1)
@@ -167,14 +167,14 @@ type MockOrderRepository_GetOrderByID_Call struct {
 
 // GetOrderByID is a helper method to define mock.On call
 //   - ctx context.Context
-//   - orderID int
+//   - orderID int64
 func (_e *MockOrderRepository_Expecter) GetOrderByID(ctx interface{}, orderID interface{}) *MockOrderRepository_GetOrderByID_Call {
 	return &MockOrderRepository_GetOrderByID_Call{Call: _e.mock.On("GetOrderByID", ctx, orderID)}
 }
 
-func (_c *MockOrderRepository_GetOrderByID_Call) Run(run func(ctx context.Context, orderID int)) *MockOrderRepository_GetOrderByID_Call {
+func (_c *MockOrderRepository_GetOrderByID_Call) Run(run func(ctx context.Context, orderID int64)) *MockOrderRepository_GetOrderByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(int))
+		run(args[0].(context.Context), args[1].(int64))
 	})
 	return _c
 }
@@ -184,7 +184,7 @@ func (_c *MockOrderRepository_GetOrderByID_Call) Return(_a0 *entities.Order, _a1
 	return _c
 }
 
-func (_c *MockOrderRepository_GetOrderByID_Call) RunAndReturn(run func(context.Context, int) (*entities.Order, error)) *MockOrderRepository_GetOrderByID_Call {
+func (_c *MockOrderRepository_GetOrderByID_Call) RunAndReturn(run func(context.Context, int64) (*entities.Order, error)) *MockOrderRepository_GetOrderByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -257,7 +257,7 @@ func (_c *MockOrderRepository_GetUserOrders_Call) RunAndReturn(run func(context.
 }
 
 // UpdateOrderStatus provides a mock function with given fields: ctx, orderID, status
-func (_m *MockOrderRepository) UpdateOrderStatus(ctx context.Context, orderID int, status string) error {
+func (_m *MockOrderRepository) UpdateOrderStatus(ctx context.Context, orderID int64, status string) error {
 	ret := _m.Called(ctx, orderID, status)
 
 	if len(ret) == 0 {
@@ -265,7 +265,7 @@ func (_m *MockOrderRepository) UpdateOrderStatus(ctx context.Context, orderID in
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, int, string) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, int64, string) error); ok {
 		r0 = rf(ctx, orderID, status)
 	} else {
 		r0 = ret.Error(0)
@@ -281,15 +281,15 @@ type MockOrderRepository_UpdateOrderStatus_Call struct {
 
 // UpdateOrderStatus is a helper method to define mock.On call
 //   - ctx context.Context
-//   - orderID int
+//   - orderID int64
 //   - status string
 func (_e *MockOrderRepository_Expecter) UpdateOrderStatus(ctx interface{}, orderID interface{}, status interface{}) *MockOrderRepository_UpdateOrderStatus_Call {
 	return &MockOrderRepository_UpdateOrderStatus_Call{Call: _e.mock.On("UpdateOrderStatus", ctx, orderID, status)}
 }
 
-func (_c *MockOrderRepository_UpdateOrderStatus_Call) Run(run func(ctx context.Context, orderID int, status string)) *MockOrderRepository_UpdateOrderStatus_Call {
+func (_c *MockOrderRepository_UpdateOrderStatus_Call) Run(run func(ctx context.Context, orderID int64, status string)) *MockOrderRepository_UpdateOrderStatus_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(int), args[2].(string))
+		run(args[0].(context.Context), args[1].(int64), args[2].(string))
 	})
 	return _c
 }
@@ -299,7 +299,7 @@ func (_c *MockOrderRepository_UpdateOrderStatus_Call) Return(_a0 error) *MockOrd
 	return _c
 }
 
-func (_c *MockOrderRepository_UpdateOrderStatus_Call) RunAndReturn(run func(context.Context, int, string) error) *MockOrderRepository_UpdateOrderStatus_Call {
+func (_c *MockOrderRepository_UpdateOrderStatus_Call) RunAndReturn(run func(context.Context, int64, string) error) *MockOrderRepository_UpdateOrderStatus_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -9,17 +9,17 @@ import (
 	"goshop/internal/domain/types"
 	"goshop/internal/domain_errors"
 	"goshop/internal/dto"
-	"strconv"
+	"slices"
 	"time"
 )
 
 type OrderRepository interface {
 	CreateOrder(ctx context.Context, order *entities.Order) (*int64, error)
 	GetUserOrders(ctx context.Context, userID int64, filters types.OrderFilters) ([]*entities.Order, int64, error)
-	GetOrderByID(ctx context.Context, orderID int) (*entities.Order, error)
-	UpdateOrderStatus(ctx context.Context, orderID int, status string) error
-	CancelOrder(ctx context.Context, orderID int) error
-	//ClearCart(ctx context.Context, cartID int64) error
+	GetOrderByID(ctx context.Context, userID int64, orderID int64) (*entities.Order, error)
+	UpdateOrderStatus(ctx context.Context, orderID int64, status string) error
+	CancelOrder(ctx context.Context, orderID int64) error
+	GetAllOrders(ctx context.Context, filters types.AdminOrderFilters) ([]*entities.Order, int64, error)
 }
 
 type CartRepository interface {
@@ -48,10 +48,21 @@ type OrderService struct {
 	logger        *zap.Logger
 }
 
-func NewOrderService(orderRepo OrderRepository, logger *zap.Logger) *OrderService {
+func NewOrderService(
+	orderRepo OrderRepository,
+	cartRepo CartRepository,
+	userRepo UserRepository,
+	addressRepo AddressRepository,
+	orderItemRepo OrderItemRepository,
+	logger *zap.Logger,
+) *OrderService {
 	return &OrderService{
-		orderRepo: orderRepo,
-		logger:    logger,
+		orderRepo:     orderRepo,
+		cartRepo:      cartRepo,
+		userRepo:      userRepo,
+		addressRepo:   addressRepo,
+		orderItemRepo: orderItemRepo,
+		logger:        logger,
 	}
 }
 
@@ -113,7 +124,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID int64, req *dto.C
 	orderItems := make([]*entities.OrderItem, 0, len(cart.Items))
 	for _, item := range cart.Items {
 		orderItem := &entities.OrderItem{
-			OrderID:      int64(*id),
+			OrderID:      *id,
 			ProductID:    item.Product.ID,
 			ProductName:  item.Product.Name,
 			PriceAtOrder: item.Product.Price,
@@ -125,7 +136,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID int64, req *dto.C
 	s.logger.Debug("Creating order items", zap.Int("items_count", len(orderItems)))
 	err = s.orderItemRepo.Create(ctx, orderItems)
 	if err != nil {
-		s.logger.Error("Failed to create order items", zap.Error(err), zap.Int64("order_id", int64(*id)))
+		s.logger.Error("Failed to create order items", zap.Error(err), zap.Int64("order_id", *id))
 		return nil, err
 	}
 
@@ -147,7 +158,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID int64, req *dto.C
 	}
 
 	response := &dto.OrderResponse{
-		ID:         int64(*id),
+		ID:         *id,
 		UUID:       order.UUID.String(),
 		UserID:     userID,
 		AddressID:  req.AddressID,
@@ -168,7 +179,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID int64, req *dto.C
 	}
 
 	s.logger.Info("Order created successfully",
-		zap.Int64("order_id", int64(*id)),
+		zap.Int64("order_id", *id),
 		zap.Int64("user_id", userID),
 		zap.String("total_price", totalPrice.StringFixed(2)))
 
@@ -183,20 +194,20 @@ func (s *OrderService) GetUserOrders(ctx context.Context, userID int64, filters 
 	}
 
 	resp := &dto.OrdersListResponse{}
-	orderResponses := make([]dto.OrderResponse, 10)
-	total := 0
+	orderResponses := make([]dto.OrderResponse, 0, len(orders))
+	totalAmount := decimal.Zero
 
 	for _, order := range orders {
-		items := make([]dto.OrderItemResponse, 10)
+		items := make([]dto.OrderItemResponse, 0, len(order.Items))
 		for _, orderItem := range order.Items {
 
 			subTotal := orderItem.PriceAtOrder.Mul(decimal.NewFromInt(int64(orderItem.Quantity)))
 
-			total += int(subTotal.IntPart())
+			totalAmount = totalAmount.Add(subTotal)
 			item := dto.OrderItemResponse{
 				ProductID:    orderItem.ProductID,
 				ProductName:  orderItem.ProductName,
-				PriceAtOrder: orderItem.PriceAtOrder.String(),
+				PriceAtOrder: orderItem.PriceAtOrder.StringFixed(2),
 				Quantity:     orderItem.Quantity,
 				Subtotal:     subTotal.StringFixed(2),
 			}
@@ -210,7 +221,7 @@ func (s *OrderService) GetUserOrders(ctx context.Context, userID int64, filters 
 			City:       order.Address.City,
 			PostalCode: order.Address.PostalCode,
 			Country:    order.Address.Country,
-			CreatedAt:  order.Address.CreatedAt.String(),
+			CreatedAt:  order.Address.CreatedAt.Format(time.RFC3339),
 		}
 
 		orderResponse := dto.OrderResponse{
@@ -218,7 +229,7 @@ func (s *OrderService) GetUserOrders(ctx context.Context, userID int64, filters 
 			UUID:       order.UUID.String(),
 			UserID:     order.UserID,
 			AddressID:  order.AddressID,
-			TotalPrice: order.TotalPrice.String(),
+			TotalPrice: order.TotalPrice.StringFixed(2),
 			Status:     string(order.Status),
 			CreatedAt:  order.CreatedAt,
 			UpdatedAt:  order.UpdatedAt,
@@ -230,9 +241,158 @@ func (s *OrderService) GetUserOrders(ctx context.Context, userID int64, filters 
 
 	resp.Orders = orderResponses
 	resp.TotalCount = totalCount
-	resp.TotalAmount = strconv.Itoa(total)
+	resp.TotalAmount = totalAmount.StringFixed(2)
 	resp.Page = filters.Page
 	resp.Limit = filters.Limit
 
 	return resp, nil
+}
+
+func (s *OrderService) GetOrderByID(ctx context.Context, userID int64, orderID int64) (*dto.OrderResponse, error) {
+
+	order, err := s.orderRepo.GetOrderByID(ctx, orderID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	orderItems := make([]dto.OrderItemResponse, 0, len(order.Items))
+	for _, item := range order.Items {
+		subTotal := item.PriceAtOrder.Mul(decimal.NewFromInt(int64(item.Quantity)))
+
+		orderItem := dto.OrderItemResponse{
+			ProductID:    item.ProductID,
+			ProductName:  item.ProductName,
+			PriceAtOrder: item.PriceAtOrder.StringFixed(2),
+			Quantity:     item.Quantity,
+			Subtotal:     subTotal.StringFixed(2),
+		}
+		orderItems = append(orderItems, orderItem)
+	}
+
+	address := &dto.AddressResponse{
+		ID:         order.Address.ID,
+		UUID:       order.Address.UUID.String(),
+		Address:    order.Address.Address,
+		City:       order.Address.City,
+		PostalCode: order.Address.PostalCode,
+		Country:    order.Address.Country,
+		CreatedAt:  order.Address.CreatedAt.Format(time.RFC3339),
+	}
+
+	resp := &dto.OrderResponse{
+		ID:         order.ID,
+		UUID:       order.UUID.String(),
+		UserID:     order.UserID,
+		AddressID:  order.AddressID,
+		TotalPrice: order.TotalPrice.StringFixed(2),
+		Status:     string(order.Status),
+		CreatedAt:  order.CreatedAt,
+		UpdatedAt:  order.UpdatedAt,
+		Items:      orderItems,
+		Address:    address,
+	}
+
+	return resp, nil
+}
+
+func (s *OrderService) CancelOrder(ctx context.Context, userID int64, orderID int64) error {
+
+	order, err := s.orderRepo.GetOrderByID(ctx, userID, orderID)
+	if err != nil {
+		return err
+	}
+
+	if order.Status == entities.OrderStatusCancelled {
+		return domain_errors.ErrOrderAlreadyCancelled
+	}
+
+	if (order.Status != entities.OrderStatusPending) && (order.Status != entities.OrderStatusPaid) {
+		return domain_errors.ErrOrderCannotBeCancelled
+	}
+
+	err = s.orderRepo.CancelOrder(ctx, orderID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *OrderService) UpdateOrderStatus(ctx context.Context, orderID int64, status string) error {
+	s.logger.Info("Updating order status", zap.Int64("order_id", orderID), zap.String("status", status))
+
+	validStatuses := []string{"pending", "paid", "shipped", "delivered", "cancelled"}
+	if !slices.Contains(validStatuses, status) {
+		return domain_errors.ErrInvalidOrderStatus
+	}
+
+	return s.orderRepo.UpdateOrderStatus(ctx, orderID, status)
+}
+
+func (s *OrderService) GetAllOrders(ctx context.Context, filters types.AdminOrderFilters) (*dto.OrdersListResponse, error) {
+	s.logger.Info("Getting all orders for admin", zap.Any("filters", filters))
+
+	orders, totalCount, err := s.orderRepo.GetAllOrders(ctx, filters)
+	if err != nil {
+		s.logger.Error("Failed to get all orders", zap.Error(err))
+		return nil, err
+	}
+
+	orderResponses := make([]dto.OrderResponse, 0, len(orders))
+	var totalAmount decimal.Decimal
+
+	for _, order := range orders {
+		items := make([]dto.OrderItemResponse, 0, len(order.Items))
+
+		for _, orderItem := range order.Items {
+			subTotal := orderItem.PriceAtOrder.Mul(decimal.NewFromInt(int64(orderItem.Quantity)))
+
+			item := dto.OrderItemResponse{
+				ProductID:    orderItem.ProductID,
+				ProductName:  orderItem.ProductName,
+				PriceAtOrder: orderItem.PriceAtOrder.StringFixed(2),
+				Quantity:     orderItem.Quantity,
+				Subtotal:     subTotal.StringFixed(2),
+			}
+			items = append(items, item)
+		}
+
+		address := &dto.AddressResponse{
+			ID:         order.Address.ID,
+			UUID:       order.Address.UUID.String(),
+			Address:    order.Address.Address,
+			City:       order.Address.City,
+			PostalCode: order.Address.PostalCode,
+			Country:    order.Address.Country,
+			CreatedAt:  order.Address.CreatedAt.Format(time.RFC3339),
+		}
+
+		orderResponse := dto.OrderResponse{
+			ID:         order.ID,
+			UUID:       order.UUID.String(),
+			UserID:     order.UserID,
+			AddressID:  order.AddressID,
+			TotalPrice: order.TotalPrice.StringFixed(2),
+			Status:     string(order.Status),
+			CreatedAt:  order.CreatedAt,
+			UpdatedAt:  order.UpdatedAt,
+			Items:      items,
+			Address:    address,
+		}
+
+		orderResponses = append(orderResponses, orderResponse)
+		totalAmount = totalAmount.Add(order.TotalPrice)
+	}
+
+	s.logger.Info("All orders retrieved successfully",
+		zap.Int("orders_count", len(orders)),
+		zap.Int64("total_count", totalCount))
+
+	return &dto.OrdersListResponse{
+		Orders:      orderResponses,
+		TotalCount:  totalCount,
+		TotalAmount: totalAmount.StringFixed(2),
+		Page:        filters.Page,
+		Limit:       filters.Limit,
+	}, nil
 }

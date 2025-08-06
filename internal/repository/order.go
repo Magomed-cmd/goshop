@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.uber.org/zap"
 	"goshop/internal/domain/entities"
 	"goshop/internal/domain/types"
 	"goshop/internal/domain_errors"
@@ -14,8 +15,9 @@ import (
 )
 
 type OrderRepository struct {
-	db   *pgxpool.Pool
-	psql squirrel.StatementBuilderType
+	db     *pgxpool.Pool
+	psql   squirrel.StatementBuilderType
+	logger *zap.Logger
 }
 
 func NewOrderRepository(db *pgxpool.Pool) *OrderRepository {
@@ -149,12 +151,12 @@ func (r *OrderRepository) GetUserOrders(ctx context.Context, userID int64, filte
 	return orders, totalCount, nil
 }
 
-func (r *OrderRepository) GetOrderByID(ctx context.Context, orderID int) (*entities.Order, error) {
+func (r *OrderRepository) GetOrderByID(ctx context.Context, userID int64, orderID int64) (*entities.Order, error) {
 
-	query := `SELECT * from orders WHERE id = $1`
+	query := `SELECT * from orders WHERE id = $1 AND user_id = $2`
 
 	order := &entities.Order{}
-	if err := r.db.QueryRow(ctx, query, orderID).
+	if err := r.db.QueryRow(ctx, query, orderID, userID).
 		Scan(
 			&order.ID,
 			&order.UUID,
@@ -174,7 +176,7 @@ func (r *OrderRepository) GetOrderByID(ctx context.Context, orderID int) (*entit
 	return order, nil
 }
 
-func (r *OrderRepository) UpdateOrderStatus(ctx context.Context, orderID int, status string) error {
+func (r *OrderRepository) UpdateOrderStatus(ctx context.Context, orderID int64, status string) error {
 
 	query := `
 			UPDATE orders SET status = $1 WHERE id = $2
@@ -192,7 +194,7 @@ func (r *OrderRepository) UpdateOrderStatus(ctx context.Context, orderID int, st
 	return nil
 }
 
-func (r *OrderRepository) CancelOrder(ctx context.Context, orderID int) error {
+func (r *OrderRepository) CancelOrder(ctx context.Context, orderID int64) error {
 
 	query := `UPDATE orders 
               SET status = 'cancelled', updated_at = NOW()
@@ -209,4 +211,109 @@ func (r *OrderRepository) CancelOrder(ctx context.Context, orderID int) error {
 	}
 
 	return nil
+}
+
+func (r *OrderRepository) GetAllOrders(ctx context.Context, filters types.AdminOrderFilters) ([]*entities.Order, int64, error) {
+	r.logger.Debug("Getting all orders with admin filters", zap.Any("filters", filters))
+
+	offset := (filters.Page - 1) * filters.Limit
+
+	countQuery := r.psql.Select("COUNT(*)").From("orders")
+	dataQuery := r.psql.Select("*").From("orders")
+
+	dataQuery = dataQuery.Limit(uint64(filters.Limit)).Offset(uint64(offset))
+
+	if filters.Status != nil {
+		countQuery = countQuery.Where(squirrel.Eq{"status": filters.Status})
+		dataQuery = dataQuery.Where(squirrel.Eq{"status": filters.Status})
+	}
+
+	if filters.DateFrom != nil {
+		countQuery = countQuery.Where(squirrel.GtOrEq{"created_at": filters.DateFrom})
+		dataQuery = dataQuery.Where(squirrel.GtOrEq{"created_at": filters.DateFrom})
+	}
+
+	if filters.DateTo != nil {
+		countQuery = countQuery.Where(squirrel.LtOrEq{"created_at": filters.DateTo})
+		dataQuery = dataQuery.Where(squirrel.LtOrEq{"created_at": filters.DateTo})
+	}
+
+	if filters.MinAmount != nil {
+		countQuery = countQuery.Where(squirrel.GtOrEq{"total_price": filters.MinAmount})
+		dataQuery = dataQuery.Where(squirrel.GtOrEq{"total_price": filters.MinAmount})
+	}
+
+	if filters.MaxAmount != nil {
+		countQuery = countQuery.Where(squirrel.LtOrEq{"total_price": filters.MaxAmount})
+		dataQuery = dataQuery.Where(squirrel.LtOrEq{"total_price": filters.MaxAmount})
+	}
+
+	if filters.UserID != nil {
+		countQuery = countQuery.Where(squirrel.Eq{"user_id": filters.UserID})
+		dataQuery = dataQuery.Where(squirrel.Eq{"user_id": filters.UserID})
+	}
+
+	if filters.SortBy != nil && filters.SortOrder != nil {
+		dataQuery = dataQuery.OrderBy(*filters.SortBy + " " + *filters.SortOrder)
+	}
+
+	// Выполняем count запрос
+	countSql, countArgs, err := countQuery.ToSql()
+	if err != nil {
+		r.logger.Error("Failed to build count query", zap.Error(err))
+		return nil, 0, err
+	}
+
+	var totalCount int64
+	err = r.db.QueryRow(ctx, countSql, countArgs...).Scan(&totalCount)
+	if err != nil {
+		r.logger.Error("Failed to execute count query", zap.Error(err))
+		return nil, 0, err
+	}
+
+	// Выполняем data запрос
+	sql, args, err := dataQuery.ToSql()
+	if err != nil {
+		r.logger.Error("Failed to build data query", zap.Error(err))
+		return nil, 0, err
+	}
+
+	rows, err := r.db.Query(ctx, sql, args...)
+	if err != nil {
+		r.logger.Error("Failed to execute data query", zap.Error(err))
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var orders []*entities.Order
+
+	for rows.Next() {
+		order := &entities.Order{}
+
+		if err := rows.Scan(
+			&order.ID,
+			&order.UUID,
+			&order.UserID,
+			&order.AddressID,
+			&order.TotalPrice,
+			&order.Status,
+			&order.CreatedAt,
+			&order.UpdatedAt,
+		); err != nil {
+			r.logger.Error("Failed to scan order row", zap.Error(err))
+			return nil, 0, err
+		}
+		orders = append(orders, order)
+	}
+
+	if err = rows.Err(); err != nil {
+		r.logger.Error("Row iteration error", zap.Error(err))
+		return nil, 0, err
+	}
+
+	r.logger.Info("All orders retrieved successfully",
+		zap.Int("orders_count", len(orders)),
+		zap.Int64("total_count", totalCount))
+
+	return orders, totalCount, nil
 }
