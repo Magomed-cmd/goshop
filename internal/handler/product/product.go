@@ -35,6 +35,29 @@ func NewProductHandler(productService ProductService, logger *zap.Logger) *Produ
 	}
 }
 
+func (h *ProductHandler) CreateProduct(c *gin.Context) {
+	h.logger.Info("CreateProduct handler started")
+
+	var req dto.CreateProductRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Error("Failed to bind JSON in CreateProduct", zap.Error(err))
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON", "details": err.Error()})
+		return
+	}
+
+	h.logger.Debug("Calling productService.CreateProduct", zap.String("product_name", req.Name))
+	result, err := h.productService.CreateProduct(c.Request.Context(), &req)
+	if err != nil {
+		h.logger.Error("CreateProduct service failed", zap.Error(err), zap.String("product_name", req.Name))
+		statusCode, message := h.mapServiceError(err)
+		c.JSON(statusCode, gin.H{"error": message})
+		return
+	}
+
+	h.logger.Info("CreateProduct successful", zap.Int64("product_id", result.ID), zap.String("product_name", result.Name))
+	c.JSON(http.StatusCreated, result)
+}
+
 func (h *ProductHandler) GetProducts(c *gin.Context) {
 	h.logger.Debug("GetProducts handler started")
 
@@ -98,12 +121,6 @@ func (h *ProductHandler) GetProductsByCategory(c *gin.Context) {
 		return
 	}
 
-	if err != nil {
-		h.logger.Error("Failed to parse product filters", zap.Error(err))
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid filter parameters"})
-		return
-	}
-
 	filters.CategoryID = &categoryID
 
 	h.logger.Debug("Calling productService.GetProducts for category", zap.Int64("category_id", categoryID), zap.Any("filters", filters))
@@ -116,29 +133,6 @@ func (h *ProductHandler) GetProductsByCategory(c *gin.Context) {
 
 	h.logger.Debug("GetProductsByCategory successful", zap.Int64("category_id", categoryID), zap.Int("products_count", len(result.Products)))
 	c.JSON(http.StatusOK, result)
-}
-
-func (h *ProductHandler) CreateProduct(c *gin.Context) {
-	h.logger.Info("CreateProduct handler started")
-
-	var req dto.CreateProductRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		h.logger.Error("Failed to bind JSON in CreateProduct", zap.Error(err))
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON", "details": err.Error()})
-		return
-	}
-
-	h.logger.Debug("Calling productService.CreateProduct", zap.String("product_name", req.Name))
-	result, err := h.productService.CreateProduct(c.Request.Context(), &req)
-	if err != nil {
-		h.logger.Error("CreateProduct service failed", zap.Error(err), zap.String("product_name", req.Name))
-		statusCode, message := h.mapServiceError(err)
-		c.JSON(statusCode, gin.H{"error": message})
-		return
-	}
-
-	h.logger.Info("CreateProduct successful", zap.Int64("product_id", result.ID), zap.String("product_name", result.Name))
-	c.JSON(http.StatusCreated, result)
 }
 
 func (h *ProductHandler) UpdateProduct(c *gin.Context) {

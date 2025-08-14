@@ -60,7 +60,6 @@ func (r *ProductRepository) CreateProduct(ctx context.Context, product *entities
 func (r *ProductRepository) GetProductByID(ctx context.Context, id int64) (*entities.Product, error) {
 	r.logger.Debug("Getting product by ID from database", zap.Int64("product_id", id))
 
-	// Убрал is_active из SELECT
 	query := `SELECT id, uuid, name, description, price, stock, created_at, updated_at FROM products WHERE id = $1`
 	var product entities.Product
 
@@ -164,7 +163,6 @@ func (r *ProductRepository) GetProducts(ctx context.Context, filters types.Produ
 		baseQuery = baseQuery.Where(squirrel.LtOrEq{"p.price": *filters.MaxPrice})
 	}
 
-	// Count query
 	countSql, countArgs, err := baseQuery.Columns("COUNT(*)").ToSql()
 	if err != nil {
 		r.logger.Error("Failed to build count query", zap.Error(err))

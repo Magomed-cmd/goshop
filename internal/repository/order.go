@@ -3,15 +3,16 @@ package repository
 import (
 	"context"
 	"errors"
+	"goshop/internal/domain/entities"
+	"goshop/internal/domain/types"
+	"goshop/internal/domain_errors"
+	"strings"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
-	"goshop/internal/domain/entities"
-	"goshop/internal/domain/types"
-	"goshop/internal/domain_errors"
-	"strings"
 )
 
 type OrderRepository struct {
@@ -257,7 +258,6 @@ func (r *OrderRepository) GetAllOrders(ctx context.Context, filters types.AdminO
 		dataQuery = dataQuery.OrderBy(*filters.SortBy + " " + *filters.SortOrder)
 	}
 
-	// Выполняем count запрос
 	countSql, countArgs, err := countQuery.ToSql()
 	if err != nil {
 		r.logger.Error("Failed to build count query", zap.Error(err))
@@ -271,7 +271,6 @@ func (r *OrderRepository) GetAllOrders(ctx context.Context, filters types.AdminO
 		return nil, 0, err
 	}
 
-	// Выполняем data запрос
 	sql, args, err := dataQuery.ToSql()
 	if err != nil {
 		r.logger.Error("Failed to build data query", zap.Error(err))

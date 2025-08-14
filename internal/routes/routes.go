@@ -1,14 +1,16 @@
 package routes
 
 import (
-	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 	"goshop/internal/handler/address"
 	"goshop/internal/handler/cart"
 	"goshop/internal/handler/category"
+	"goshop/internal/handler/order"
 	"goshop/internal/handler/product"
 	"goshop/internal/handler/user"
 	"goshop/internal/middleware"
+
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type Handlers struct {
@@ -17,6 +19,7 @@ type Handlers struct {
 	CategoryHandler *category.CategoryHandler
 	ProductHandler  *product.ProductHandler
 	CartHandler     *cart.CartHandler
+	OrderHandler    *order.OrderHandler
 }
 
 func RegisterRoutes(router *gin.Engine, handlers *Handlers, jwtSecret string, logger *zap.Logger) {
@@ -42,7 +45,7 @@ func RegisterRoutes(router *gin.Engine, handlers *Handlers, jwtSecret string, lo
 		protected.GET("/profile", handlers.UserHandler.GetProfile)
 		protected.PUT("/profile", handlers.UserHandler.UpdateProfile)
 
-		// Addresses
+		
 		protected.GET("/addresses", handlers.AddressHandler.GetUserAddresses)
 		protected.POST("/addresses", handlers.AddressHandler.CreateAddress)
 		protected.GET("/addresses/:id", handlers.AddressHandler.GetAddressByID)

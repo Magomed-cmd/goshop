@@ -8,13 +8,14 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"goshop/internal/domain/entities"
+	"goshop/internal/dto"
+	"goshop/internal/handler/user/mocks"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"goshop/internal/domain/entities"
-	"goshop/internal/dto"
-	"goshop/internal/handler/user/mocks"
 )
 
 func setupTestRouter() *gin.Engine {

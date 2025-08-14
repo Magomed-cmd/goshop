@@ -1,13 +1,15 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 	"goshop/internal/app"
 	"goshop/internal/config"
 	"goshop/internal/db/postgres"
+	"goshop/internal/db/redisDB"
 	"goshop/internal/logger"
 	"goshop/internal/routes"
+
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -25,11 +27,22 @@ func main() {
 	}
 	defer db.Close()
 
+	rdb, err := redisDB.NewConnection(&cfg.Redis, log)
+	if err != nil {
+		log.Fatal("failed to connect to Redis", zap.Error(err))
+	}
+
+	defer func() {
+		if err := rdb.Close(); err != nil {
+			log.Error("failed to close Redis connection", zap.Error(err))
+		}
+	}()
+
 	gin.SetMode(gin.ReleaseMode)
 
 	r := gin.Default()
 
-	handlers := app.InitApp(cfg, db, log)
+	handlers := app.InitApp(cfg, db, log, rdb)
 	routes.RegisterRoutes(r, handlers, cfg.JWT.Secret, log)
 
 	log.Info("Server starting", zap.String("address", cfg.Server.GetServerAddr()))

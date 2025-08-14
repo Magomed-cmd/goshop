@@ -13,12 +13,25 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin -d postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
-
+  redis:
+    image: redis:8.0.3
+    container_name: goshop-redis
+    restart: unless-stopped
+    command: redis-server --requirepass redis123 --save 60 1 --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a redis123 ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 volumes:
   postgres_data:
+  redis_data:

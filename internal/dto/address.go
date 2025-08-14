@@ -1,4 +1,3 @@
-// internal/dto/address.go
 package dto
 
 type CreateAddressRequest struct {

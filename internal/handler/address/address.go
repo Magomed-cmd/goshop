@@ -166,7 +166,6 @@ func (h *AddressHandler) UpdateAddress(c *gin.Context) {
 	c.JSON(200, response)
 }
 
-// 🔧 ДОБАВИЛ: DeleteAddress handler
 func (h *AddressHandler) DeleteAddress(c *gin.Context) {
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
@@ -190,5 +189,5 @@ func (h *AddressHandler) DeleteAddress(c *gin.Context) {
 		return
 	}
 
-	c.Status(204) // No Content - успешно удален
+	c.Status(204) 
 }

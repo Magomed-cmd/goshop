@@ -6,13 +6,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"goshop/internal/domain/entities"
 	"goshop/internal/domain_errors"
 	"goshop/internal/dto"
 	"goshop/internal/service/category"
 	"goshop/internal/service/category/mocks"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"go.uber.org/zap"
 )
 
 func stringPtr(s string) *string {
@@ -74,7 +77,7 @@ func TestCategoryService_GetAllCategories(t *testing.T) {
 			mockRepo := mocks.NewMockCategoryRepository(t)
 			tt.mockSetup(mockRepo)
 
-			service := category.NewCategoryService(mockRepo)
+			service := category.NewCategoryService(mockRepo, zap.NewNop())
 			ctx := context.Background()
 
 			result, err := service.GetAllCategories(ctx)
@@ -144,7 +147,7 @@ func TestCategoryService_GetCategoryByID(t *testing.T) {
 			mockRepo := mocks.NewMockCategoryRepository(t)
 			tt.mockSetup(mockRepo)
 
-			service := category.NewCategoryService(mockRepo)
+			service := category.NewCategoryService(mockRepo, zap.NewNop())
 			ctx := context.Background()
 
 			result, err := service.GetCategoryByID(ctx, tt.id)
@@ -158,7 +161,7 @@ func TestCategoryService_GetCategoryByID(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, result)
-				assert.Equal(t, tt.id, result.Category.ID)
+				assert.Equal(t, tt.id, result.ID)
 			}
 		})
 	}
@@ -206,7 +209,7 @@ func TestCategoryService_CreateCategory(t *testing.T) {
 			mockRepo := mocks.NewMockCategoryRepository(t)
 			tt.mockSetup(mockRepo)
 
-			service := category.NewCategoryService(mockRepo)
+			service := category.NewCategoryService(mockRepo, zap.NewNop())
 			ctx := context.Background()
 
 			result, err := service.CreateCategory(ctx, tt.request)
@@ -321,10 +324,13 @@ func TestCategoryService_UpdateCategory(t *testing.T) {
 			mockRepo := mocks.NewMockCategoryRepository(t)
 			tt.mockSetup(mockRepo)
 
-			service := category.NewCategoryService(mockRepo)
+			service := category.NewCategoryService(mockRepo, zap.NewNop())
 			ctx := context.Background()
 
-			err := service.UpdateCategory(ctx, tt.category)
+			categoryDTO := CategoryEntityToDTO(tt.category, 0)
+			categoryEntity := dtoToEntity(categoryDTO)
+
+			err := service.UpdateCategory(ctx, categoryEntity)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -385,7 +391,7 @@ func TestCategoryService_DeleteCategory(t *testing.T) {
 			mockRepo := mocks.NewMockCategoryRepository(t)
 			tt.mockSetup(mockRepo)
 
-			service := category.NewCategoryService(mockRepo)
+			service := category.NewCategoryService(mockRepo, zap.NewNop())
 			ctx := context.Background()
 
 			err := service.DeleteCategory(ctx, tt.id)
@@ -399,5 +405,32 @@ func TestCategoryService_DeleteCategory(t *testing.T) {
 				assert.NoError(t, err)
 			}
 		})
+	}
+}
+
+// --- helpers ---
+
+func CategoryEntityToDTO(entity *entities.Category, productCount int) *dto.CategoryResponse {
+	if entity == nil {
+		return nil
+	}
+	return &dto.CategoryResponse{
+		ID:           entity.ID,
+		UUID:         entity.UUID.String(),
+		Name:         entity.Name,
+		Description:  entity.Description,
+		ProductCount: productCount,
+	}
+}
+
+func dtoToEntity(d *dto.CategoryResponse) *entities.Category {
+	if d == nil {
+		return nil
+	}
+	return &entities.Category{
+		ID:          d.ID,
+		UUID:        uuid.MustParse(d.UUID),
+		Name:        d.Name,
+		Description: d.Description,
 	}
 }

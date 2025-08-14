@@ -38,3 +38,13 @@ type AdminOrderFilters struct {
 	OrderFilters
 	UserID *int64 `form:"user_id"`
 }
+
+type ReviewFilters struct {
+	Page      int     `form:"page,default=1"`
+	Limit     int     `form:"limit,default=20"`
+	ProductID *int64  `form:"product_id"` // Отзывы для конкретного продукта
+	UserID    *int64  `form:"user_id"`    // Отзывы от конкретного пользователя
+	Rating    *int    `form:"rating"`     // Фильтр по оценке (1-5)
+	SortBy    *string `form:"sort_by"`    // created_at, rating
+	SortOrder *string `form:"sort_order"` // asc, desc
+}

@@ -16,6 +16,7 @@ type Config struct {
 	Security SecurityConfig `mapstructure:"security"`
 	Gin      GinConfig      `mapstructure:"gin"`
 	Logger   LoggerConfig   `mapstructure:"logger"`
+	Redis    RedisConfig    `mapstructure:"redis"`
 }
 
 type ServerConfig struct {
@@ -61,6 +62,22 @@ type LoggerConfig struct {
 	Level       string `mapstructure:"level"`
 	Encoding    string `mapstructure:"encoding"`
 	Development bool   `mapstructure:"development"`
+}
+
+type RedisConfig struct {
+	Host         string        `mapstructure:"host"`
+	Port         int           `mapstructure:"port"`
+	Password     string        `mapstructure:"password"`
+	DB           int           `mapstructure:"db"`
+	KeyPrefix    string        `mapstructure:"key_prefix"`
+	DialTimeout  time.Duration `mapstructure:"dial_timeout"`
+	ReadTimeout  time.Duration `mapstructure:"read_timeout"`
+	WriteTimeout time.Duration `mapstructure:"write_timeout"`
+	TTL          struct {
+		ProductsPopular time.Duration `mapstructure:"products_popular"`
+		CategoriesAll   time.Duration `mapstructure:"categories_all"`
+		Cart            time.Duration `mapstructure:"cart"`
+	} `mapstructure:"ttl"`
 }
 
 func LoadConfig(path string, logger *zap.Logger) (*Config, error) {
@@ -203,6 +220,16 @@ func (c *Config) Validate(logger *zap.Logger) error {
 	if c.Logger.Encoding != "console" && c.Logger.Encoding != "json" {
 		logger.Error("Validation failed", zap.String("field", "logger.encoding"), zap.String("value", c.Logger.Encoding), zap.String("error", "invalid value"))
 		return fmt.Errorf("logger encoding must be console or json, got: %s", c.Logger.Encoding)
+	}
+
+	if c.Redis.Host == "" {
+		logger.Error("Validation failed", zap.String("field", "redis.host"), zap.String("error", "required"))
+		return fmt.Errorf("redis host is required")
+	}
+
+	if c.Redis.Port < 1 || c.Redis.Port > 65535 {
+		logger.Error("Validation failed", zap.String("field", "redis.port"), zap.Int("value", c.Redis.Port), zap.String("error", "invalid range"))
+		return fmt.Errorf("invalid redis port: %d", c.Redis.Port)
 	}
 
 	return nil

@@ -1,10 +1,12 @@
 package validation
 
 import (
-	"github.com/shopspring/decimal"
+	"goshop/internal/domain/types"
 	"goshop/internal/domain_errors"
 	"goshop/internal/dto"
 	"strings"
+
+	"github.com/shopspring/decimal"
 )
 
 var (
@@ -31,6 +33,38 @@ func ValidateCreateProduct(req *dto.CreateProductRequest) error {
 
 	if err := ValidateProductStock(req.Stock); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func ValidateReviewFilters(filters types.ReviewFilters) error {
+
+	if filters.ProductID != nil && *filters.ProductID < 0 {
+		return domain_errors.ErrInvalidProductID
+	}
+
+	if filters.UserID != nil && *filters.UserID < 0 {
+		return domain_errors.ErrInvalidUserID
+	}
+
+	if filters.Rating != nil && *filters.Rating < 5 && *filters.Rating > 0 {
+		return domain_errors.ErrInvalidRating
+	}
+
+	var allowedSortFields = map[string]struct{}{
+		"created_at": {},
+		"rating":     {},
+	}
+
+	if filters.SortBy != nil {
+		if _, exists := allowedSortFields[*filters.SortBy]; !exists {
+			return domain_errors.ErrInvalidReviewSortBy
+		}
+	}
+
+	if filters.SortOrder != nil && (*filters.SortOrder == "DESC" || *filters.SortOrder == "ASC") {
+		return domain_errors.ErrInvalidReviewSortOrder
 	}
 
 	return nil

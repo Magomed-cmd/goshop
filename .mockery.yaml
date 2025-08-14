@@ -38,6 +38,7 @@ packages:
     interfaces:
       ProductRepository:
       CategoryRepository:
+      ProductCache:
   goshop/internal/service/cart:
     interfaces:
       CartRepository:

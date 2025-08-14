@@ -3,16 +3,17 @@ package category
 import (
 	"context"
 	"errors"
-	"github.com/gin-gonic/gin"
 	"goshop/internal/domain/entities"
 	"goshop/internal/domain_errors"
 	"goshop/internal/dto"
 	"strconv"
+	"github.com/google/uuid"
+	"github.com/gin-gonic/gin"
 )
 
 type CategoryService interface {
 	GetAllCategories(ctx context.Context) ([]*entities.CategoryWithCount, error)
-	GetCategoryByID(ctx context.Context, id int64) (*entities.CategoryWithCount, error)
+	GetCategoryByID(ctx context.Context, id int64) (*dto.CategoryResponse, error)
 	CreateCategory(ctx context.Context, req *dto.CreateCategoryRequest) (*entities.Category, error)
 	UpdateCategory(ctx context.Context, category *entities.Category) error
 	DeleteCategory(ctx context.Context, id int64) error
@@ -36,7 +37,6 @@ func (h *CategoryHandler) GetAllCategories(c *gin.Context) {
 		return
 	}
 
-	// Преобразуем entities в DTO
 	var response []dto.CategoryResponse
 	for _, category := range categories {
 		response = append(response, dto.CategoryResponse{
@@ -70,12 +70,11 @@ func (h *CategoryHandler) GetCategoryByID(c *gin.Context) {
 		return
 	}
 
-	// Преобразуем entity в DTO
 	response := dto.CategoryResponse{
-		ID:           category.Category.ID,
-		UUID:         category.Category.UUID.String(),
-		Name:         category.Category.Name,
-		Description:  category.Category.Description,
+		ID:           category.ID,
+		UUID:         category.UUID,
+		Name:         category.Name,
+		Description:  category.Description,
 		ProductCount: int(category.ProductCount),
 	}
 
@@ -127,7 +126,7 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 		return
 	}
 
-	existingCategory, err := h.CategoryService.GetCategoryByID(ctx, id)
+	category, err := h.CategoryService.GetCategoryByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, domain_errors.ErrCategoryNotFound) {
 			c.JSON(404, gin.H{"error": "Category not found"})
@@ -137,15 +136,21 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 		return
 	}
 
-	categoryToUpdate := &existingCategory.Category
 	if req.Name != nil {
-		categoryToUpdate.Name = *req.Name
+		category.Name = *req.Name
 	}
 	if req.Description != nil {
-		categoryToUpdate.Description = req.Description
+		category.Description = req.Description
+	}
+	
+	entityCategory := &entities.Category{
+		ID:          category.ID,
+		UUID:        uuid.MustParse(category.UUID),
+		Name:        category.Name,
+		Description: category.Description,
 	}
 
-	err = h.CategoryService.UpdateCategory(ctx, categoryToUpdate)
+	err = h.CategoryService.UpdateCategory(ctx, entityCategory)
 	if err != nil {
 		if errors.Is(err, domain_errors.ErrCategoryNotFound) {
 			c.JSON(404, gin.H{"error": "Category not found"})
@@ -170,10 +175,10 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 	}
 
 	response := dto.CategoryResponse{
-		ID:           updatedCategory.Category.ID,
-		UUID:         updatedCategory.Category.UUID.String(),
-		Name:         updatedCategory.Category.Name,
-		Description:  updatedCategory.Category.Description,
+		ID:           updatedCategory.ID,
+		UUID:         updatedCategory.UUID,
+		Name:         updatedCategory.Name,
+		Description:  updatedCategory.Description,
 		ProductCount: int(updatedCategory.ProductCount),
 	}
 

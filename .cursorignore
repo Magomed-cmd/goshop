@@ -1,0 +1,10 @@
+# Add directories or file patterns to ignore during indexing (e.g. foo/ or *.csv)
+.pytest_cache/*
+tests/integration/venv/*
+__pychache__/*
+.cursor/*
+.cursorignore
+.cursorrules
+.cursorconfig
+.cursorconfig.json
+.cursorconfig.json

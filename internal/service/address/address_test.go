@@ -5,13 +5,14 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"goshop/internal/domain/entities"
 	"goshop/internal/domain_errors"
 	"goshop/internal/dto"
 	"goshop/internal/service/address"
 	"goshop/internal/service/address/mocks"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func stringPtr(s string) *string {

@@ -7,15 +7,16 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"goshop/internal/domain/entities"
 	"goshop/internal/domain_errors"
 	"goshop/internal/dto"
 	"goshop/internal/handler/category"
 	"goshop/internal/handler/category/mocks"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func setupTestRouter() *gin.Engine {
@@ -129,13 +130,11 @@ func TestCategoryHandler_GetCategoryByID(t *testing.T) {
 			name:       "Success_ValidID",
 			categoryID: "1",
 			mockSetup: func(m *mocks.MockCategoryService) {
-				category := &entities.CategoryWithCount{
-					Category: entities.Category{
-						ID:          1,
-						UUID:        uuid.New(),
-						Name:        "Electronics",
-						Description: stringPtr("Electronic devices"),
-					},
+				category := &dto.CategoryResponse{
+					ID:           1,
+					UUID:         uuid.New().String(),
+					Name:         "Electronics",
+					Description:  stringPtr("Electronic devices"),
 					ProductCount: 5,
 				}
 				m.EXPECT().GetCategoryByID(mock.Anything, int64(1)).Return(category, nil)
@@ -325,13 +324,11 @@ func TestCategoryHandler_UpdateCategory(t *testing.T) {
 			},
 			mockSetup: func(m *mocks.MockCategoryService) {
 				// First, expect GetCategoryByID call
-				category := &entities.CategoryWithCount{
-					Category: entities.Category{
-						ID:          1,
-						UUID:        uuid.New(),
-						Name:        "Updated Electronics",
-						Description: stringPtr("Updated description"),
-					},
+				category := &dto.CategoryResponse{
+					ID:           1,
+					UUID:         uuid.New().String(),
+					Name:         "Updated Electronics",
+					Description:  stringPtr("Updated description"),
 					ProductCount: 5,
 				}
 				m.EXPECT().GetCategoryByID(mock.Anything, int64(1)).Return(category, nil)

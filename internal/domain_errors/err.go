@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Все твои ошибки
 var (
 	// General errors
 	ErrNotFound     = errors.New("resource not found")
@@ -20,6 +21,7 @@ var (
 	ErrEmailExists     = errors.New("email already exists")
 	ErrInvalidPassword = errors.New("invalid password")
 	ErrInvalidEmail    = errors.New("invalid email format")
+	ErrInvalidUserID   = errors.New("invalid id of user")
 
 	// Address errors
 	ErrAddressNotFound    = errors.New("address not found")
@@ -36,6 +38,7 @@ var (
 	ErrInvalidProductData = errors.New("invalid product data")
 	ErrInvalidPrice       = errors.New("price must be greater than 0")
 	ErrInvalidStock       = errors.New("stock cannot be negative")
+	ErrInvalidProductID   = errors.New("invalid product id")
 
 	// Cart errors
 	ErrCartNotFound        = errors.New("cart not found")
@@ -56,6 +59,15 @@ var (
 	ErrOrderNotOwnedByUser    = errors.New("order does not belong to user")
 	ErrAddressRequired        = errors.New("address is required for this order")
 	ErrInvalidOrderData       = errors.New("invalid order data")
+
+	// Review errors
+	ErrInvalidRating          = errors.New("invalid rating of review")
+	ErrInvalidReviewSortBy    = errors.New("invalid sort_by for review filter")
+	ErrInvalidReviewSortOrder = errors.New("invalid sort_order for review filter")
+	ErrInvalidReviewID        = errors.New("invalid id of review")
+	ErrNothingToUpdate        = errors.New("not enough parameters for update")
+	ErrInvalidComment         = errors.New("comment too long (max 1000 characters)")
+	ErrReviewNotOwnedByUser   = errors.New("review does not belong to user")
 )
 
 func HandleError(c *gin.Context, err error) {
@@ -81,6 +93,8 @@ func HandleError(c *gin.Context, err error) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid password"})
 	case errors.Is(err, ErrInvalidEmail):
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email format"})
+	case errors.Is(err, ErrInvalidUserID):
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid id of user"})
 
 	// Address errors
 	case errors.Is(err, ErrAddressNotFound):
@@ -107,6 +121,8 @@ func HandleError(c *gin.Context, err error) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Price must be greater than 0"})
 	case errors.Is(err, ErrInvalidStock):
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Stock cannot be negative"})
+	case errors.Is(err, ErrInvalidProductID):
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product id"})
 
 	// Cart errors
 	case errors.Is(err, ErrCartNotFound):
@@ -143,6 +159,22 @@ func HandleError(c *gin.Context, err error) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Address is required for this order"})
 	case errors.Is(err, ErrInvalidOrderData):
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order data"})
+
+	// Review errors
+	case errors.Is(err, ErrInvalidRating):
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid rating of review"})
+	case errors.Is(err, ErrInvalidReviewSortBy):
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid sort_by for review filter"})
+	case errors.Is(err, ErrInvalidReviewSortOrder):
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid sort_order for review filter"})
+	case errors.Is(err, ErrInvalidReviewID):
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid id of review"})
+	case errors.Is(err, ErrNothingToUpdate):
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Not enough parameters for update"})
+	case errors.Is(err, ErrInvalidComment):
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Comment too long (max 1000 characters)"})
+	case errors.Is(err, ErrReviewNotOwnedByUser):
+		c.JSON(http.StatusForbidden, gin.H{"error": "Review does not belong to user"})
 
 	// Default case для неизвестных ошибок
 	default:

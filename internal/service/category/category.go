@@ -3,11 +3,13 @@ package category
 import (
 	"context"
 	"fmt"
-	"github.com/google/uuid"
 	"goshop/internal/domain/entities"
 	"goshop/internal/domain_errors"
 	"goshop/internal/dto"
 	"time"
+
+	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 type CategoryRepository interface {
@@ -18,13 +20,21 @@ type CategoryRepository interface {
 	DeleteCategory(ctx context.Context, id int64) error
 }
 
-type CategoryService struct {
-	categoryRepo CategoryRepository
+type CategoryCache interface {
+	GetCategory(ctx context.Context, categoryID int64) (*dto.CategoryResponse, error)
+	SetCategory(ctx context.Context, category *dto.CategoryResponse, ttl time.Duration)
 }
 
-func NewCategoryService(categoryRepo CategoryRepository) *CategoryService {
+type CategoryService struct {
+	categoryRepo  CategoryRepository
+	categoryCache CategoryCache
+	logger        *zap.Logger
+}
+
+func NewCategoryService(categoryRepo CategoryRepository, logger *zap.Logger) *CategoryService {
 	return &CategoryService{
 		categoryRepo: categoryRepo,
+		logger:       logger,
 	}
 }
 
@@ -36,20 +46,50 @@ func (s *CategoryService) GetAllCategories(ctx context.Context) ([]*entities.Cat
 	return categories, nil
 }
 
-func (s *CategoryService) GetCategoryByID(ctx context.Context, id int64) (*entities.CategoryWithCount, error) {
+func (s *CategoryService) GetCategoryByID(ctx context.Context, id int64) (*dto.CategoryResponse, error) {
+
 	if id <= 0 {
 		return nil, domain_errors.ErrInvalidInput
+	}
+
+	if s.categoryCache != nil {
+		if categoryCached, err := s.categoryCache.GetCategory(ctx, id); err != nil {
+			s.logger.Warn(
+				"failed to get category from cache",
+				zap.Int64("category_id", id),
+				zap.Error(err),
+			)
+		} else if categoryCached != nil {
+			return categoryCached, nil
+		}
 	}
 
 	category, err := s.categoryRepo.GetCategoryByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	return category, nil
+	if category == nil {
+		return nil, domain_errors.ErrCategoryNotFound
+	}
+
+	resp := &dto.CategoryResponse{
+		ID:           category.Category.ID,
+		UUID:         category.Category.UUID.String(),
+		Name:         category.Category.Name,
+		Description:  category.Category.Description,
+		ProductCount: int(category.ProductCount),
+	}
+
+	if s.categoryCache != nil {
+		s.categoryCache.SetCategory(ctx, resp, 5*time.Minute)
+	}
+
+	return resp, nil
 }
 
 func (s *CategoryService) CreateCategory(ctx context.Context, req *dto.CreateCategoryRequest) (*entities.Category, error) {
 	now := time.Now()
+
 	category := &entities.Category{
 		UUID:        uuid.New(),
 		Name:        req.Name,
@@ -58,11 +98,9 @@ func (s *CategoryService) CreateCategory(ctx context.Context, req *dto.CreateCat
 		UpdatedAt:   now,
 	}
 
-	err := s.categoryRepo.CreateCategory(ctx, category)
-	if err != nil {
+	if err := s.categoryRepo.CreateCategory(ctx, category); err != nil {
 		return nil, fmt.Errorf("failed to create category: %w", err)
 	}
-
 	return category, nil
 }
 
@@ -70,23 +108,28 @@ func (s *CategoryService) UpdateCategory(ctx context.Context, category *entities
 	if category == nil {
 		return domain_errors.ErrInvalidCategoryData
 	}
-
 	if category.ID <= 0 {
 		return domain_errors.ErrInvalidInput
 	}
-
 	if category.Name == "" {
 		return domain_errors.ErrInvalidCategoryData
 	}
-
 	if category.Description == nil {
 		return domain_errors.ErrInvalidCategoryData
 	}
 
 	category.UpdatedAt = time.Now()
 
-	err := s.categoryRepo.UpdateCategory(ctx, category)
-	if err != nil {
+	categoryEntity := &entities.Category{
+		ID:          category.ID,
+		UUID:        category.UUID,
+		Name:        category.Name,
+		Description: category.Description,
+		CreatedAt:   category.CreatedAt,
+		UpdatedAt:   category.UpdatedAt,
+	}
+
+	if err := s.categoryRepo.UpdateCategory(ctx, categoryEntity); err != nil {
 		return err
 	}
 	return nil
@@ -96,9 +139,7 @@ func (s *CategoryService) DeleteCategory(ctx context.Context, id int64) error {
 	if id <= 0 {
 		return domain_errors.ErrInvalidInput
 	}
-
-	err := s.categoryRepo.DeleteCategory(ctx, id)
-	if err != nil {
+	if err := s.categoryRepo.DeleteCategory(ctx, id); err != nil {
 		return err
 	}
 	return nil

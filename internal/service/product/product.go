@@ -2,8 +2,6 @@ package product
 
 import (
 	"context"
-	"github.com/google/uuid"
-	"go.uber.org/zap"
 	"goshop/internal/domain/entities"
 	"goshop/internal/domain/types"
 	"goshop/internal/domain_errors"
@@ -11,6 +9,15 @@ import (
 	"goshop/internal/validation"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
+	"go.uber.org/zap"
+)
+
+const (
+	ProductCacheTTL     = 1 * time.Hour
+	ProductListCacheTTL = 15 * time.Minute
+	CategoryCacheTTL    = 24 * time.Hour
 )
 
 type CategoryRepository interface {
@@ -28,16 +35,29 @@ type ProductRepository interface {
 	GetProductCategories(ctx context.Context, productID int64) ([]*entities.Category, error)
 }
 
+type ProductCache interface {
+	SetProduct(ctx context.Context, product *dto.ProductResponse, ttl time.Duration) error
+	GetProduct(ctx context.Context, productID int64) (*dto.ProductResponse, error)
+	InvalidateProduct(ctx context.Context, productID int64) error
+	SetProductsWithFilters(ctx context.Context, filters types.ProductFilters, products *dto.ProductCatalogResponse, ttl time.Duration) error
+	GetProductsWithFilters(ctx context.Context, filters types.ProductFilters) (*dto.ProductCatalogResponse, error)
+
+	InvalidateProductLists(ctx context.Context) error
+	InvalidateProductsByCategory(ctx context.Context, categoryID int64) error
+}
+
 type ProductService struct {
 	ProductRepo  ProductRepository
 	CategoryRepo CategoryRepository
+	ProductCache ProductCache
 	logger       *zap.Logger
 }
 
-func NewProductService(productRepo ProductRepository, categoryRepo CategoryRepository, logger *zap.Logger) *ProductService {
+func NewProductService(productRepo ProductRepository, categoryRepo CategoryRepository, cache ProductCache, logger *zap.Logger) *ProductService {
 	return &ProductService{
 		ProductRepo:  productRepo,
 		CategoryRepo: categoryRepo,
+		ProductCache: cache,
 		logger:       logger,
 	}
 }
@@ -45,13 +65,11 @@ func NewProductService(productRepo ProductRepository, categoryRepo CategoryRepos
 func (s *ProductService) CreateProduct(ctx context.Context, req *dto.CreateProductRequest) (*dto.ProductResponse, error) {
 	s.logger.Info("Creating product", zap.String("product_name", req.Name))
 
-	s.logger.Debug("Validating create product request")
 	if err := validation.ValidateCreateProduct(req); err != nil {
 		s.logger.Error("Create product validation failed", zap.Error(err), zap.String("product_name", req.Name))
 		return nil, err
 	}
 
-	s.logger.Debug("Checking if categories exist", zap.Any("category_ids", req.CategoryIDs))
 	exists, err := s.CategoryRepo.CheckCategoriesExist(ctx, req.CategoryIDs)
 	if err != nil {
 		s.logger.Error("Failed to check categories exist", zap.Error(err), zap.Any("category_ids", req.CategoryIDs))
@@ -62,31 +80,27 @@ func (s *ProductService) CreateProduct(ctx context.Context, req *dto.CreateProdu
 		return nil, domain_errors.ErrCategoryNotFound
 	}
 
+	now := time.Now()
 	product := &entities.Product{
 		UUID:        uuid.New(),
 		Name:        strings.TrimSpace(req.Name),
 		Description: req.Description,
 		Price:       req.Price,
 		Stock:       req.Stock,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 
-	s.logger.Debug("Creating product in repository", zap.String("product_uuid", product.UUID.String()))
-	err = s.ProductRepo.CreateProduct(ctx, product)
-	if err != nil {
+	if err := s.ProductRepo.CreateProduct(ctx, product); err != nil {
 		s.logger.Error("Failed to create product in repository", zap.Error(err), zap.String("product_name", req.Name))
 		return nil, err
 	}
 
-	s.logger.Debug("Adding product to categories", zap.Int64("product_id", product.ID), zap.Any("category_ids", req.CategoryIDs))
-	err = s.ProductRepo.AddProductToCategories(ctx, product.ID, req.CategoryIDs)
-	if err != nil {
+	if err := s.ProductRepo.AddProductToCategories(ctx, product.ID, req.CategoryIDs); err != nil {
 		s.logger.Error("Failed to add product to categories", zap.Error(err), zap.Int64("product_id", product.ID))
 		return nil, err
 	}
 
-	s.logger.Debug("Getting product categories", zap.Int64("product_id", product.ID))
 	categories, err := s.ProductRepo.GetProductCategories(ctx, product.ID)
 	if err != nil {
 		s.logger.Error("Failed to get product categories", zap.Error(err), zap.Int64("product_id", product.ID))
@@ -103,9 +117,7 @@ func (s *ProductService) CreateProduct(ctx context.Context, req *dto.CreateProdu
 		}
 	}
 
-	s.logger.Info("Product created successfully", zap.Int64("product_id", product.ID), zap.String("product_name", product.Name))
-
-	return &dto.ProductResponse{
+	resp := &dto.ProductResponse{
 		ID:          product.ID,
 		UUID:        product.UUID.String(),
 		Name:        product.Name,
@@ -115,26 +127,41 @@ func (s *ProductService) CreateProduct(ctx context.Context, req *dto.CreateProdu
 		Categories:  categoryResponses,
 		CreatedAt:   product.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:   product.UpdatedAt.Format(time.RFC3339),
-	}, nil
+	}
+
+	if s.ProductCache != nil {
+		if err := s.ProductCache.SetProduct(ctx, resp, ProductCacheTTL); err != nil {
+			s.logger.Error("Failed to cache product after creation", zap.Error(err), zap.Int64("product_id", product.ID))
+		}
+	}
+
+	s.logger.Info("Product created successfully", zap.Int64("product_id", product.ID), zap.String("product_name", product.Name))
+	return resp, nil
 }
 
 func (s *ProductService) GetProductByID(ctx context.Context, id int64) (*dto.ProductResponse, error) {
 	s.logger.Debug("Getting product by ID", zap.Int64("product_id", id))
 
-	s.logger.Debug("Validating product ID", zap.Int64("product_id", id))
 	if err := validation.ValidateProductID(id); err != nil {
 		s.logger.Error("Product ID validation failed", zap.Error(err), zap.Int64("product_id", id))
 		return nil, err
 	}
 
-	s.logger.Debug("Getting product from repository", zap.Int64("product_id", id))
+	if s.ProductCache != nil {
+		if res, err := s.ProductCache.GetProduct(ctx, id); err == nil && res != nil {
+			s.logger.Debug("Cache hit: product retrieved from cache",
+				zap.Int64("product_id", id),
+				zap.String("product_name", res.Name))
+			return res, nil
+		}
+	}
+
 	product, err := s.ProductRepo.GetProductByID(ctx, id)
 	if err != nil {
 		s.logger.Error("Failed to get product from repository", zap.Error(err), zap.Int64("product_id", id))
 		return nil, err
 	}
 
-	s.logger.Debug("Getting product categories", zap.Int64("product_id", id))
 	categories, err := s.ProductRepo.GetProductCategories(ctx, product.ID)
 	if err != nil {
 		s.logger.Error("Failed to get product categories", zap.Error(err), zap.Int64("product_id", id))
@@ -151,9 +178,7 @@ func (s *ProductService) GetProductByID(ctx context.Context, id int64) (*dto.Pro
 		}
 	}
 
-	s.logger.Debug("Product retrieved successfully", zap.Int64("product_id", id), zap.String("product_name", product.Name))
-
-	return &dto.ProductResponse{
+	resp := &dto.ProductResponse{
 		ID:          product.ID,
 		UUID:        product.UUID.String(),
 		Name:        product.Name,
@@ -163,25 +188,31 @@ func (s *ProductService) GetProductByID(ctx context.Context, id int64) (*dto.Pro
 		Categories:  categoryResponses,
 		CreatedAt:   product.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:   product.UpdatedAt.Format(time.RFC3339),
-	}, nil
+	}
+
+	if s.ProductCache != nil {
+		if err := s.ProductCache.SetProduct(ctx, resp, ProductCacheTTL); err != nil {
+			s.logger.Error("Failed to cache product", zap.Error(err), zap.Int64("product_id", id))
+		}
+	}
+
+	s.logger.Debug("Product retrieved successfully", zap.Int64("product_id", id), zap.String("product_name", product.Name))
+	return resp, nil
 }
 
 func (s *ProductService) UpdateProduct(ctx context.Context, id int64, req *dto.UpdateProductRequest) (*dto.ProductResponse, error) {
 	s.logger.Info("Updating product", zap.Int64("product_id", id))
 
-	s.logger.Debug("Validating product ID", zap.Int64("product_id", id))
 	if err := validation.ValidateProductID(id); err != nil {
 		s.logger.Error("Product ID validation failed", zap.Error(err), zap.Int64("product_id", id))
 		return nil, err
 	}
 
-	s.logger.Debug("Validating update product request", zap.Int64("product_id", id))
 	if err := validation.ValidateUpdateProduct(req); err != nil {
 		s.logger.Error("Update product validation failed", zap.Error(err), zap.Int64("product_id", id))
 		return nil, err
 	}
 
-	s.logger.Debug("Getting product from repository", zap.Int64("product_id", id))
 	product, err := s.ProductRepo.GetProductByID(ctx, id)
 	if err != nil {
 		s.logger.Error("Failed to get product from repository", zap.Error(err), zap.Int64("product_id", id))
@@ -191,25 +222,18 @@ func (s *ProductService) UpdateProduct(ctx context.Context, id int64, req *dto.U
 	hasChanges := false
 
 	if req.Name != nil {
-		s.logger.Debug("Updating product name", zap.Int64("product_id", id), zap.String("new_name", *req.Name))
 		product.Name = strings.TrimSpace(*req.Name)
 		hasChanges = true
 	}
-
 	if req.Description != nil {
-		s.logger.Debug("Updating product description", zap.Int64("product_id", id))
 		product.Description = req.Description
 		hasChanges = true
 	}
-
 	if req.Price != nil {
-		s.logger.Debug("Updating product price", zap.Int64("product_id", id), zap.Any("new_price", *req.Price))
 		product.Price = *req.Price
 		hasChanges = true
 	}
-
 	if req.Stock != nil {
-		s.logger.Debug("Updating product stock", zap.Int64("product_id", id), zap.Int("new_stock", *req.Stock))
 		product.Stock = *req.Stock
 		hasChanges = true
 	}
@@ -220,17 +244,14 @@ func (s *ProductService) UpdateProduct(ctx context.Context, id int64, req *dto.U
 	}
 
 	if hasChanges {
-		s.logger.Debug("Updating product in repository", zap.Int64("product_id", id))
 		product.UpdatedAt = time.Now()
-		err = s.ProductRepo.UpdateProduct(ctx, product)
-		if err != nil {
+		if err := s.ProductRepo.UpdateProduct(ctx, product); err != nil {
 			s.logger.Error("Failed to update product in repository", zap.Error(err), zap.Int64("product_id", id))
 			return nil, err
 		}
 	}
 
 	if len(req.CategoryIDs) > 0 {
-		s.logger.Debug("Updating product categories", zap.Int64("product_id", id), zap.Any("category_ids", req.CategoryIDs))
 		exists, err := s.CategoryRepo.CheckCategoriesExist(ctx, req.CategoryIDs)
 		if err != nil {
 			s.logger.Error("Failed to check categories exist", zap.Error(err), zap.Int64("product_id", id))
@@ -241,22 +262,16 @@ func (s *ProductService) UpdateProduct(ctx context.Context, id int64, req *dto.U
 			return nil, domain_errors.ErrCategoryNotFound
 		}
 
-		s.logger.Debug("Removing product from all categories", zap.Int64("product_id", id))
-		err = s.ProductRepo.RemoveProductFromCategories(ctx, product.ID)
-		if err != nil {
+		if err := s.ProductRepo.RemoveProductFromCategories(ctx, product.ID); err != nil {
 			s.logger.Error("Failed to remove product from categories", zap.Error(err), zap.Int64("product_id", id))
 			return nil, err
 		}
-
-		s.logger.Debug("Adding product to new categories", zap.Int64("product_id", id), zap.Any("category_ids", req.CategoryIDs))
-		err = s.ProductRepo.AddProductToCategories(ctx, product.ID, req.CategoryIDs)
-		if err != nil {
+		if err := s.ProductRepo.AddProductToCategories(ctx, product.ID, req.CategoryIDs); err != nil {
 			s.logger.Error("Failed to add product to categories", zap.Error(err), zap.Int64("product_id", id))
 			return nil, err
 		}
 	}
 
-	s.logger.Debug("Getting updated product categories", zap.Int64("product_id", id))
 	categories, err := s.ProductRepo.GetProductCategories(ctx, product.ID)
 	if err != nil {
 		s.logger.Error("Failed to get product categories", zap.Error(err), zap.Int64("product_id", id))
@@ -270,6 +285,12 @@ func (s *ProductService) UpdateProduct(ctx context.Context, id int64, req *dto.U
 			UUID:        cat.UUID.String(),
 			Name:        cat.Name,
 			Description: cat.Description,
+		}
+	}
+
+	if s.ProductCache != nil {
+		if err := s.ProductCache.InvalidateProduct(ctx, product.ID); err != nil {
+			s.logger.Error("Failed to invalidate product cache", zap.Error(err), zap.Int64("product_id", product.ID))
 		}
 	}
 
@@ -291,24 +312,25 @@ func (s *ProductService) UpdateProduct(ctx context.Context, id int64, req *dto.U
 func (s *ProductService) DeleteProduct(ctx context.Context, id int64) error {
 	s.logger.Info("Deleting product", zap.Int64("product_id", id))
 
-	s.logger.Debug("Validating product ID", zap.Int64("product_id", id))
 	if err := validation.ValidateProductID(id); err != nil {
 		s.logger.Error("Product ID validation failed", zap.Error(err), zap.Int64("product_id", id))
 		return err
 	}
 
-	s.logger.Debug("Removing product from categories", zap.Int64("product_id", id))
-	err := s.ProductRepo.RemoveProductFromCategories(ctx, id)
-	if err != nil {
+	if err := s.ProductRepo.RemoveProductFromCategories(ctx, id); err != nil {
 		s.logger.Error("Failed to remove product from categories", zap.Error(err), zap.Int64("product_id", id))
 		return err
 	}
 
-	s.logger.Debug("Deleting product from repository", zap.Int64("product_id", id))
-	err = s.ProductRepo.DeleteProduct(ctx, id)
-	if err != nil {
+	if err := s.ProductRepo.DeleteProduct(ctx, id); err != nil {
 		s.logger.Error("Failed to delete product from repository", zap.Error(err), zap.Int64("product_id", id))
 		return err
+	}
+
+	if s.ProductCache != nil {
+		if err := s.ProductCache.InvalidateProduct(ctx, id); err != nil {
+			s.logger.Error("Failed to invalidate product cache", zap.Error(err), zap.Int64("product_id", id))
+		}
 	}
 
 	s.logger.Info("Product deleted successfully", zap.Int64("product_id", id))
@@ -325,7 +347,17 @@ func (s *ProductService) GetProducts(ctx context.Context, filters types.ProductF
 		filters.Limit = 20
 	}
 
-	s.logger.Debug("Getting products from repository", zap.Int("page", filters.Page), zap.Int("limit", filters.Limit))
+	if s.ProductCache != nil {
+		if res, err := s.ProductCache.GetProductsWithFilters(ctx, filters); err == nil && res != nil {
+			s.logger.Debug("Cache hit: products retrieved from cache",
+				zap.Int64p("category_id", filters.CategoryID),
+				zap.Stringp("sort_by", filters.SortBy),
+				zap.Int("page", filters.Page),
+				zap.Int("limit", filters.Limit))
+			return res, nil
+		}
+	}
+
 	products, total, err := s.ProductRepo.GetProducts(ctx, filters)
 	if err != nil {
 		s.logger.Error("Failed to get products from repository", zap.Error(err), zap.Any("filters", filters))
@@ -333,22 +365,34 @@ func (s *ProductService) GetProducts(ctx context.Context, filters types.ProductF
 	}
 
 	productResponses := make([]dto.ProductCatalogItem, len(products))
-	for i, product := range products {
+	for i, p := range products {
 		productResponses[i] = dto.ProductCatalogItem{
-			ID:    product.ID,
-			UUID:  product.UUID.String(),
-			Name:  product.Name,
-			Price: product.Price.StringFixed(2),
-			Stock: product.Stock,
+			ID:    p.ID,
+			UUID:  p.UUID.String(),
+			Name:  p.Name,
+			Price: p.Price.StringFixed(2),
+			Stock: p.Stock,
 		}
 	}
 
-	s.logger.Info("Products retrieved successfully", zap.Int("products_count", len(products)), zap.Int("total", total))
-
-	return &dto.ProductCatalogResponse{
+	resp := &dto.ProductCatalogResponse{
 		Products: productResponses,
 		Total:    total,
 		Page:     filters.Page,
 		Limit:    filters.Limit,
-	}, nil
+	}
+
+	if s.ProductCache != nil {
+		if err := s.ProductCache.SetProductsWithFilters(ctx, filters, resp, ProductListCacheTTL); err != nil {
+			s.logger.Error("Failed to cache products list", zap.Error(err))
+		}
+	}
+
+	s.logger.Info("Products retrieved successfully",
+		zap.Int("products_count", len(products)),
+		zap.Int("total", total),
+		zap.Int("page", filters.Page),
+		zap.Int("limit", filters.Limit))
+
+	return resp, nil
 }
