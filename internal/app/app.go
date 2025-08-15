@@ -36,8 +36,9 @@ func InitApp(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger, rdb *redi
 	orderItemRepo := repository.NewOrderItemRepository(db)
 
 	productCache := cache.NewProductCache(rdb, logger)
+	categoryCache := cache.NewCategoryCache(rdb, logger)
 
-	categoryService := category.NewCategoryService(categoryRepo, logger)
+	categoryService := category.NewCategoryService(categoryRepo, categoryCache, logger)
 	userService := user.NewUserService(roleRepo, userRepo, cfg.JWT.Secret, cfg.Security.BcryptCost, logger)
 	addressService := address.NewAddressService(addressRepo)
 	productService := product.NewProductService(productRepo, categoryRepo, productCache, logger)

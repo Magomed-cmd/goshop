@@ -3,12 +3,13 @@ package repository
 import (
 	"context"
 	"errors"
-	"github.com/Masterminds/squirrel"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"goshop/internal/domain/entities"
 	"goshop/internal/domain_errors"
 	"time"
+
+	"github.com/Masterminds/squirrel"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type CategoryRepository struct {
@@ -111,7 +112,7 @@ func (r *CategoryRepository) CreateCategory(ctx context.Context, category *entit
 	return nil
 }
 
-func (r *CategoryRepository) UpdateCategory(ctx context.Context, category *entities.Category) error {
+func (r *CategoryRepository) UpdateCategory(ctx context.Context, category *entities.Category) (*entities.Category, error) {
 	query := r.psql.Update("categories")
 	paramsCnt := 0
 
@@ -119,34 +120,43 @@ func (r *CategoryRepository) UpdateCategory(ctx context.Context, category *entit
 		query = query.Set("name", category.Name)
 		paramsCnt++
 	}
-
 	if category.Description != nil {
 		query = query.Set("description", category.Description)
 		paramsCnt++
 	}
-
 	if paramsCnt == 0 {
-		return domain_errors.ErrInvalidInput
+		return nil, domain_errors.ErrInvalidInput
 	}
 
-	query = query.Set("updated_at", time.Now()).
-		Where(squirrel.Eq{"id": category.ID})
+	now := time.Now()
+	query = query.
+		Set("updated_at", now).
+		Where(squirrel.Eq{"id": category.ID}).
+		Suffix("RETURNING id, uuid, name, description, created_at, updated_at")
 
 	sql, args, err := query.ToSql()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	result, err := r.db.Exec(ctx, sql, args...)
-	if err != nil {
-		return err
+	var updated entities.Category
+
+	if err := r.db.QueryRow(ctx, sql, args...).Scan(
+		&updated.ID,
+		&updated.UUID,
+		&updated.Name,
+		&updated.Description,
+		&updated.CreatedAt,
+		&updated.UpdatedAt,
+	); err != nil {
+
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain_errors.ErrCategoryNotFound
+		}
+		return nil, err
 	}
 
-	if result.RowsAffected() == 0 {
-		return domain_errors.ErrCategoryNotFound
-	}
-
-	return nil
+	return &updated, nil
 }
 
 func (r *CategoryRepository) DeleteCategory(ctx context.Context, id int64) error {
