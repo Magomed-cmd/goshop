@@ -139,6 +139,9 @@ func (s *CategoryService) CreateCategory(ctx context.Context, req *dto.CreateCat
 	if err := s.categoryRepo.CreateCategory(ctx, category); err != nil {
 		return nil, fmt.Errorf("failed to create category: %w", err)
 	}
+	if err := s.categoryCache.DeleteAllCategories(ctx); err != nil {
+		s.logger.Warn("failed to delete all categories from cache after create", zap.Error(err))
+	}
 	return category, nil
 }
 

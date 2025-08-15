@@ -7,9 +7,11 @@
 *.test
 
 *.out
-
+.cursor
 go.work
 
+
+.cursorignore
 .vscode/
 .idea/
 *.swp
