@@ -10,6 +10,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
+)
+
+const (
+	reviewCacheTTL = 5 * time.Minute
 )
 
 type ReviewRepository interface {
@@ -22,28 +27,43 @@ type ReviewRepository interface {
 	GetReviewStats(ctx context.Context, productID int64) (totalReviews int64, averageRating float64, ratingCounts map[int]int64, err error)
 }
 
+type reviewCache interface {
+	SetReviewByID(ctx context.Context, reviewID int64, reviewResponse *dto.ReviewResponse, ttl time.Duration) error
+	GetReviewByID(ctx context.Context, reviewID int64) (*dto.ReviewResponse, error)
+	InvalidateReview(ctx context.Context, reviewID int64) error
+}
+
 type UserRepository interface {
 	GetUserByID(ctx context.Context, id int64) (*entities.User, error)
 }
+
 type ProductRepository interface {
 	GetProductByID(ctx context.Context, id int64) (*entities.Product, error)
 }
 
 type ReviewService struct {
 	reviewRepo  ReviewRepository
+	reviewCache reviewCache
 	userRepo    UserRepository
 	productRepo ProductRepository
+	logger      *zap.Logger
 }
 
-func NewReviewsService(reviewRepo ReviewRepository, userRepository UserRepository, productRepository ProductRepository) *ReviewService {
+func NewReviewsService(reviewRepo ReviewRepository, userRepository UserRepository, productRepository ProductRepository, cache reviewCache, logger *zap.Logger) *ReviewService {
 	return &ReviewService{
 		reviewRepo:  reviewRepo,
+		reviewCache: cache,
 		userRepo:    userRepository,
 		productRepo: productRepository,
+		logger:      logger,
 	}
 }
 
-func (s *ReviewService) CreateReview(ctx context.Context, req dto.CreateReviewRequest, userID int64) (*dto.ReviewResponse, error) {
+func (s *ReviewService) CreateReview(ctx context.Context, req *dto.CreateReviewRequest, userID int64) (*dto.ReviewResponse, error) {
+
+	if userID < 1 {
+		return nil, domain_errors.ErrInvalidUserID
+	}
 
 	user, err := s.userRepo.GetUserByID(ctx, userID)
 	if err != nil {
@@ -94,6 +114,10 @@ func (s *ReviewService) CreateReview(ctx context.Context, req dto.CreateReviewRe
 
 func (s *ReviewService) GetReviewsWithFilters(ctx context.Context, filters types.ReviewFilters) (*dto.ReviewsListResponse, error) {
 
+	if filters.UserID == nil || filters.ProductID == nil {
+		return nil, domain_errors.ErrInvalidInput
+	}
+
 	if err := validation.ValidateReviewFilters(filters); err != nil {
 		return nil, err
 	}
@@ -124,7 +148,7 @@ func (s *ReviewService) GetReviewsWithFilters(ctx context.Context, filters types
 			UserID:    review.UserID,
 			Rating:    review.Rating,
 			Comment:   review.Comment,
-			CreatedAt: time.Now(),
+			CreatedAt: review.CreatedAt,
 			User: &dto.UserInfo{
 				UUID: user.UUID.String(),
 				Name: user.Name,
@@ -152,11 +176,21 @@ func (s *ReviewService) GetReviewsWithFilters(ctx context.Context, filters types
 	return resp, nil
 }
 
-func (s *ReviewService) GetReviewByID(ctx context.Context, reviewID int64, req *dto.UpdateReviewRequest) (*dto.ReviewResponse, error) {
+func (s *ReviewService) GetReviewByID(ctx context.Context, reviewID int64) (*dto.ReviewResponse, error) {
 
-	if reviewID < 0 {
+	if reviewID < 1 {
 		return nil, domain_errors.ErrInvalidReviewID
 	}
+
+	cacheReview, err := s.reviewCache.GetReviewByID(ctx, reviewID)
+	if err != nil {
+		s.logger.Warn("failed to get review from cache, fallback to repository",
+			zap.Int64("reviewID", reviewID), zap.Error(err))
+	} else if cacheReview != nil {
+		s.logger.Debug("found review in cache", zap.Int64("reviewID", reviewID))
+		return cacheReview, nil
+	}
+	s.logger.Debug("review not found in cache, fetching from repository", zap.Int64("reviewID", reviewID))
 
 	review, err := s.reviewRepo.GetReviewByID(ctx, reviewID)
 	if err != nil {
@@ -191,11 +225,14 @@ func (s *ReviewService) GetReviewByID(ctx context.Context, reviewID int64, req *
 		},
 	}
 
+	if err := s.reviewCache.SetReviewByID(ctx, reviewID, resp, reviewCacheTTL); err != nil {
+		s.logger.Warn("failed to set review in cache", zap.Int64("reviewID", reviewID), zap.Error(err))
+	}
+
 	return resp, nil
 }
 
-func (s *ReviewService) UpdateReview(ctx context.Context, reviewID int64, req dto.UpdateReviewRequest) error {
-
+func (s *ReviewService) UpdateReview(ctx context.Context, userID int64, reviewID int64, req dto.UpdateReviewRequest) error {
 	if req.Rating == nil && req.Comment == nil {
 		return domain_errors.ErrNothingToUpdate
 	}
@@ -208,9 +245,23 @@ func (s *ReviewService) UpdateReview(ctx context.Context, reviewID int64, req dt
 		return domain_errors.ErrInvalidComment
 	}
 
-	err := s.reviewRepo.UpdateReview(ctx, reviewID, req.Rating, req.Comment)
+	review, err := s.reviewRepo.GetReviewByID(ctx, reviewID)
 	if err != nil {
 		return err
+	}
+	if review.UserID != userID {
+		return domain_errors.ErrForbidden
+	}
+
+	err = s.reviewRepo.UpdateReview(ctx, reviewID, req.Rating, req.Comment)
+	if err != nil {
+		return err
+	}
+	
+	if err := s.reviewCache.InvalidateReview(ctx, reviewID); err != nil {
+		s.logger.Warn("failed to invalidate review cache",
+			zap.Int64("reviewID", reviewID),
+			zap.Error(err))
 	}
 
 	return nil
@@ -234,6 +285,11 @@ func (s *ReviewService) DeleteReview(ctx context.Context, userID int64, reviewID
 	err = s.reviewRepo.DeleteReview(ctx, reviewID)
 	if err != nil {
 		return err
+	}
+
+	err = s.reviewCache.InvalidateReview(ctx, reviewID)
+	if err != nil {
+		s.logger.Warn("failed to invalidate review cache", zap.Int64("reviewID", reviewID), zap.Error(err))
 	}
 
 	return nil

@@ -95,4 +95,4 @@ cmd/goshop/goshop
 *.key
 .env.goshop
 __pycache__/
-*.pyc
+*.pyc.cursor

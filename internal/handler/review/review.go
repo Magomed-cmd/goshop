@@ -1,4 +1,4 @@
-package handler
+package review
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 )
 
 type ReviewService interface {
-	CreateReview(ctx context.Context, userID int64, req *dto.CreateReviewRequest) (*dto.ReviewResponse, error)
+	CreateReview(ctx context.Context, req *dto.CreateReviewRequest, userID int64) (*dto.ReviewResponse, error)
 	GetReviewsWithFilters(ctx context.Context, filters types.ReviewFilters) (*dto.ReviewsListResponse, error)
 	GetReviewByID(ctx context.Context, reviewID int64) (*dto.ReviewResponse, error)
 	UpdateReview(ctx context.Context, userID int64, reviewID int64, req dto.UpdateReviewRequest) error
@@ -46,7 +46,7 @@ func (h *ReviewHandler) CreateReview(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.reviewService.CreateReview(ctx, userID, &req)
+	resp, err := h.reviewService.CreateReview(ctx, &req, userID)
 	if err != nil {
 		domain_errors.HandleError(c, err)
 		return
