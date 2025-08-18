@@ -3,10 +3,10 @@ package address_test
 import (
 	"context"
 	"errors"
+	errors2 "goshop/internal/domain/errors"
 	"testing"
 
 	"goshop/internal/domain/entities"
-	"goshop/internal/domain_errors"
 	"goshop/internal/dto"
 	"goshop/internal/service/address"
 	"goshop/internal/service/address/mocks"
@@ -59,7 +59,7 @@ func TestAddressService_CreateAddress(t *testing.T) {
 			},
 			mockSetup: func(m *mocks.MockAddressRepository) {},
 			wantErr:   true,
-			errType:   domain_errors.ErrInvalidInput,
+			errType:   errors2.ErrInvalidInput,
 		},
 		{
 			name:   "Error_RepositoryFails",
@@ -153,7 +153,7 @@ func TestAddressService_GetUserAddresses(t *testing.T) {
 			userID:    0,
 			mockSetup: func(m *mocks.MockAddressRepository) {},
 			wantErr:   true,
-			errType:   domain_errors.ErrInvalidInput,
+			errType:   errors2.ErrInvalidInput,
 		},
 		{
 			name:   "Error_RepositoryFails",
@@ -216,16 +216,16 @@ func TestAddressService_GetAddressByID(t *testing.T) {
 			addressID: 0,
 			mockSetup: func(m *mocks.MockAddressRepository) {},
 			wantErr:   true,
-			errType:   domain_errors.ErrInvalidInput,
+			errType:   errors2.ErrInvalidInput,
 		},
 		{
 			name:      "Error_AddressNotFound",
 			addressID: 999,
 			mockSetup: func(m *mocks.MockAddressRepository) {
-				m.EXPECT().GetAddressByID(mock.Anything, int64(999)).Return(nil, domain_errors.ErrAddressNotFound)
+				m.EXPECT().GetAddressByID(mock.Anything, int64(999)).Return(nil, errors2.ErrAddressNotFound)
 			},
 			wantErr: true,
-			errType: domain_errors.ErrAddressNotFound,
+			errType: errors2.ErrAddressNotFound,
 		},
 	}
 
@@ -296,7 +296,7 @@ func TestAddressService_UpdateAddress(t *testing.T) {
 			},
 			mockSetup: func(m *mocks.MockAddressRepository) {},
 			wantErr:   true,
-			errType:   domain_errors.ErrInvalidInput,
+			errType:   errors2.ErrInvalidInput,
 		},
 		{
 			name:      "Error_EmptyRequest",
@@ -310,7 +310,7 @@ func TestAddressService_UpdateAddress(t *testing.T) {
 			},
 			mockSetup: func(m *mocks.MockAddressRepository) {},
 			wantErr:   true,
-			errType:   domain_errors.ErrInvalidAddressData,
+			errType:   errors2.ErrInvalidAddressData,
 		},
 		{
 			name:      "Error_AccessDenied",
@@ -323,7 +323,7 @@ func TestAddressService_UpdateAddress(t *testing.T) {
 				m.EXPECT().GetAddressByID(mock.Anything, int64(1)).Return(existingAddress, nil)
 			},
 			wantErr: true,
-			errType: domain_errors.ErrForbidden,
+			errType: errors2.ErrForbidden,
 		},
 		{
 			name:      "Error_AddressNotFound",
@@ -333,10 +333,10 @@ func TestAddressService_UpdateAddress(t *testing.T) {
 				Address: stringPtr("456 Oak Ave"),
 			},
 			mockSetup: func(m *mocks.MockAddressRepository) {
-				m.EXPECT().GetAddressByID(mock.Anything, int64(999)).Return(nil, domain_errors.ErrAddressNotFound)
+				m.EXPECT().GetAddressByID(mock.Anything, int64(999)).Return(nil, errors2.ErrAddressNotFound)
 			},
 			wantErr: true,
-			errType: domain_errors.ErrAddressNotFound,
+			errType: errors2.ErrAddressNotFound,
 		},
 	}
 
@@ -397,7 +397,7 @@ func TestAddressService_GetAddressByIDForUser(t *testing.T) {
 			addressID: 1,
 			mockSetup: func(m *mocks.MockAddressRepository) {},
 			wantErr:   true,
-			errType:   domain_errors.ErrInvalidInput,
+			errType:   errors2.ErrInvalidInput,
 		},
 		{
 			name:      "Error_AccessDenied",
@@ -407,7 +407,7 @@ func TestAddressService_GetAddressByIDForUser(t *testing.T) {
 				m.EXPECT().GetAddressByID(mock.Anything, int64(1)).Return(existingAddress, nil)
 			},
 			wantErr: true,
-			errType: domain_errors.ErrForbidden,
+			errType: errors2.ErrForbidden,
 		},
 	}
 
@@ -469,7 +469,7 @@ func TestAddressService_DeleteAddress(t *testing.T) {
 			addressID: 1,
 			mockSetup: func(m *mocks.MockAddressRepository) {},
 			wantErr:   true,
-			errType:   domain_errors.ErrInvalidInput,
+			errType:   errors2.ErrInvalidInput,
 		},
 		{
 			name:      "Error_AccessDenied",
@@ -479,17 +479,17 @@ func TestAddressService_DeleteAddress(t *testing.T) {
 				m.EXPECT().GetAddressByID(mock.Anything, int64(1)).Return(existingAddress, nil)
 			},
 			wantErr: true,
-			errType: domain_errors.ErrForbidden,
+			errType: errors2.ErrForbidden,
 		},
 		{
 			name:      "Error_AddressNotFound",
 			userID:    1,
 			addressID: 999,
 			mockSetup: func(m *mocks.MockAddressRepository) {
-				m.EXPECT().GetAddressByID(mock.Anything, int64(999)).Return(nil, domain_errors.ErrAddressNotFound)
+				m.EXPECT().GetAddressByID(mock.Anything, int64(999)).Return(nil, errors2.ErrAddressNotFound)
 			},
 			wantErr: true,
-			errType: domain_errors.ErrAddressNotFound,
+			errType: errors2.ErrAddressNotFound,
 		},
 	}
 

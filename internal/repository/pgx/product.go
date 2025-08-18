@@ -1,15 +1,16 @@
-package repository
+package pgx
 
 import (
 	"context"
 	"errors"
+	"goshop/internal/domain/entities"
+	errors2 "goshop/internal/domain/errors"
+	"goshop/internal/domain/types"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
-	"goshop/internal/domain/entities"
-	"goshop/internal/domain/types"
-	"goshop/internal/domain_errors"
 )
 
 type ProductRepository struct {
@@ -76,7 +77,7 @@ func (r *ProductRepository) GetProductByID(ctx context.Context, id int64) (*enti
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, domain_errors.ErrProductNotFound
+			return nil, errors2.ErrProductNotFound
 		}
 		r.logger.Error("Failed to get product by ID", zap.Error(err), zap.Int64("product_id", id))
 		return nil, err
@@ -114,7 +115,7 @@ func (r *ProductRepository) UpdateProduct(ctx context.Context, product *entities
 
 	if result.RowsAffected() == 0 {
 		r.logger.Warn("Product not found for update", zap.Int64("product_id", product.ID))
-		return domain_errors.ErrProductNotFound
+		return errors2.ErrProductNotFound
 	}
 
 	r.logger.Info("Product updated successfully",
@@ -137,7 +138,7 @@ func (r *ProductRepository) DeleteProduct(ctx context.Context, id int64) error {
 
 	if result.RowsAffected() == 0 {
 		r.logger.Warn("Product not found for deletion", zap.Int64("product_id", id))
-		return domain_errors.ErrProductNotFound
+		return errors2.ErrProductNotFound
 	}
 
 	r.logger.Info("Product deleted successfully", zap.Int64("product_id", id))

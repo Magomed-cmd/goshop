@@ -3,8 +3,8 @@ package review
 import (
 	"context"
 	"goshop/internal/domain/entities"
+	"goshop/internal/domain/errors"
 	"goshop/internal/domain/types"
-	"goshop/internal/domain_errors"
 	"goshop/internal/dto"
 	"goshop/internal/validation"
 	"time"
@@ -62,12 +62,12 @@ func NewReviewsService(reviewRepo ReviewRepository, userRepository UserRepositor
 func (s *ReviewService) CreateReview(ctx context.Context, req *dto.CreateReviewRequest, userID int64) (*dto.ReviewResponse, error) {
 
 	if userID < 1 {
-		return nil, domain_errors.ErrInvalidUserID
+		return nil, errors.ErrInvalidUserID
 	}
 
 	user, err := s.userRepo.GetUserByID(ctx, userID)
 	if err != nil {
-		return nil, domain_errors.ErrUserNotFound
+		return nil, errors.ErrUserNotFound
 	}
 
 	product, err := s.productRepo.GetProductByID(ctx, req.ProductID)
@@ -115,7 +115,7 @@ func (s *ReviewService) CreateReview(ctx context.Context, req *dto.CreateReviewR
 func (s *ReviewService) GetReviewsWithFilters(ctx context.Context, filters types.ReviewFilters) (*dto.ReviewsListResponse, error) {
 
 	if filters.UserID == nil || filters.ProductID == nil {
-		return nil, domain_errors.ErrInvalidInput
+		return nil, errors.ErrInvalidInput
 	}
 
 	if err := validation.ValidateReviewFilters(filters); err != nil {
@@ -124,7 +124,7 @@ func (s *ReviewService) GetReviewsWithFilters(ctx context.Context, filters types
 
 	user, err := s.userRepo.GetUserByID(ctx, *filters.UserID)
 	if err != nil {
-		return nil, domain_errors.ErrUserNotFound
+		return nil, errors.ErrUserNotFound
 	}
 
 	product, err := s.productRepo.GetProductByID(ctx, *filters.ProductID)
@@ -179,7 +179,7 @@ func (s *ReviewService) GetReviewsWithFilters(ctx context.Context, filters types
 func (s *ReviewService) GetReviewByID(ctx context.Context, reviewID int64) (*dto.ReviewResponse, error) {
 
 	if reviewID < 1 {
-		return nil, domain_errors.ErrInvalidReviewID
+		return nil, errors.ErrInvalidReviewID
 	}
 
 	cacheReview, err := s.reviewCache.GetReviewByID(ctx, reviewID)
@@ -199,7 +199,7 @@ func (s *ReviewService) GetReviewByID(ctx context.Context, reviewID int64) (*dto
 
 	user, err := s.userRepo.GetUserByID(ctx, review.UserID)
 	if err != nil {
-		return nil, domain_errors.ErrUserNotFound
+		return nil, errors.ErrUserNotFound
 	}
 
 	product, err := s.productRepo.GetProductByID(ctx, review.ProductID)
@@ -234,15 +234,15 @@ func (s *ReviewService) GetReviewByID(ctx context.Context, reviewID int64) (*dto
 
 func (s *ReviewService) UpdateReview(ctx context.Context, userID int64, reviewID int64, req dto.UpdateReviewRequest) error {
 	if req.Rating == nil && req.Comment == nil {
-		return domain_errors.ErrNothingToUpdate
+		return errors.ErrNothingToUpdate
 	}
 
 	if req.Rating != nil && (*req.Rating > 5 || *req.Rating < 1) {
-		return domain_errors.ErrInvalidRating
+		return errors.ErrInvalidRating
 	}
 
 	if req.Comment != nil && len(*req.Comment) > 1000 {
-		return domain_errors.ErrInvalidComment
+		return errors.ErrInvalidComment
 	}
 
 	review, err := s.reviewRepo.GetReviewByID(ctx, reviewID)
@@ -250,14 +250,14 @@ func (s *ReviewService) UpdateReview(ctx context.Context, userID int64, reviewID
 		return err
 	}
 	if review.UserID != userID {
-		return domain_errors.ErrForbidden
+		return errors.ErrForbidden
 	}
 
 	err = s.reviewRepo.UpdateReview(ctx, reviewID, req.Rating, req.Comment)
 	if err != nil {
 		return err
 	}
-	
+
 	if err := s.reviewCache.InvalidateReview(ctx, reviewID); err != nil {
 		s.logger.Warn("failed to invalidate review cache",
 			zap.Int64("reviewID", reviewID),
@@ -270,7 +270,7 @@ func (s *ReviewService) UpdateReview(ctx context.Context, userID int64, reviewID
 func (s *ReviewService) DeleteReview(ctx context.Context, userID int64, reviewID int64) error {
 
 	if reviewID < 1 {
-		return domain_errors.ErrInvalidReviewID
+		return errors.ErrInvalidReviewID
 	}
 
 	review, err := s.reviewRepo.GetReviewByID(ctx, reviewID)
@@ -279,7 +279,7 @@ func (s *ReviewService) DeleteReview(ctx context.Context, userID int64, reviewID
 	}
 
 	if review.UserID != userID {
-		return domain_errors.ErrReviewNotOwnedByUser
+		return errors.ErrReviewNotOwnedByUser
 	}
 
 	err = s.reviewRepo.DeleteReview(ctx, reviewID)
@@ -297,11 +297,11 @@ func (s *ReviewService) DeleteReview(ctx context.Context, userID int64, reviewID
 
 func (s *ReviewService) CheckUserReviewExists(ctx context.Context, userID, productID int64) (bool, error) {
 	if userID < 1 {
-		return false, domain_errors.ErrInvalidUserID
+		return false, errors.ErrInvalidUserID
 	}
 
 	if productID < 1 {
-		return false, domain_errors.ErrInvalidProductID
+		return false, errors.ErrInvalidProductID
 	}
 
 	exists, err := s.reviewRepo.CheckUserReviewExists(ctx, userID, productID)
@@ -314,7 +314,7 @@ func (s *ReviewService) CheckUserReviewExists(ctx context.Context, userID, produ
 
 func (s *ReviewService) GetReviewStats(ctx context.Context, productID int64) (*dto.ReviewStatsResponse, error) {
 	if productID < 1 {
-		return nil, domain_errors.ErrInvalidProductID
+		return nil, errors.ErrInvalidProductID
 	}
 
 	totalReviews, averageRating, ratingCounts, err := s.reviewRepo.GetReviewStats(ctx, productID)

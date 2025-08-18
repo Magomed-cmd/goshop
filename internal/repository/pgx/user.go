@@ -1,16 +1,17 @@
-package repository
+package pgx
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"goshop/internal/domain/entities"
+	errors2 "goshop/internal/domain/errors"
+	"goshop/internal/service/user"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
-	"goshop/internal/domain/entities"
-	"goshop/internal/domain_errors"
-	"goshop/internal/service/user"
 )
 
 type UserRepository struct {
@@ -74,7 +75,7 @@ func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*ent
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			r.logger.Debug("User not found in database", zap.String("email", email))
-			return nil, domain_errors.ErrUserNotFound
+			return nil, errors2.ErrUserNotFound
 		}
 		r.logger.Error("Failed to get user by email from database", zap.Error(err), zap.String("email", email))
 		return nil, err
@@ -101,7 +102,7 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id int64) (*entities.U
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			r.logger.Debug("User not found in database", zap.Int64("user_id", id))
-			return nil, domain_errors.ErrUserNotFound
+			return nil, errors2.ErrUserNotFound
 		}
 		r.logger.Error("Failed to get user by ID from database", zap.Error(err), zap.Int64("user_id", id))
 		return nil, err

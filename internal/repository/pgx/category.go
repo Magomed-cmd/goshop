@@ -1,10 +1,10 @@
-package repository
+package pgx
 
 import (
 	"context"
 	"errors"
 	"goshop/internal/domain/entities"
-	"goshop/internal/domain_errors"
+	errors2 "goshop/internal/domain/errors"
 	"time"
 
 	"github.com/Masterminds/squirrel"
@@ -84,7 +84,7 @@ func (r *CategoryRepository) GetCategoryByID(ctx context.Context, id int64) (*en
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, domain_errors.ErrCategoryNotFound
+			return nil, errors2.ErrCategoryNotFound
 		}
 		return nil, err
 	}
@@ -125,7 +125,7 @@ func (r *CategoryRepository) UpdateCategory(ctx context.Context, category *entit
 		paramsCnt++
 	}
 	if paramsCnt == 0 {
-		return nil, domain_errors.ErrInvalidInput
+		return nil, errors2.ErrInvalidInput
 	}
 
 	now := time.Now()
@@ -151,7 +151,7 @@ func (r *CategoryRepository) UpdateCategory(ctx context.Context, category *entit
 	); err != nil {
 
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, domain_errors.ErrCategoryNotFound
+			return nil, errors2.ErrCategoryNotFound
 		}
 		return nil, err
 	}
@@ -168,7 +168,7 @@ func (r *CategoryRepository) DeleteCategory(ctx context.Context, id int64) error
 		return err
 	}
 	if result.RowsAffected() == 0 {
-		return domain_errors.ErrCategoryNotFound
+		return errors2.ErrCategoryNotFound
 	}
 
 	return nil

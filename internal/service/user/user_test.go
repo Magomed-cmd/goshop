@@ -3,19 +3,21 @@ package user_test
 import (
 	"context"
 	"errors"
-	"go.uber.org/zap"
+	errors2 "goshop/internal/domain/errors"
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
+	"go.uber.org/zap"
+
 	"goshop/internal/domain/entities"
-	"goshop/internal/domain_errors"
 	"goshop/internal/dto"
 	"goshop/internal/service/user"
 	"goshop/internal/service/user/mocks"
 	"goshop/internal/utils"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 const bcryptCost = 4
@@ -48,7 +50,7 @@ func TestUserService_Register(t *testing.T) {
 				Phone:    stringPtr("+1234567890"),
 			},
 			mockUserSetup: func(m *mocks.MockUserRepository) {
-				m.EXPECT().GetUserByEmail(mock.Anything, "test@example.com").Return(nil, domain_errors.ErrUserNotFound)
+				m.EXPECT().GetUserByEmail(mock.Anything, "test@example.com").Return(nil, errors2.ErrUserNotFound)
 				m.EXPECT().CreateUser(mock.Anything, mock.MatchedBy(func(u *entities.User) bool {
 					return u.Email == "test@example.com" && *u.Name == "Test User"
 				})).Run(func(ctx context.Context, u *entities.User) {
@@ -78,7 +80,7 @@ func TestUserService_Register(t *testing.T) {
 			},
 			mockRoleSetup: func(m *mocks.MockRoleRepository) {},
 			wantErr:       true,
-			expectedError: domain_errors.ErrEmailExists,
+			expectedError: errors2.ErrEmailExists,
 		},
 		{
 			name: "Error_RoleNotFound",
@@ -89,7 +91,7 @@ func TestUserService_Register(t *testing.T) {
 				Phone:    stringPtr("+1234567890"),
 			},
 			mockUserSetup: func(m *mocks.MockUserRepository) {
-				m.EXPECT().GetUserByEmail(mock.Anything, "test@example.com").Return(nil, domain_errors.ErrUserNotFound)
+				m.EXPECT().GetUserByEmail(mock.Anything, "test@example.com").Return(nil, errors2.ErrUserNotFound)
 			},
 			mockRoleSetup: func(m *mocks.MockRoleRepository) {
 				m.EXPECT().GetByName(mock.Anything, "user").Return(nil, errors.New("role not found"))
@@ -105,7 +107,7 @@ func TestUserService_Register(t *testing.T) {
 				Phone:    stringPtr("+1234567890"),
 			},
 			mockUserSetup: func(m *mocks.MockUserRepository) {
-				m.EXPECT().GetUserByEmail(mock.Anything, "test@example.com").Return(nil, domain_errors.ErrUserNotFound)
+				m.EXPECT().GetUserByEmail(mock.Anything, "test@example.com").Return(nil, errors2.ErrUserNotFound)
 				m.EXPECT().CreateUser(mock.Anything, mock.Anything).Return(errors.New("database error"))
 			},
 			mockRoleSetup: func(m *mocks.MockRoleRepository) {
@@ -197,11 +199,11 @@ func TestUserService_Login(t *testing.T) {
 				Password: "password123",
 			},
 			mockUserSetup: func(m *mocks.MockUserRepository) {
-				m.EXPECT().GetUserByEmail(mock.Anything, "nonexistent@example.com").Return(nil, domain_errors.ErrUserNotFound)
+				m.EXPECT().GetUserByEmail(mock.Anything, "nonexistent@example.com").Return(nil, errors2.ErrUserNotFound)
 			},
 			mockRoleSetup: func(m *mocks.MockRoleRepository) {},
 			wantErr:       true,
-			expectedError: domain_errors.ErrUserNotFound,
+			expectedError: errors2.ErrUserNotFound,
 		},
 		{
 			name: "Error_InvalidPassword",
@@ -220,7 +222,7 @@ func TestUserService_Login(t *testing.T) {
 			},
 			mockRoleSetup: func(m *mocks.MockRoleRepository) {},
 			wantErr:       true,
-			expectedError: domain_errors.ErrInvalidPassword,
+			expectedError: errors2.ErrInvalidPassword,
 		},
 		{
 			name: "Error_RoleNotFound",
@@ -320,11 +322,11 @@ func TestUserService_GetUserProfile(t *testing.T) {
 			name:   "Error_UserNotFound",
 			userID: 999,
 			mockUserSetup: func(m *mocks.MockUserRepository) {
-				m.EXPECT().GetUserByID(mock.Anything, int64(999)).Return(nil, domain_errors.ErrUserNotFound)
+				m.EXPECT().GetUserByID(mock.Anything, int64(999)).Return(nil, errors2.ErrUserNotFound)
 			},
 			mockRoleSetup: func(m *mocks.MockRoleRepository) {},
 			wantErr:       true,
-			expectedError: domain_errors.ErrUserNotFound,
+			expectedError: errors2.ErrUserNotFound,
 		},
 		{
 			name:   "Error_RoleNotFound",
@@ -431,7 +433,7 @@ func TestUserService_UpdateProfile(t *testing.T) {
 			},
 			mockSetup:     func(m *mocks.MockUserRepository) {},
 			wantErr:       true,
-			expectedError: domain_errors.ErrInvalidInput,
+			expectedError: errors2.ErrInvalidInput,
 		},
 		{
 			name:   "Error_RepositoryFails",

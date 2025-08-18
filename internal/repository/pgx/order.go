@@ -1,11 +1,11 @@
-package repository
+package pgx
 
 import (
 	"context"
 	"errors"
 	"goshop/internal/domain/entities"
+	errors2 "goshop/internal/domain/errors"
 	"goshop/internal/domain/types"
-	"goshop/internal/domain_errors"
 	"strings"
 
 	"github.com/Masterminds/squirrel"
@@ -53,10 +53,10 @@ func (r *OrderRepository) CreateOrder(ctx context.Context, order *entities.Order
 			switch pgErr.Code {
 			case "23503":
 				if strings.Contains(pgErr.Detail, "user_id") {
-					return nil, domain_errors.ErrUserNotFound
+					return nil, errors2.ErrUserNotFound
 				}
 				if strings.Contains(pgErr.Detail, "address_id") {
-					return nil, domain_errors.ErrAddressNotFound
+					return nil, errors2.ErrAddressNotFound
 				}
 			}
 		}
@@ -169,7 +169,7 @@ func (r *OrderRepository) GetOrderByID(ctx context.Context, userID int64, orderI
 			&order.UpdatedAt,
 		); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, domain_errors.ErrOrderNotFound
+			return nil, errors2.ErrOrderNotFound
 		}
 		return nil, err
 	}
@@ -189,7 +189,7 @@ func (r *OrderRepository) UpdateOrderStatus(ctx context.Context, orderID int64, 
 	}
 
 	if result.RowsAffected() == 0 {
-		return domain_errors.ErrOrderNotFound
+		return errors2.ErrOrderNotFound
 	}
 
 	return nil
@@ -208,7 +208,7 @@ func (r *OrderRepository) CancelOrder(ctx context.Context, orderID int64) error 
 	}
 
 	if result.RowsAffected() == 0 {
-		return domain_errors.ErrOrderCannotBeCancelled
+		return errors2.ErrOrderCannotBeCancelled
 	}
 
 	return nil

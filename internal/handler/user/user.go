@@ -3,12 +3,13 @@ package user
 import (
 	"context"
 	"errors"
-	"github.com/gin-gonic/gin"
 	"goshop/internal/domain/entities"
-	"goshop/internal/domain_errors"
+	errors2 "goshop/internal/domain/errors"
 	"goshop/internal/dto"
 	"goshop/internal/middleware"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
 type UserService interface {
@@ -135,7 +136,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateProfile(ctx, userID, &req); err != nil {
-		if errors.Is(err, domain_errors.ErrInvalidInput) {
+		if errors.Is(err, errors2.ErrInvalidInput) {
 			c.JSON(400, gin.H{"error": "No fields to update"})
 			return
 		}

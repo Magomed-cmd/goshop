@@ -1,16 +1,17 @@
-package repository
+package pgx
 
 import (
 	"context"
 	"errors"
+	"goshop/internal/domain/entities"
+	errors2 "goshop/internal/domain/errors"
+	"strings"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
-	"goshop/internal/domain/entities"
-	"goshop/internal/domain_errors"
-	"strings"
 )
 
 type CartRepository struct {
@@ -44,7 +45,7 @@ func (r *CartRepository) GetUserCart(ctx context.Context, userID int64) (*entiti
 		&cart.CreatedAt,
 	); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, domain_errors.ErrCartNotFound
+			return nil, errors2.ErrCartNotFound
 		}
 		r.logger.Error("Failed to get user cart", zap.Error(err), zap.Int64("user_id", userID))
 		return nil, err
@@ -90,7 +91,7 @@ func (r *CartRepository) GetUserCart(ctx context.Context, userID int64) (*entiti
 
 		if cartItem.Product.ID == 0 {
 			r.logger.Warn("Product not found for cart item", zap.Int64("product_id", cartItem.ProductID))
-			return nil, domain_errors.ErrProductNotFound
+			return nil, errors2.ErrProductNotFound
 		}
 
 		cart.Items = append(cart.Items, cartItem)
@@ -119,10 +120,10 @@ func (r *CartRepository) AddItem(ctx context.Context, cartID int64, productID in
 			switch pgErr.Code {
 			case "23503":
 				if strings.Contains(pgErr.Detail, "cart_id") {
-					return domain_errors.ErrCartNotFound
+					return errors2.ErrCartNotFound
 				}
 				if strings.Contains(pgErr.Detail, "product_id") {
-					return domain_errors.ErrProductNotFound
+					return errors2.ErrProductNotFound
 				}
 			}
 		}
@@ -131,7 +132,7 @@ func (r *CartRepository) AddItem(ctx context.Context, cartID int64, productID in
 	}
 
 	if result.RowsAffected() == 0 {
-		return domain_errors.ErrCartNotFound
+		return errors2.ErrCartNotFound
 	}
 
 	return nil
@@ -150,10 +151,10 @@ func (r *CartRepository) UpdateItem(ctx context.Context, cartID int64, productID
 			switch pgErr.Code {
 			case "23503":
 				if strings.Contains(pgErr.Detail, "cart_id") {
-					return domain_errors.ErrCartNotFound
+					return errors2.ErrCartNotFound
 				}
 				if strings.Contains(pgErr.Detail, "product_id") {
-					return domain_errors.ErrProductNotFound
+					return errors2.ErrProductNotFound
 				}
 			}
 		}
@@ -162,7 +163,7 @@ func (r *CartRepository) UpdateItem(ctx context.Context, cartID int64, productID
 	}
 
 	if result.RowsAffected() == 0 {
-		return domain_errors.ErrCartItemNotFound
+		return errors2.ErrCartItemNotFound
 	}
 
 	return nil
@@ -180,7 +181,7 @@ func (r *CartRepository) RemoveItem(ctx context.Context, cartID int64, productID
 	}
 
 	if result.RowsAffected() == 0 {
-		return domain_errors.ErrCartItemNotFound
+		return errors2.ErrCartItemNotFound
 	}
 
 	return nil
@@ -209,9 +210,9 @@ func (r *CartRepository) CreateCart(ctx context.Context, cart *entities.Cart) er
 		if errors.As(err, &pgErr) {
 			switch pgErr.Code {
 			case "23505":
-				return domain_errors.ErrDuplicate
+				return errors2.ErrDuplicate
 			case "23503":
-				return domain_errors.ErrUserNotFound
+				return errors2.ErrUserNotFound
 			}
 		}
 		r.logger.Error("Failed to create cart", zap.Error(err), zap.Int64("user_id", cart.UserID))

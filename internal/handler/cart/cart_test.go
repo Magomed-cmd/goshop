@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	errors2 "goshop/internal/domain/errors"
 	"net/http/httptest"
 	"testing"
+
+	"goshop/internal/dto"
+	"goshop/internal/handler/cart/mocks"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"goshop/internal/domain_errors"
-	"goshop/internal/dto"
-	"goshop/internal/handler/cart/mocks"
 )
 
 func setupTestRouter() *gin.Engine {
@@ -157,7 +158,7 @@ func TestCartHandler_AddItem(t *testing.T) {
 			},
 			mockSetup: func(m *mocks.MockCartService) {
 				m.EXPECT().AddItem(mock.Anything, int64(1), mock.AnythingOfType("*dto.AddToCartRequest")).
-					Return(domain_errors.ErrInvalidQuantity)
+					Return(errors2.ErrInvalidQuantity)
 			},
 			expectedStatus: 400,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
@@ -176,7 +177,7 @@ func TestCartHandler_AddItem(t *testing.T) {
 			},
 			mockSetup: func(m *mocks.MockCartService) {
 				m.EXPECT().AddItem(mock.Anything, int64(1), mock.AnythingOfType("*dto.AddToCartRequest")).
-					Return(domain_errors.ErrProductNotFound)
+					Return(errors2.ErrProductNotFound)
 			},
 			expectedStatus: 404,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
@@ -195,7 +196,7 @@ func TestCartHandler_AddItem(t *testing.T) {
 			},
 			mockSetup: func(m *mocks.MockCartService) {
 				m.EXPECT().AddItem(mock.Anything, int64(1), mock.AnythingOfType("*dto.AddToCartRequest")).
-					Return(domain_errors.ErrInsufficientStock)
+					Return(errors2.ErrInsufficientStock)
 			},
 			expectedStatus: 409,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
@@ -305,7 +306,7 @@ func TestCartHandler_UpdateItem(t *testing.T) {
 			},
 			mockSetup: func(m *mocks.MockCartService) {
 				m.EXPECT().UpdateItem(mock.Anything, int64(1), int64(1), 5).
-					Return(domain_errors.ErrCartItemNotFound)
+					Return(errors2.ErrCartItemNotFound)
 			},
 			expectedStatus: 404,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
@@ -393,7 +394,7 @@ func TestCartHandler_RemoveItem(t *testing.T) {
 			productID: "1",
 			mockSetup: func(m *mocks.MockCartService) {
 				m.EXPECT().RemoveItem(mock.Anything, int64(1), int64(1)).
-					Return(domain_errors.ErrCartItemNotFound)
+					Return(errors2.ErrCartItemNotFound)
 			},
 			expectedStatus: 404,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
@@ -455,7 +456,7 @@ func TestCartHandler_ClearCart(t *testing.T) {
 			userID: 1,
 			mockSetup: func(m *mocks.MockCartService) {
 				m.EXPECT().ClearCart(mock.Anything, int64(1)).
-					Return(domain_errors.ErrCartNotFound)
+					Return(errors2.ErrCartNotFound)
 			},
 			expectedStatus: 404,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {

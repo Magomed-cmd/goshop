@@ -2,11 +2,12 @@ package address
 
 import (
 	"context"
-	"github.com/google/uuid"
 	"goshop/internal/domain/entities"
-	"goshop/internal/domain_errors"
+	"goshop/internal/domain/errors"
 	"goshop/internal/dto"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type AddressRepository interface {
@@ -29,7 +30,7 @@ func NewAddressService(addressRepo AddressRepository) *AddressService {
 
 func (s *AddressService) CreateAddress(ctx context.Context, userID int64, req *dto.CreateAddressRequest) (*entities.UserAddress, error) {
 	if userID <= 0 {
-		return nil, domain_errors.ErrInvalidInput
+		return nil, errors.ErrInvalidInput
 	}
 
 	address := &entities.UserAddress{
@@ -52,7 +53,7 @@ func (s *AddressService) CreateAddress(ctx context.Context, userID int64, req *d
 
 func (s *AddressService) GetUserAddresses(ctx context.Context, userID int64) ([]*entities.UserAddress, error) {
 	if userID <= 0 {
-		return nil, domain_errors.ErrInvalidInput
+		return nil, errors.ErrInvalidInput
 	}
 
 	addresses, err := s.addressRepo.GetUserAddresses(ctx, userID)
@@ -64,7 +65,7 @@ func (s *AddressService) GetUserAddresses(ctx context.Context, userID int64) ([]
 
 func (s *AddressService) GetAddressByID(ctx context.Context, addressID int64) (*entities.UserAddress, error) {
 	if addressID <= 0 {
-		return nil, domain_errors.ErrInvalidInput
+		return nil, errors.ErrInvalidInput
 	}
 
 	address, err := s.addressRepo.GetAddressByID(ctx, addressID)
@@ -76,11 +77,11 @@ func (s *AddressService) GetAddressByID(ctx context.Context, addressID int64) (*
 
 func (s *AddressService) UpdateAddress(ctx context.Context, userID int64, addressID int64, req *dto.UpdateAddressRequest) (*entities.UserAddress, error) {
 	if userID <= 0 || addressID <= 0 {
-		return nil, domain_errors.ErrInvalidInput
+		return nil, errors.ErrInvalidInput
 	}
 
 	if req.Address == nil && req.City == nil && req.PostalCode == nil && req.Country == nil {
-		return nil, domain_errors.ErrInvalidAddressData
+		return nil, errors.ErrInvalidAddressData
 	}
 
 	address, err := s.addressRepo.GetAddressByID(ctx, addressID)
@@ -89,7 +90,7 @@ func (s *AddressService) UpdateAddress(ctx context.Context, userID int64, addres
 	}
 
 	if address.UserID != userID {
-		return nil, domain_errors.ErrForbidden
+		return nil, errors.ErrForbidden
 	}
 
 	if req.Address != nil {
@@ -115,7 +116,7 @@ func (s *AddressService) UpdateAddress(ctx context.Context, userID int64, addres
 
 func (s *AddressService) GetAddressByIDForUser(ctx context.Context, userID, addressID int64) (*entities.UserAddress, error) {
 	if userID <= 0 || addressID <= 0 {
-		return nil, domain_errors.ErrInvalidInput
+		return nil, errors.ErrInvalidInput
 	}
 
 	address, err := s.addressRepo.GetAddressByID(ctx, addressID)
@@ -124,7 +125,7 @@ func (s *AddressService) GetAddressByIDForUser(ctx context.Context, userID, addr
 	}
 
 	if address.UserID != userID {
-		return nil, domain_errors.ErrForbidden
+		return nil, errors.ErrForbidden
 	}
 
 	return address, nil
@@ -132,7 +133,7 @@ func (s *AddressService) GetAddressByIDForUser(ctx context.Context, userID, addr
 
 func (s *AddressService) DeleteAddress(ctx context.Context, userID int64, addressID int64) error {
 	if userID <= 0 || addressID <= 0 {
-		return domain_errors.ErrInvalidInput
+		return errors.ErrInvalidInput
 	}
 
 	address, err := s.addressRepo.GetAddressByID(ctx, addressID)
@@ -141,7 +142,7 @@ func (s *AddressService) DeleteAddress(ctx context.Context, userID int64, addres
 	}
 
 	if address.UserID != userID {
-		return domain_errors.ErrForbidden
+		return errors.ErrForbidden
 	}
 
 	err = s.addressRepo.DeleteAddress(ctx, addressID)

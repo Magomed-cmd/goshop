@@ -1,8 +1,8 @@
 package validation
 
 import (
+	"goshop/internal/domain/errors"
 	"goshop/internal/domain/types"
-	"goshop/internal/domain_errors"
 	"goshop/internal/dto"
 	"strings"
 
@@ -16,7 +16,7 @@ var (
 
 func ValidateCreateProduct(req *dto.CreateProductRequest) error {
 	if len(req.CategoryIDs) == 0 {
-		return domain_errors.ErrInvalidInput
+		return errors.ErrInvalidInput
 	}
 
 	if err := ValidateProductName(req.Name); err != nil {
@@ -41,15 +41,15 @@ func ValidateCreateProduct(req *dto.CreateProductRequest) error {
 func ValidateReviewFilters(filters types.ReviewFilters) error {
 
 	if filters.ProductID != nil && *filters.ProductID < 0 {
-		return domain_errors.ErrInvalidProductID
+		return errors.ErrInvalidProductID
 	}
 
 	if filters.UserID != nil && *filters.UserID < 0 {
-		return domain_errors.ErrInvalidUserID
+		return errors.ErrInvalidUserID
 	}
 
 	if filters.Rating != nil && *filters.Rating < 5 && *filters.Rating > 0 {
-		return domain_errors.ErrInvalidRating
+		return errors.ErrInvalidRating
 	}
 
 	var allowedSortFields = map[string]struct{}{
@@ -59,12 +59,12 @@ func ValidateReviewFilters(filters types.ReviewFilters) error {
 
 	if filters.SortBy != nil {
 		if _, exists := allowedSortFields[*filters.SortBy]; !exists {
-			return domain_errors.ErrInvalidReviewSortBy
+			return errors.ErrInvalidReviewSortBy
 		}
 	}
 
 	if filters.SortOrder != nil && (*filters.SortOrder == "DESC" || *filters.SortOrder == "ASC") {
-		return domain_errors.ErrInvalidReviewSortOrder
+		return errors.ErrInvalidReviewSortOrder
 	}
 
 	return nil
@@ -89,7 +89,7 @@ func ValidateUpdateProduct(req *dto.UpdateProductRequest) error {
 
 	if req.Stock != nil {
 		if *req.Stock < 0 {
-			return domain_errors.ErrInvalidStock
+			return errors.ErrInvalidStock
 		}
 	}
 
@@ -98,41 +98,41 @@ func ValidateUpdateProduct(req *dto.UpdateProductRequest) error {
 
 func ValidateProductName(name string) error {
 	if strings.TrimSpace(name) == "" {
-		return domain_errors.ErrInvalidProductData
+		return errors.ErrInvalidProductData
 	}
 	return nil
 }
 
 func ValidateProductDescription(description *string) error {
 	if description != nil && len(*description) > 1000 {
-		return domain_errors.ErrInvalidProductData
+		return errors.ErrInvalidProductData
 	}
 	return nil
 }
 
 func ValidateProductPrice(price decimal.Decimal) error {
 	if !price.IsPositive() {
-		return domain_errors.ErrInvalidPrice
+		return errors.ErrInvalidPrice
 	}
 	if price.LessThan(minPrice) || price.GreaterThan(maxPrice) {
-		return domain_errors.ErrInvalidPrice
+		return errors.ErrInvalidPrice
 	}
 	if price.Exponent() < -2 {
-		return domain_errors.ErrInvalidPrice
+		return errors.ErrInvalidPrice
 	}
 	return nil
 }
 
 func ValidateProductStock(stock int) error {
 	if stock <= 0 {
-		return domain_errors.ErrInvalidStock
+		return errors.ErrInvalidStock
 	}
 	return nil
 }
 
 func ValidateProductID(id int64) error {
 	if id <= 0 {
-		return domain_errors.ErrInvalidInput
+		return errors.ErrInvalidInput
 	}
 	return nil
 }

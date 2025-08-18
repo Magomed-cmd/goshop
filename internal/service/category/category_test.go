@@ -3,11 +3,11 @@ package category_test
 import (
 	"context"
 	"errors"
+	errors2 "goshop/internal/domain/errors"
 	"testing"
 	"time"
 
 	"goshop/internal/domain/entities"
-	"goshop/internal/domain_errors"
 	"goshop/internal/dto"
 	"goshop/internal/service/category"
 	"goshop/internal/service/category/mocks"
@@ -122,23 +122,23 @@ func TestCategoryService_GetCategoryByID(t *testing.T) {
 			id:        0,
 			mockSetup: func(m *mocks.MockCategoryRepository) {},
 			wantErr:   true,
-			errType:   domain_errors.ErrInvalidInput,
+			errType:   errors2.ErrInvalidInput,
 		},
 		{
 			name:      "Error_InvalidID_Negative",
 			id:        -1,
 			mockSetup: func(m *mocks.MockCategoryRepository) {},
 			wantErr:   true,
-			errType:   domain_errors.ErrInvalidInput,
+			errType:   errors2.ErrInvalidInput,
 		},
 		{
 			name: "Error_CategoryNotFound",
 			id:   999,
 			mockSetup: func(m *mocks.MockCategoryRepository) {
-				m.EXPECT().GetCategoryByID(mock.Anything, int64(999)).Return(nil, domain_errors.ErrCategoryNotFound)
+				m.EXPECT().GetCategoryByID(mock.Anything, int64(999)).Return(nil, errors2.ErrCategoryNotFound)
 			},
 			wantErr: true,
-			errType: domain_errors.ErrCategoryNotFound,
+			errType: errors2.ErrCategoryNotFound,
 		},
 	}
 
@@ -266,7 +266,7 @@ func TestCategoryService_UpdateCategory(t *testing.T) {
 			},
 			mockSetup: func(m *mocks.MockCategoryRepository) {},
 			wantErr:   true,
-			errType:   domain_errors.ErrInvalidInput,
+			errType:   errors2.ErrInvalidInput,
 		},
 		{
 			name: "Error_InvalidID_Negative",
@@ -277,14 +277,14 @@ func TestCategoryService_UpdateCategory(t *testing.T) {
 			},
 			mockSetup: func(m *mocks.MockCategoryRepository) {},
 			wantErr:   true,
-			errType:   domain_errors.ErrInvalidInput,
+			errType:   errors2.ErrInvalidInput,
 		},
 		{
 			name:      "Error_NilCategory",
 			category:  nil,
 			mockSetup: func(m *mocks.MockCategoryRepository) {},
 			wantErr:   true,
-			errType:   domain_errors.ErrInvalidCategoryData,
+			errType:   errors2.ErrInvalidCategoryData,
 		},
 		{
 			name: "Error_EmptyName",
@@ -295,7 +295,7 @@ func TestCategoryService_UpdateCategory(t *testing.T) {
 			},
 			mockSetup: func(m *mocks.MockCategoryRepository) {},
 			wantErr:   true,
-			errType:   domain_errors.ErrInvalidCategoryData,
+			errType:   errors2.ErrInvalidCategoryData,
 		},
 		{
 			name: "Error_NilDescription",
@@ -306,16 +306,16 @@ func TestCategoryService_UpdateCategory(t *testing.T) {
 			},
 			mockSetup: func(m *mocks.MockCategoryRepository) {},
 			wantErr:   true,
-			errType:   domain_errors.ErrInvalidCategoryData,
+			errType:   errors2.ErrInvalidCategoryData,
 		},
 		{
 			name:     "Error_RepositoryFails",
 			category: validCategory,
 			mockSetup: func(m *mocks.MockCategoryRepository) {
-				m.EXPECT().UpdateCategory(mock.Anything, mock.Anything).Return(domain_errors.ErrCategoryNotFound)
+				m.EXPECT().UpdateCategory(mock.Anything, mock.Anything).Return(errors2.ErrCategoryNotFound)
 			},
 			wantErr: true,
-			errType: domain_errors.ErrCategoryNotFound,
+			errType: errors2.ErrCategoryNotFound,
 		},
 	}
 
@@ -366,23 +366,23 @@ func TestCategoryService_DeleteCategory(t *testing.T) {
 			id:        0,
 			mockSetup: func(m *mocks.MockCategoryRepository) {},
 			wantErr:   true,
-			errType:   domain_errors.ErrInvalidInput,
+			errType:   errors2.ErrInvalidInput,
 		},
 		{
 			name:      "Error_InvalidID_Negative",
 			id:        -1,
 			mockSetup: func(m *mocks.MockCategoryRepository) {},
 			wantErr:   true,
-			errType:   domain_errors.ErrInvalidInput,
+			errType:   errors2.ErrInvalidInput,
 		},
 		{
 			name: "Error_CategoryNotFound",
 			id:   999,
 			mockSetup: func(m *mocks.MockCategoryRepository) {
-				m.EXPECT().DeleteCategory(mock.Anything, int64(999)).Return(domain_errors.ErrCategoryNotFound)
+				m.EXPECT().DeleteCategory(mock.Anything, int64(999)).Return(errors2.ErrCategoryNotFound)
 			},
 			wantErr: true,
-			errType: domain_errors.ErrCategoryNotFound,
+			errType: errors2.ErrCategoryNotFound,
 		},
 	}
 

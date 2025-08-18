@@ -10,7 +10,7 @@ import (
 	product2 "goshop/internal/handler/product"
 	review2 "goshop/internal/handler/review"
 	user2 "goshop/internal/handler/user"
-	"goshop/internal/repository"
+	"goshop/internal/repository/pgx"
 	"goshop/internal/routes"
 	"goshop/internal/service/address"
 	"goshop/internal/service/cart"
@@ -28,15 +28,15 @@ import (
 
 func InitApp(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger, rdb *redis.Client) *routes.Handlers {
 
-	userRepo := repository.NewUserRepository(db, logger)
-	roleRepo := repository.NewRoleRepository(db)
-	addressRepo := repository.NewAddressRepository(db)
-	categoryRepo := repository.NewCategoryRepository(db)
-	productRepo := repository.NewProductRepository(db, logger)
-	cartRepo := repository.NewCartRepository(db, logger)
-	orderRepo := repository.NewOrderRepository(db)
-	orderItemRepo := repository.NewOrderItemRepository(db)
-	reviewRepo := repository.NewReviewRepository(db, logger)
+	userRepo := pgx.NewUserRepository(db, logger)
+	roleRepo := pgx.NewRoleRepository(db)
+	addressRepo := pgx.NewAddressRepository(db)
+	categoryRepo := pgx.NewCategoryRepository(db)
+	productRepo := pgx.NewProductRepository(db, logger)
+	cartRepo := pgx.NewCartRepository(db, logger)
+	orderRepo := pgx.NewOrderRepository(db)
+	orderItemRepo := pgx.NewOrderItemRepository(db)
+	reviewRepo := pgx.NewReviewRepository(db, logger)
 
 	productCache := cache.NewProductCache(rdb, logger)
 	categoryCache := cache.NewCategoryCache(rdb, logger)

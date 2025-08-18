@@ -2,8 +2,8 @@ package order
 
 import (
 	"context"
+	"goshop/internal/domain/errors"
 	"goshop/internal/domain/types"
-	"goshop/internal/domain_errors"
 	"goshop/internal/dto"
 	"goshop/internal/middleware"
 	"net/http"
@@ -48,7 +48,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 
 	resp, err := h.OrderService.CreateOrder(ctx, userID, req)
 	if err != nil {
-		domain_errors.HandleError(c, err)
+		errors.HandleError(c, err)
 		return
 	}
 
@@ -72,7 +72,7 @@ func (h *OrderHandler) GetUserOrders(c *gin.Context) {
 
 	resp, err := h.OrderService.GetUserOrders(ctx, userID, filters)
 	if err != nil {
-		domain_errors.HandleError(c, err)
+		errors.HandleError(c, err)
 		return
 	}
 
@@ -99,7 +99,7 @@ func (h *OrderHandler) GetOrderByID(c *gin.Context) {
 
 	resp, err := h.OrderService.GetOrderByID(ctx, userID, orderID)
 	if err != nil {
-		domain_errors.HandleError(c, err)
+		errors.HandleError(c, err)
 		return
 	}
 
@@ -125,7 +125,7 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 
 	err = h.OrderService.CancelOrder(ctx, userID, orderID)
 	if err != nil {
-		domain_errors.HandleError(c, err)
+		errors.HandleError(c, err)
 		return
 	}
 
@@ -157,7 +157,7 @@ func (h *OrderHandler) UpdateOrderStatus(c *gin.Context) {
 
 	err = h.OrderService.UpdateOrderStatus(ctx, orderID, req.Status)
 	if err != nil {
-		domain_errors.HandleError(c, err)
+		errors.HandleError(c, err)
 		return
 	}
 
@@ -182,7 +182,7 @@ func (h *OrderHandler) GetAllOrders(c *gin.Context) {
 
 	resp, err := h.OrderService.GetAllOrders(ctx, filters)
 	if err != nil {
-		domain_errors.HandleError(c, err)
+		errors.HandleError(c, err)
 		return
 	}
 

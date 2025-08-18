@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	errors2 "goshop/internal/domain/errors"
 	"net/http/httptest"
 	"testing"
 
 	"goshop/internal/domain/entities"
-	"goshop/internal/domain_errors"
 	"goshop/internal/dto"
 	"goshop/internal/handler/category"
 	"goshop/internal/handler/category/mocks"
@@ -165,7 +165,7 @@ func TestCategoryHandler_GetCategoryByID(t *testing.T) {
 			categoryID: "999",
 			mockSetup: func(m *mocks.MockCategoryService) {
 				// Только GetCategoryByID вызывается, UpdateCategory НЕ вызывается при ошибке
-				m.EXPECT().GetCategoryByID(mock.Anything, int64(999)).Return(nil, domain_errors.ErrCategoryNotFound)
+				m.EXPECT().GetCategoryByID(mock.Anything, int64(999)).Return(nil, errors2.ErrCategoryNotFound)
 			},
 			expectedStatus: 404,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
@@ -365,7 +365,7 @@ func TestCategoryHandler_UpdateCategory(t *testing.T) {
 				"name": "Updated",
 			},
 			mockSetup: func(m *mocks.MockCategoryService) {
-				m.EXPECT().GetCategoryByID(mock.Anything, int64(999)).Return(nil, domain_errors.ErrCategoryNotFound)
+				m.EXPECT().GetCategoryByID(mock.Anything, int64(999)).Return(nil, errors2.ErrCategoryNotFound)
 			},
 			expectedStatus: 404,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
@@ -455,7 +455,7 @@ func TestCategoryHandler_DeleteCategory(t *testing.T) {
 			name:       "Error_CategoryNotFound",
 			categoryID: "999",
 			mockSetup: func(m *mocks.MockCategoryService) {
-				m.EXPECT().DeleteCategory(mock.Anything, int64(999)).Return(domain_errors.ErrCategoryNotFound)
+				m.EXPECT().DeleteCategory(mock.Anything, int64(999)).Return(errors2.ErrCategoryNotFound)
 			},
 			expectedStatus: 404,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {

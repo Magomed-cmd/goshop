@@ -7,6 +7,7 @@ import (
 	"goshop/internal/db/redisDB"
 	"goshop/internal/logger"
 	"goshop/internal/routes"
+	"goshop/internal/storage"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -20,6 +21,12 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to load configuration", zap.Error(err))
 	}
+
+	s3Client, err := storage.NewS3Connection(cfg.S3.Endpoint, cfg.S3.AccessKey, cfg.S3.Secret, cfg.S3.UseSSL, log)
+	if err != nil {
+		log.Fatal("Failed to connect to S3", zap.Error(err))
+	}
+	_ = s3Client // Use the S3 client as needed, or remove if not used
 
 	db, err := postgres.NewConnection(&cfg.Database.Postgres, log)
 	if err != nil {

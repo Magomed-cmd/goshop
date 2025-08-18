@@ -1,14 +1,15 @@
-package repository
+package pgx
 
 import (
 	"context"
 	"errors"
+	"goshop/internal/domain/entities"
+	errors2 "goshop/internal/domain/errors"
+	"time"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"goshop/internal/domain/entities"
-	"goshop/internal/domain_errors"
-	"time"
 )
 
 type AddressRepository struct {
@@ -99,7 +100,7 @@ func (r *AddressRepository) GetAddressByID(ctx context.Context, addressID int64)
 		&address.CreatedAt,
 	); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, domain_errors.ErrAddressNotFound
+			return nil, errors2.ErrAddressNotFound
 		}
 		return nil, err
 	}
@@ -127,7 +128,7 @@ func (r *AddressRepository) UpdateAddress(ctx context.Context, address *entities
 		paramsCnt++
 	}
 	if paramsCnt == 0 {
-		return domain_errors.ErrInvalidInput
+		return errors2.ErrInvalidInput
 	}
 
 	query = query.Set("updated_at", time.Now()).
@@ -144,7 +145,7 @@ func (r *AddressRepository) UpdateAddress(ctx context.Context, address *entities
 	}
 
 	if result.RowsAffected() == 0 {
-		return domain_errors.ErrAddressNotFound
+		return errors2.ErrAddressNotFound
 	}
 	return nil
 }
@@ -163,7 +164,7 @@ func (r *AddressRepository) DeleteAddress(ctx context.Context, addressID int64) 
 	}
 
 	if result.RowsAffected() == 0 {
-		return domain_errors.ErrAddressNotFound
+		return errors2.ErrAddressNotFound
 	}
 	return nil
 }

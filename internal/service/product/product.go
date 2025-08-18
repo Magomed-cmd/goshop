@@ -3,8 +3,8 @@ package product
 import (
 	"context"
 	"goshop/internal/domain/entities"
+	"goshop/internal/domain/errors"
 	"goshop/internal/domain/types"
-	"goshop/internal/domain_errors"
 	"goshop/internal/dto"
 	"goshop/internal/validation"
 	"strings"
@@ -77,7 +77,7 @@ func (s *ProductService) CreateProduct(ctx context.Context, req *dto.CreateProdu
 	}
 	if !exists {
 		s.logger.Warn("Some categories not found", zap.Any("category_ids", req.CategoryIDs))
-		return nil, domain_errors.ErrCategoryNotFound
+		return nil, errors.ErrCategoryNotFound
 	}
 
 	now := time.Now()
@@ -240,7 +240,7 @@ func (s *ProductService) UpdateProduct(ctx context.Context, id int64, req *dto.U
 
 	if !hasChanges && len(req.CategoryIDs) == 0 {
 		s.logger.Warn("No changes provided for product update", zap.Int64("product_id", id))
-		return nil, domain_errors.ErrInvalidInput
+		return nil, errors.ErrInvalidInput
 	}
 
 	if hasChanges {
@@ -259,7 +259,7 @@ func (s *ProductService) UpdateProduct(ctx context.Context, id int64, req *dto.U
 		}
 		if !exists {
 			s.logger.Warn("Some categories not found", zap.Int64("product_id", id), zap.Any("category_ids", req.CategoryIDs))
-			return nil, domain_errors.ErrCategoryNotFound
+			return nil, errors.ErrCategoryNotFound
 		}
 
 		if err := s.ProductRepo.RemoveProductFromCategories(ctx, product.ID); err != nil {

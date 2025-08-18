@@ -1,11 +1,12 @@
-package repository
+package pgx
 
 import (
 	"context"
 	"errors"
+	"goshop/internal/domain/entities"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"goshop/internal/domain/entities"
 )
 
 type RoleRepository struct {

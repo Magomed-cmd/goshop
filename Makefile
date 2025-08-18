@@ -1,5 +1,8 @@
 .PHONY: run test clean-mocks regenerate-mocks fresh-mocks build check verify compile lint
 
+-include .env
+export
+
 lint:
 	golangci-lint run
 
@@ -47,3 +50,19 @@ test-all: test test-integration
 
 tree:
 	@tree -I 'venv|node_modules|.git|*.log|tmp|temp' -a
+
+print-dsn:
+	@echo "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)?sslmode=$(POSTGRES_SSLMODE)"
+
+migrate-up:
+	migrate -path ./migrations -database "$$(make print-dsn)" up
+
+migrate-down:
+	migrate -path ./migrations -database "$$(make print-dsn)" down
+
+migrate-new:
+	@if [ -z "$(name)" ]; then \
+		echo "Укажи имя миграции: make migrate-new name=add_users_table!!!!!!!!!"; \
+		exit 1; \
+	fi; \
+	migrate create -ext sql -dir ./migrations -seq $(name)

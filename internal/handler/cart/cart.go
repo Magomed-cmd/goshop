@@ -2,12 +2,13 @@ package cart
 
 import (
 	"errors"
+	errors2 "goshop/internal/domain/errors"
 	"strconv"
 
 	"context"
-	"github.com/gin-gonic/gin"
-	"goshop/internal/domain_errors"
 	"goshop/internal/dto"
+
+	"github.com/gin-gonic/gin"
 )
 
 type CartService interface {
@@ -123,21 +124,21 @@ func (h *CartHandler) ClearCart(c *gin.Context) {
 
 func (h *CartHandler) handleError(c *gin.Context, err error) {
 	switch {
-	case errors.Is(err, domain_errors.ErrCartNotFound):
+	case errors.Is(err, errors2.ErrCartNotFound):
 		c.JSON(404, gin.H{"error": "Cart not found"})
-	case errors.Is(err, domain_errors.ErrProductNotFound):
+	case errors.Is(err, errors2.ErrProductNotFound):
 		c.JSON(404, gin.H{"error": "Product not found"})
-	case errors.Is(err, domain_errors.ErrCartItemNotFound):
+	case errors.Is(err, errors2.ErrCartItemNotFound):
 		c.JSON(404, gin.H{"error": "Item not found in cart"})
-	case errors.Is(err, domain_errors.ErrInvalidQuantity):
+	case errors.Is(err, errors2.ErrInvalidQuantity):
 		c.JSON(400, gin.H{"error": "Invalid quantity"})
-	case errors.Is(err, domain_errors.ErrInsufficientStock):
+	case errors.Is(err, errors2.ErrInsufficientStock):
 		c.JSON(409, gin.H{"error": "Insufficient stock"})
-	case errors.Is(err, domain_errors.ErrInvalidInput):
+	case errors.Is(err, errors2.ErrInvalidInput):
 		c.JSON(400, gin.H{"error": "Invalid input"})
-	case errors.Is(err, domain_errors.ErrUnauthorized):
+	case errors.Is(err, errors2.ErrUnauthorized):
 		c.JSON(401, gin.H{"error": "Unauthorized"})
-	case errors.Is(err, domain_errors.ErrForbidden):
+	case errors.Is(err, errors2.ErrForbidden):
 		c.JSON(403, gin.H{"error": "Forbidden"})
 	default:
 		c.JSON(500, gin.H{"error": "Internal server error"})

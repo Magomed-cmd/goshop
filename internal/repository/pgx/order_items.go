@@ -1,15 +1,16 @@
-package repository
+package pgx
 
 import (
 	"context"
 	"errors"
+	"goshop/internal/domain/entities"
+	errors2 "goshop/internal/domain/errors"
+	"strings"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
-	"goshop/internal/domain/entities"
-	"goshop/internal/domain_errors"
-	"strings"
 )
 
 type OrderItemRepository struct {
@@ -62,11 +63,11 @@ func (r *OrderItemRepository) Create(ctx context.Context, items []*entities.Orde
 			case "23503":
 				if strings.Contains(pgErr.Detail, "user_id") {
 					r.logger.Error("User not found while creating order items", zap.Error(err), zap.Int("items_count", len(items)))
-					return domain_errors.ErrUserNotFound
+					return errors2.ErrUserNotFound
 				}
 				if strings.Contains(pgErr.Detail, "address_id") {
 					r.logger.Error("Address not found while creating order items", zap.Error(err), zap.Int("items_count", len(items)))
-					return domain_errors.ErrAddressNotFound
+					return errors2.ErrAddressNotFound
 				}
 			}
 		}

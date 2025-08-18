@@ -20,18 +20,19 @@ services:
       retries: 5
   redis:
     image: redis:8.0.3
-    container_name: goshop-redis
+    container_name: goshop_redis
     restart: unless-stopped
     command: redis-server --requirepass redis123 --save 60 1 --appendonly yes
-    volumes:
-      - redis_data:/data
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ["CMD-SHELL", "redis-cli -a redis123 ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+
 volumes:
   postgres_data:
   redis_data:

@@ -2,15 +2,16 @@ package cart
 
 import (
 	"context"
+	"goshop/internal/domain/entities"
+	"goshop/internal/domain/errors"
+	"goshop/internal/dto"
+	"goshop/internal/service/cart/mocks"
+	"testing"
+
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"goshop/internal/domain/entities"
-	"goshop/internal/domain_errors"
-	"goshop/internal/dto"
-	"goshop/internal/service/cart/mocks"
-	"testing"
 )
 
 func TestCartService_GetCart(t *testing.T) {
@@ -59,7 +60,7 @@ func TestCartService_GetCart(t *testing.T) {
 			name:   "Success_CreateNewCart",
 			userID: 1,
 			mockSetup: func(cartRepo *mocks.MockCartRepository, productRepo *mocks.MockProductRepository) {
-				cartRepo.EXPECT().GetUserCart(mock.Anything, int64(1)).Return(nil, domain_errors.ErrCartNotFound)
+				cartRepo.EXPECT().GetUserCart(mock.Anything, int64(1)).Return(nil, errors.ErrCartNotFound)
 				cartRepo.EXPECT().CreateCart(mock.Anything, mock.AnythingOfType("*entities.Cart")).
 					Run(func(ctx context.Context, cart *entities.Cart) {
 						cart.ID = 1
@@ -77,11 +78,11 @@ func TestCartService_GetCart(t *testing.T) {
 			name:   "Error_CreateCartFailed",
 			userID: 1,
 			mockSetup: func(cartRepo *mocks.MockCartRepository, productRepo *mocks.MockProductRepository) {
-				cartRepo.EXPECT().GetUserCart(mock.Anything, int64(1)).Return(nil, domain_errors.ErrCartNotFound)
+				cartRepo.EXPECT().GetUserCart(mock.Anything, int64(1)).Return(nil, errors.ErrCartNotFound)
 				cartRepo.EXPECT().CreateCart(mock.Anything, mock.AnythingOfType("*entities.Cart")).
-					Return(domain_errors.ErrUserNotFound)
+					Return(errors.ErrUserNotFound)
 			},
-			expectedError: domain_errors.ErrUserNotFound,
+			expectedError: errors.ErrUserNotFound,
 		},
 	}
 
@@ -156,7 +157,7 @@ func TestCartService_AddItem(t *testing.T) {
 					Price: decimal.NewFromFloat(10.99),
 				}
 				productRepo.EXPECT().GetProductByID(mock.Anything, int64(1)).Return(product, nil)
-				cartRepo.EXPECT().GetUserCart(mock.Anything, int64(1)).Return(nil, domain_errors.ErrCartNotFound)
+				cartRepo.EXPECT().GetUserCart(mock.Anything, int64(1)).Return(nil, errors.ErrCartNotFound)
 				cartRepo.EXPECT().CreateCart(mock.Anything, mock.AnythingOfType("*entities.Cart")).
 					Run(func(ctx context.Context, cart *entities.Cart) {
 						cart.ID = 1
@@ -173,7 +174,7 @@ func TestCartService_AddItem(t *testing.T) {
 				Quantity:  0,
 			},
 			mockSetup:     func(cartRepo *mocks.MockCartRepository, productRepo *mocks.MockProductRepository) {},
-			expectedError: domain_errors.ErrInvalidQuantity,
+			expectedError: errors.ErrInvalidQuantity,
 		},
 		{
 			name:   "Error_ProductNotFound",
@@ -183,9 +184,9 @@ func TestCartService_AddItem(t *testing.T) {
 				Quantity:  2,
 			},
 			mockSetup: func(cartRepo *mocks.MockCartRepository, productRepo *mocks.MockProductRepository) {
-				productRepo.EXPECT().GetProductByID(mock.Anything, int64(999)).Return(nil, domain_errors.ErrProductNotFound)
+				productRepo.EXPECT().GetProductByID(mock.Anything, int64(999)).Return(nil, errors.ErrProductNotFound)
 			},
-			expectedError: domain_errors.ErrProductNotFound,
+			expectedError: errors.ErrProductNotFound,
 		},
 		{
 			name:   "Error_InsufficientStock",
@@ -203,7 +204,7 @@ func TestCartService_AddItem(t *testing.T) {
 				}
 				productRepo.EXPECT().GetProductByID(mock.Anything, int64(1)).Return(product, nil)
 			},
-			expectedError: domain_errors.ErrInsufficientStock,
+			expectedError: errors.ErrInsufficientStock,
 		},
 	}
 
@@ -261,7 +262,7 @@ func TestCartService_UpdateItem(t *testing.T) {
 			productID:     1,
 			quantity:      0,
 			mockSetup:     func(cartRepo *mocks.MockCartRepository, productRepo *mocks.MockProductRepository) {},
-			expectedError: domain_errors.ErrInvalidQuantity,
+			expectedError: errors.ErrInvalidQuantity,
 		},
 		{
 			name:      "Error_CartNotFound",
@@ -274,9 +275,9 @@ func TestCartService_UpdateItem(t *testing.T) {
 					Stock: 10,
 				}
 				productRepo.EXPECT().GetProductByID(mock.Anything, int64(1)).Return(product, nil)
-				cartRepo.EXPECT().GetUserCart(mock.Anything, int64(1)).Return(nil, domain_errors.ErrCartNotFound)
+				cartRepo.EXPECT().GetUserCart(mock.Anything, int64(1)).Return(nil, errors.ErrCartNotFound)
 			},
-			expectedError: domain_errors.ErrCartNotFound,
+			expectedError: errors.ErrCartNotFound,
 		},
 	}
 
@@ -326,9 +327,9 @@ func TestCartService_RemoveItem(t *testing.T) {
 			userID:    1,
 			productID: 1,
 			mockSetup: func(cartRepo *mocks.MockCartRepository, productRepo *mocks.MockProductRepository) {
-				cartRepo.EXPECT().GetUserCart(mock.Anything, int64(1)).Return(nil, domain_errors.ErrCartNotFound)
+				cartRepo.EXPECT().GetUserCart(mock.Anything, int64(1)).Return(nil, errors.ErrCartNotFound)
 			},
-			expectedError: domain_errors.ErrCartNotFound,
+			expectedError: errors.ErrCartNotFound,
 		},
 	}
 
@@ -375,9 +376,9 @@ func TestCartService_ClearCart(t *testing.T) {
 			name:   "Error_CartNotFound",
 			userID: 1,
 			mockSetup: func(cartRepo *mocks.MockCartRepository, productRepo *mocks.MockProductRepository) {
-				cartRepo.EXPECT().GetUserCart(mock.Anything, int64(1)).Return(nil, domain_errors.ErrCartNotFound)
+				cartRepo.EXPECT().GetUserCart(mock.Anything, int64(1)).Return(nil, errors.ErrCartNotFound)
 			},
-			expectedError: domain_errors.ErrCartNotFound,
+			expectedError: errors.ErrCartNotFound,
 		},
 	}
 

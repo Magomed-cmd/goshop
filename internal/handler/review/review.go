@@ -2,8 +2,8 @@ package review
 
 import (
 	"context"
+	"goshop/internal/domain/errors"
 	"goshop/internal/domain/types"
-	"goshop/internal/domain_errors"
 	"goshop/internal/dto"
 	"goshop/internal/middleware"
 	"net/http"
@@ -48,7 +48,7 @@ func (h *ReviewHandler) CreateReview(c *gin.Context) {
 
 	resp, err := h.reviewService.CreateReview(ctx, &req, userID)
 	if err != nil {
-		domain_errors.HandleError(c, err)
+		errors.HandleError(c, err)
 		return
 	}
 
@@ -66,7 +66,7 @@ func (h *ReviewHandler) GetReviews(c *gin.Context) {
 
 	resp, err := h.reviewService.GetReviewsWithFilters(ctx, filters)
 	if err != nil {
-		domain_errors.HandleError(c, err)
+		errors.HandleError(c, err)
 		return
 	}
 
@@ -79,13 +79,13 @@ func (h *ReviewHandler) GetReviewByID(c *gin.Context) {
 	reviewIDStr := c.Param("id")
 	reviewID, err := strconv.ParseInt(reviewIDStr, 10, 64)
 	if err != nil || reviewID <= 0 {
-		domain_errors.HandleError(c, domain_errors.ErrInvalidReviewID)
+		errors.HandleError(c, errors.ErrInvalidReviewID)
 		return
 	}
 
 	resp, err := h.reviewService.GetReviewByID(ctx, reviewID)
 	if err != nil {
-		domain_errors.HandleError(c, err)
+		errors.HandleError(c, err)
 		return
 	}
 
@@ -104,7 +104,7 @@ func (h *ReviewHandler) UpdateReview(c *gin.Context) {
 	reviewIDStr := c.Param("id")
 	reviewID, err := strconv.ParseInt(reviewIDStr, 10, 64)
 	if err != nil || reviewID <= 0 {
-		domain_errors.HandleError(c, domain_errors.ErrInvalidReviewID)
+		errors.HandleError(c, errors.ErrInvalidReviewID)
 		return
 	}
 
@@ -116,7 +116,7 @@ func (h *ReviewHandler) UpdateReview(c *gin.Context) {
 
 	err = h.reviewService.UpdateReview(ctx, userID, reviewID, req)
 	if err != nil {
-		domain_errors.HandleError(c, err)
+		errors.HandleError(c, err)
 		return
 	}
 
@@ -135,13 +135,13 @@ func (h *ReviewHandler) DeleteReview(c *gin.Context) {
 	reviewIDStr := c.Param("id")
 	reviewID, err := strconv.ParseInt(reviewIDStr, 10, 64)
 	if err != nil || reviewID <= 0 {
-		domain_errors.HandleError(c, domain_errors.ErrInvalidReviewID)
+		errors.HandleError(c, errors.ErrInvalidReviewID)
 		return
 	}
 
 	err = h.reviewService.DeleteReview(ctx, userID, reviewID)
 	if err != nil {
-		domain_errors.HandleError(c, err)
+		errors.HandleError(c, err)
 		return
 	}
 
@@ -154,13 +154,13 @@ func (h *ReviewHandler) GetProductReviewStats(c *gin.Context) {
 	productIDStr := c.Param("productId")
 	productID, err := strconv.ParseInt(productIDStr, 10, 64)
 	if err != nil || productID <= 0 {
-		domain_errors.HandleError(c, domain_errors.ErrInvalidProductID)
+		errors.HandleError(c, errors.ErrInvalidProductID)
 		return
 	}
 
 	resp, err := h.reviewService.GetReviewStats(ctx, productID)
 	if err != nil {
-		domain_errors.HandleError(c, err)
+		errors.HandleError(c, err)
 		return
 	}
 

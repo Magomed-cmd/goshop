@@ -2,15 +2,16 @@ package order
 
 import (
 	"context"
-	"github.com/google/uuid"
-	"github.com/shopspring/decimal"
-	"go.uber.org/zap"
 	"goshop/internal/domain/entities"
+	"goshop/internal/domain/errors"
 	"goshop/internal/domain/types"
-	"goshop/internal/domain_errors"
 	"goshop/internal/dto"
 	"slices"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
 )
 
 type OrderRepository interface {
@@ -78,7 +79,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID int64, req *dto.C
 
 	if len(cart.Items) == 0 {
 		s.logger.Warn("Cart is empty", zap.Int64("user_id", userID))
-		return nil, domain_errors.ErrCartEmpty
+		return nil, errors.ErrCartEmpty
 	}
 
 	s.logger.Debug("Getting user by ID", zap.Int64("user_id", userID))
@@ -303,11 +304,11 @@ func (s *OrderService) CancelOrder(ctx context.Context, userID int64, orderID in
 	}
 
 	if order.Status == entities.OrderStatusCancelled {
-		return domain_errors.ErrOrderAlreadyCancelled
+		return errors.ErrOrderAlreadyCancelled
 	}
 
 	if (order.Status != entities.OrderStatusPending) && (order.Status != entities.OrderStatusPaid) {
-		return domain_errors.ErrOrderCannotBeCancelled
+		return errors.ErrOrderCannotBeCancelled
 	}
 
 	err = s.orderRepo.CancelOrder(ctx, orderID)
@@ -323,7 +324,7 @@ func (s *OrderService) UpdateOrderStatus(ctx context.Context, orderID int64, sta
 
 	validStatuses := []string{"pending", "paid", "shipped", "delivered", "cancelled"}
 	if !slices.Contains(validStatuses, status) {
-		return domain_errors.ErrInvalidOrderStatus
+		return errors.ErrInvalidOrderStatus
 	}
 
 	return s.orderRepo.UpdateOrderStatus(ctx, orderID, status)

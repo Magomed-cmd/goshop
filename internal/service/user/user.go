@@ -3,13 +3,14 @@ package user
 import (
 	"context"
 	"errors"
-	"github.com/google/uuid"
-	"go.uber.org/zap"
 	"goshop/internal/domain/entities"
-	"goshop/internal/domain_errors"
+	errors2 "goshop/internal/domain/errors"
 	"goshop/internal/dto"
 	"goshop/internal/utils"
 	"time"
+
+	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 const (
@@ -96,7 +97,7 @@ func (s *UserService) Login(ctx context.Context, req *dto.LoginRequest) (*entiti
 	err = utils.ValidatePassword(existingUser.PasswordHash, req.Password)
 	if err != nil {
 		s.logger.Warn("Invalid password provided", zap.String("email", req.Email))
-		return nil, "", domain_errors.ErrInvalidPassword
+		return nil, "", errors2.ErrInvalidPassword
 	}
 
 	if existingUser.Role == nil {
@@ -153,7 +154,7 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID int64, req *dto.
 
 	if req.Name == nil && req.Phone == nil {
 		s.logger.Warn("No fields provided for update", zap.Int64("user_id", userID))
-		return domain_errors.ErrInvalidInput
+		return errors2.ErrInvalidInput
 	}
 
 	s.logger.Debug("Calling repository to update profile", zap.Int64("user_id", userID))
@@ -172,7 +173,7 @@ func (s *UserService) checkUserExists(ctx context.Context, email string) error {
 
 	existingUser, err := s.userRepo.GetUserByEmail(ctx, email)
 	if err != nil {
-		if errors.Is(err, domain_errors.ErrUserNotFound) {
+		if errors.Is(err, errors2.ErrUserNotFound) {
 			s.logger.Debug("User does not exist - OK to register", zap.String("email", email))
 			return nil
 		}
@@ -182,7 +183,7 @@ func (s *UserService) checkUserExists(ctx context.Context, email string) error {
 
 	if existingUser != nil {
 		s.logger.Warn("User already exists", zap.String("email", email))
-		return domain_errors.ErrEmailExists
+		return errors2.ErrEmailExists
 	}
 
 	s.logger.Debug("User does not exist - OK to register", zap.String("email", email))

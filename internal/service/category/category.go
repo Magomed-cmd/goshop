@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"goshop/internal/domain/entities"
-	"goshop/internal/domain_errors"
+	"goshop/internal/domain/errors"
 	"goshop/internal/dto"
 	"time"
 
@@ -89,7 +89,7 @@ func (s *CategoryService) GetAllCategories(ctx context.Context) (*dto.Categories
 func (s *CategoryService) GetCategoryByID(ctx context.Context, id int64) (*dto.CategoryResponse, error) {
 
 	if id <= 0 {
-		return nil, domain_errors.ErrInvalidInput
+		return nil, errors.ErrInvalidInput
 	}
 
 	if categoryCached, err := s.categoryCache.GetCategory(ctx, id); err != nil {
@@ -107,7 +107,7 @@ func (s *CategoryService) GetCategoryByID(ctx context.Context, id int64) (*dto.C
 		return nil, err
 	}
 	if category == nil {
-		return nil, domain_errors.ErrCategoryNotFound
+		return nil, errors.ErrCategoryNotFound
 	}
 
 	resp := &dto.CategoryResponse{
@@ -147,16 +147,16 @@ func (s *CategoryService) CreateCategory(ctx context.Context, req *dto.CreateCat
 
 func (s *CategoryService) UpdateCategory(ctx context.Context, category *entities.Category) (*entities.Category, error) {
 	if category == nil {
-		return nil, domain_errors.ErrInvalidCategoryData
+		return nil, errors.ErrInvalidCategoryData
 	}
 	if category.ID <= 0 {
-		return nil, domain_errors.ErrInvalidInput
+		return nil, errors.ErrInvalidInput
 	}
 	if category.Name == "" {
-		return nil, domain_errors.ErrInvalidCategoryData
+		return nil, errors.ErrInvalidCategoryData
 	}
 	if category.Description == nil {
-		return nil, domain_errors.ErrInvalidCategoryData
+		return nil, errors.ErrInvalidCategoryData
 	}
 
 	updated, err := s.categoryRepo.UpdateCategory(ctx, category)
@@ -177,7 +177,7 @@ func (s *CategoryService) UpdateCategory(ctx context.Context, category *entities
 
 func (s *CategoryService) DeleteCategory(ctx context.Context, id int64) error {
 	if id <= 0 {
-		return domain_errors.ErrInvalidInput
+		return errors.ErrInvalidInput
 	}
 	if err := s.categoryRepo.DeleteCategory(ctx, id); err != nil {
 		return err

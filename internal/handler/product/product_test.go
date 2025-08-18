@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"go.uber.org/zap"
+	errors2 "goshop/internal/domain/errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"go.uber.org/zap"
+
 	"goshop/internal/domain/types"
-	"goshop/internal/domain_errors"
 	"goshop/internal/dto"
 	"goshop/internal/handler/product"
 	"goshop/internal/handler/product/mocks"
@@ -135,7 +136,7 @@ func TestProductHandler_GetProductByID(t *testing.T) {
 			name:      "Error_ProductNotFound",
 			productID: "999",
 			mockSetup: func(m *mocks.MockProductService) {
-				m.EXPECT().GetProductByID(mock.Anything, int64(999)).Return(nil, domain_errors.ErrProductNotFound)
+				m.EXPECT().GetProductByID(mock.Anything, int64(999)).Return(nil, errors2.ErrProductNotFound)
 			},
 			expectedStatus: http.StatusNotFound,
 		},
@@ -216,7 +217,7 @@ func TestProductHandler_CreateProduct(t *testing.T) {
 				CategoryIDs: []int64{1, 2},
 			},
 			mockSetup: func(m *mocks.MockProductService) {
-				m.EXPECT().CreateProduct(mock.Anything, mock.AnythingOfType("*dto.CreateProductRequest")).Return(nil, domain_errors.ErrInvalidProductData)
+				m.EXPECT().CreateProduct(mock.Anything, mock.AnythingOfType("*dto.CreateProductRequest")).Return(nil, errors2.ErrInvalidProductData)
 			},
 			expectedStatus: http.StatusUnprocessableEntity,
 		},
@@ -292,7 +293,7 @@ func TestProductHandler_UpdateProduct(t *testing.T) {
 				Name: &name,
 			},
 			mockSetup: func(m *mocks.MockProductService) {
-				m.EXPECT().UpdateProduct(mock.Anything, int64(999), mock.AnythingOfType("*dto.UpdateProductRequest")).Return(nil, domain_errors.ErrProductNotFound)
+				m.EXPECT().UpdateProduct(mock.Anything, int64(999), mock.AnythingOfType("*dto.UpdateProductRequest")).Return(nil, errors2.ErrProductNotFound)
 			},
 			expectedStatus: http.StatusNotFound,
 		},
@@ -351,7 +352,7 @@ func TestProductHandler_DeleteProduct(t *testing.T) {
 			name:      "Error_ProductNotFound",
 			productID: "999",
 			mockSetup: func(m *mocks.MockProductService) {
-				m.EXPECT().DeleteProduct(mock.Anything, int64(999)).Return(domain_errors.ErrProductNotFound)
+				m.EXPECT().DeleteProduct(mock.Anything, int64(999)).Return(errors2.ErrProductNotFound)
 			},
 			expectedStatus: http.StatusNotFound,
 		},

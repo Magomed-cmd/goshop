@@ -17,6 +17,7 @@ type Config struct {
 	Gin      GinConfig      `mapstructure:"gin"`
 	Logger   LoggerConfig   `mapstructure:"logger"`
 	Redis    RedisConfig    `mapstructure:"redis"`
+	S3       S3Config       `mapstructure:"s3"`
 }
 
 type ServerConfig struct {
@@ -62,6 +63,15 @@ type LoggerConfig struct {
 	Level       string `mapstructure:"level"`
 	Encoding    string `mapstructure:"encoding"`
 	Development bool   `mapstructure:"development"`
+}
+
+type S3Config struct {
+	AccessKey string `mapstructure:"access_key"`
+	Secret    string `mapstructure:"secret"`
+	Bucket    string `mapstructure:"bucket"`
+	Endpoint  string `mapstructure:"endpoint"`
+	Region    string `mapstructure:"region"`
+	UseSSL    bool   `mapstructure:"useSSL"`
 }
 
 type RedisConfig struct {
@@ -122,7 +132,9 @@ func LoadConfig(path string, logger *zap.Logger) (*Config, error) {
 		zap.String("server_addr", cfg.Server.GetServerAddr()),
 		zap.Int("bcrypt_cost", cfg.Security.BcryptCost),
 		zap.String("gin_mode", cfg.Gin.Mode),
-		zap.String("log_level", cfg.Logger.Level))
+		zap.String("log_level", cfg.Logger.Level),
+		zap.String("s3_bucket", cfg.S3.Bucket),
+		zap.String("s3_endpoint", cfg.S3.Endpoint))
 
 	return &cfg, nil
 }
@@ -230,6 +242,31 @@ func (c *Config) Validate(logger *zap.Logger) error {
 	if c.Redis.Port < 1 || c.Redis.Port > 65535 {
 		logger.Error("Validation failed", zap.String("field", "redis.port"), zap.Int("value", c.Redis.Port), zap.String("error", "invalid range"))
 		return fmt.Errorf("invalid redis port: %d", c.Redis.Port)
+	}
+
+	if c.S3.AccessKey == "" {
+		logger.Error("Validation failed", zap.String("field", "s3.access_key"), zap.String("error", "required"))
+		return fmt.Errorf("s3 access_key is required")
+	}
+	if c.S3.Secret == "" {
+		logger.Error("Validation failed", zap.String("field", "s3.secret"), zap.String("error", "required"))
+		return fmt.Errorf("s3 secret is required")
+	}
+	if c.S3.Bucket == "" {
+		logger.Error("Validation failed", zap.String("field", "s3.bucket"), zap.String("error", "required"))
+		return fmt.Errorf("s3 bucket is required")
+	}
+	if c.S3.Endpoint == "" {
+		logger.Error("Validation failed", zap.String("field", "s3.endpoint"), zap.String("error", "required"))
+		return fmt.Errorf("s3 endpoint is required")
+	}
+	if c.S3.Region == "" {
+		logger.Error("Validation failed", zap.String("field", "s3.region"), zap.String("error", "required"))
+		return fmt.Errorf("s3 region is required")
+	}
+
+	if !c.S3.UseSSL {
+		logger.Warn("S3 connection is not using SSL")
 	}
 
 	return nil

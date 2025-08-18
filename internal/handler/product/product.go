@@ -3,11 +3,11 @@ package product
 import (
 	"context"
 	"errors"
+	errors2 "goshop/internal/domain/errors"
 	"net/http"
 	"strconv"
 
 	"goshop/internal/domain/types"
-	"goshop/internal/domain_errors"
 	"goshop/internal/dto"
 
 	"go.uber.org/zap"
@@ -93,7 +93,7 @@ func (h *ProductHandler) GetProductByID(c *gin.Context) {
 	result, err := h.productService.GetProductByID(c.Request.Context(), id)
 	if err != nil {
 		h.logger.Error("GetProductByID service failed", zap.Error(err), zap.Int64("product_id", id))
-		if errors.Is(err, domain_errors.ErrProductNotFound) {
+		if errors.Is(err, errors2.ErrProductNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
 			return
 		}
@@ -222,17 +222,17 @@ func (h *ProductHandler) parseID(c *gin.Context, param string) (int64, error) {
 
 func (h *ProductHandler) mapServiceError(err error) (int, string) {
 	switch {
-	case errors.Is(err, domain_errors.ErrInvalidInput):
+	case errors.Is(err, errors2.ErrInvalidInput):
 		return http.StatusBadRequest, "Invalid input data"
-	case errors.Is(err, domain_errors.ErrInvalidProductData):
+	case errors.Is(err, errors2.ErrInvalidProductData):
 		return http.StatusUnprocessableEntity, "Invalid product data"
-	case errors.Is(err, domain_errors.ErrInvalidPrice):
+	case errors.Is(err, errors2.ErrInvalidPrice):
 		return http.StatusUnprocessableEntity, "Invalid price"
-	case errors.Is(err, domain_errors.ErrInvalidStock):
+	case errors.Is(err, errors2.ErrInvalidStock):
 		return http.StatusUnprocessableEntity, "Invalid stock value"
-	case errors.Is(err, domain_errors.ErrProductNotFound):
+	case errors.Is(err, errors2.ErrProductNotFound):
 		return http.StatusNotFound, "Product not found"
-	case errors.Is(err, domain_errors.ErrCategoryNotFound):
+	case errors.Is(err, errors2.ErrCategoryNotFound):
 		return http.StatusUnprocessableEntity, "Category not found"
 	default:
 		return http.StatusInternalServerError, "Internal server error"

@@ -2,6 +2,7 @@ package product_test
 
 import (
 	"context"
+	"goshop/internal/domain/errors"
 	"testing"
 	"time"
 
@@ -14,7 +15,6 @@ import (
 
 	"goshop/internal/domain/entities"
 	"goshop/internal/domain/types"
-	"goshop/internal/domain_errors"
 	"goshop/internal/dto"
 	"goshop/internal/service/product"
 	"goshop/internal/service/product/mocks"
@@ -148,7 +148,7 @@ func TestProductService_CreateProduct(t *testing.T) {
 				CategoryIDs: []int64{1},
 			},
 			mockSetup:     func(*mocks.MockProductRepository, *mocks.MockCategoryRepository, *mocks.MockProductCache) {},
-			expectedError: domain_errors.ErrInvalidProductData,
+			expectedError: errors.ErrInvalidProductData,
 		},
 		{
 			name: "Error_WhitespaceOnlyName",
@@ -159,7 +159,7 @@ func TestProductService_CreateProduct(t *testing.T) {
 				CategoryIDs: []int64{1},
 			},
 			mockSetup:     func(*mocks.MockProductRepository, *mocks.MockCategoryRepository, *mocks.MockProductCache) {},
-			expectedError: domain_errors.ErrInvalidProductData,
+			expectedError: errors.ErrInvalidProductData,
 		},
 		{
 			name: "Error_ZeroPrice",
@@ -170,7 +170,7 @@ func TestProductService_CreateProduct(t *testing.T) {
 				CategoryIDs: []int64{1},
 			},
 			mockSetup:     func(*mocks.MockProductRepository, *mocks.MockCategoryRepository, *mocks.MockProductCache) {},
-			expectedError: domain_errors.ErrInvalidPrice,
+			expectedError: errors.ErrInvalidPrice,
 		},
 		{
 			name: "Error_NegativePrice",
@@ -181,7 +181,7 @@ func TestProductService_CreateProduct(t *testing.T) {
 				CategoryIDs: []int64{1},
 			},
 			mockSetup:     func(*mocks.MockProductRepository, *mocks.MockCategoryRepository, *mocks.MockProductCache) {},
-			expectedError: domain_errors.ErrInvalidPrice,
+			expectedError: errors.ErrInvalidPrice,
 		},
 		{
 			name: "Error_PriceTooHigh",
@@ -192,7 +192,7 @@ func TestProductService_CreateProduct(t *testing.T) {
 				CategoryIDs: []int64{1},
 			},
 			mockSetup:     func(*mocks.MockProductRepository, *mocks.MockCategoryRepository, *mocks.MockProductCache) {},
-			expectedError: domain_errors.ErrInvalidPrice,
+			expectedError: errors.ErrInvalidPrice,
 		},
 		{
 			name: "Error_PriceTooManyDecimals",
@@ -203,7 +203,7 @@ func TestProductService_CreateProduct(t *testing.T) {
 				CategoryIDs: []int64{1},
 			},
 			mockSetup:     func(*mocks.MockProductRepository, *mocks.MockCategoryRepository, *mocks.MockProductCache) {},
-			expectedError: domain_errors.ErrInvalidPrice,
+			expectedError: errors.ErrInvalidPrice,
 		},
 		{
 			name: "Error_ZeroStock",
@@ -214,7 +214,7 @@ func TestProductService_CreateProduct(t *testing.T) {
 				CategoryIDs: []int64{1},
 			},
 			mockSetup:     func(*mocks.MockProductRepository, *mocks.MockCategoryRepository, *mocks.MockProductCache) {},
-			expectedError: domain_errors.ErrInvalidStock,
+			expectedError: errors.ErrInvalidStock,
 		},
 		{
 			name: "Error_NegativeStock",
@@ -225,7 +225,7 @@ func TestProductService_CreateProduct(t *testing.T) {
 				CategoryIDs: []int64{1},
 			},
 			mockSetup:     func(*mocks.MockProductRepository, *mocks.MockCategoryRepository, *mocks.MockProductCache) {},
-			expectedError: domain_errors.ErrInvalidStock,
+			expectedError: errors.ErrInvalidStock,
 		},
 		{
 			name: "Error_EmptyCategoryIDs",
@@ -236,7 +236,7 @@ func TestProductService_CreateProduct(t *testing.T) {
 				CategoryIDs: []int64{},
 			},
 			mockSetup:     func(*mocks.MockProductRepository, *mocks.MockCategoryRepository, *mocks.MockProductCache) {},
-			expectedError: domain_errors.ErrInvalidInput,
+			expectedError: errors.ErrInvalidInput,
 		},
 		{
 			name: "Error_DescriptionTooLong",
@@ -248,7 +248,7 @@ func TestProductService_CreateProduct(t *testing.T) {
 				CategoryIDs: []int64{1},
 			},
 			mockSetup:     func(*mocks.MockProductRepository, *mocks.MockCategoryRepository, *mocks.MockProductCache) {},
-			expectedError: domain_errors.ErrInvalidProductData,
+			expectedError: errors.ErrInvalidProductData,
 		},
 		{
 			name: "Error_CategoriesNotFound",
@@ -261,7 +261,7 @@ func TestProductService_CreateProduct(t *testing.T) {
 			mockSetup: func(productRepo *mocks.MockProductRepository, categoryRepo *mocks.MockCategoryRepository, cache *mocks.MockProductCache) {
 				categoryRepo.EXPECT().CheckCategoriesExist(mock.Anything, []int64{999}).Return(false, nil)
 			},
-			expectedError: domain_errors.ErrCategoryNotFound,
+			expectedError: errors.ErrCategoryNotFound,
 		},
 		{
 			name: "Error_CategoryRepositoryError",
@@ -379,22 +379,22 @@ func TestProductService_GetProductByID(t *testing.T) {
 			name:          "Error_InvalidID",
 			productID:     0,
 			mockSetup:     func(*mocks.MockProductRepository, *mocks.MockCategoryRepository, *mocks.MockProductCache) {},
-			expectedError: domain_errors.ErrInvalidInput,
+			expectedError: errors.ErrInvalidInput,
 		},
 		{
 			name:          "Error_NegativeID",
 			productID:     -1,
 			mockSetup:     func(*mocks.MockProductRepository, *mocks.MockCategoryRepository, *mocks.MockProductCache) {},
-			expectedError: domain_errors.ErrInvalidInput,
+			expectedError: errors.ErrInvalidInput,
 		},
 		{
 			name:      "Error_ProductNotFound",
 			productID: 999,
 			mockSetup: func(productRepo *mocks.MockProductRepository, categoryRepo *mocks.MockCategoryRepository, cache *mocks.MockProductCache) {
 				expectCacheGetProductMiss(cache, 999)
-				productRepo.EXPECT().GetProductByID(mock.Anything, int64(999)).Return(nil, domain_errors.ErrProductNotFound)
+				productRepo.EXPECT().GetProductByID(mock.Anything, int64(999)).Return(nil, errors.ErrProductNotFound)
 			},
-			expectedError: domain_errors.ErrProductNotFound,
+			expectedError: errors.ErrProductNotFound,
 		},
 		{
 			name:      "Error_GetCategoriesError",
@@ -531,7 +531,7 @@ func TestProductService_UpdateProduct(t *testing.T) {
 			productID:     0,
 			request:       &dto.UpdateProductRequest{},
 			mockSetup:     func(*mocks.MockProductRepository, *mocks.MockCategoryRepository, *mocks.MockProductCache) {},
-			expectedError: domain_errors.ErrInvalidInput,
+			expectedError: errors.ErrInvalidInput,
 		},
 		{
 			name:      "Error_EmptyName",
@@ -539,7 +539,7 @@ func TestProductService_UpdateProduct(t *testing.T) {
 			request:   &dto.UpdateProductRequest{Name: stringPtr("")},
 			mockSetup: func(*mocks.MockProductRepository, *mocks.MockCategoryRepository, *mocks.MockProductCache) {
 			},
-			expectedError: domain_errors.ErrInvalidProductData,
+			expectedError: errors.ErrInvalidProductData,
 		},
 		{
 			name:      "Error_NegativePrice",
@@ -547,7 +547,7 @@ func TestProductService_UpdateProduct(t *testing.T) {
 			request:   &dto.UpdateProductRequest{Price: decimalPtr(decimal.NewFromFloat(-100.00))},
 			mockSetup: func(*mocks.MockProductRepository, *mocks.MockCategoryRepository, *mocks.MockProductCache) {
 			},
-			expectedError: domain_errors.ErrInvalidPrice,
+			expectedError: errors.ErrInvalidPrice,
 		},
 		{
 			name:      "Error_NegativeStock",
@@ -555,7 +555,7 @@ func TestProductService_UpdateProduct(t *testing.T) {
 			request:   &dto.UpdateProductRequest{Stock: intPtr(-5)},
 			mockSetup: func(*mocks.MockProductRepository, *mocks.MockCategoryRepository, *mocks.MockProductCache) {
 			},
-			expectedError: domain_errors.ErrInvalidStock,
+			expectedError: errors.ErrInvalidStock,
 		},
 		{
 			name:      "Error_NoChanges",
@@ -566,16 +566,16 @@ func TestProductService_UpdateProduct(t *testing.T) {
 				productRepo.EXPECT().GetProductByID(mock.Anything, int64(123)).Return(existingProduct, nil)
 				// кеш не трогаем, т.к. ошибка до изменений
 			},
-			expectedError: domain_errors.ErrInvalidInput,
+			expectedError: errors.ErrInvalidInput,
 		},
 		{
 			name:      "Error_ProductNotFound",
 			productID: 999,
 			request:   &dto.UpdateProductRequest{Name: stringPtr("New Name")},
 			mockSetup: func(productRepo *mocks.MockProductRepository, categoryRepo *mocks.MockCategoryRepository, cache *mocks.MockProductCache) {
-				productRepo.EXPECT().GetProductByID(mock.Anything, int64(999)).Return(nil, domain_errors.ErrProductNotFound)
+				productRepo.EXPECT().GetProductByID(mock.Anything, int64(999)).Return(nil, errors.ErrProductNotFound)
 			},
-			expectedError: domain_errors.ErrProductNotFound,
+			expectedError: errors.ErrProductNotFound,
 		},
 	}
 
@@ -625,7 +625,7 @@ func TestProductService_DeleteProduct(t *testing.T) {
 			name:          "Error_InvalidID",
 			productID:     0,
 			mockSetup:     func(*mocks.MockProductRepository, *mocks.MockCategoryRepository, *mocks.MockProductCache) {},
-			expectedError: domain_errors.ErrInvalidInput,
+			expectedError: errors.ErrInvalidInput,
 		},
 		{
 			name:      "Error_RemoveCategoriesError",
@@ -640,9 +640,9 @@ func TestProductService_DeleteProduct(t *testing.T) {
 			productID: 123,
 			mockSetup: func(productRepo *mocks.MockProductRepository, categoryRepo *mocks.MockCategoryRepository, cache *mocks.MockProductCache) {
 				productRepo.EXPECT().RemoveProductFromCategories(mock.Anything, int64(123)).Return(nil)
-				productRepo.EXPECT().DeleteProduct(mock.Anything, int64(123)).Return(domain_errors.ErrProductNotFound)
+				productRepo.EXPECT().DeleteProduct(mock.Anything, int64(123)).Return(errors.ErrProductNotFound)
 			},
-			expectedError: domain_errors.ErrProductNotFound,
+			expectedError: errors.ErrProductNotFound,
 		},
 	}
 

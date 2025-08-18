@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"goshop/internal/domain/entities"
-	"goshop/internal/domain_errors"
+	errors2 "goshop/internal/domain/errors"
 	"goshop/internal/dto"
 	"strconv"
 
@@ -55,7 +55,7 @@ func (h *CategoryHandler) GetCategoryByID(c *gin.Context) {
 
 	category, err := h.CategoryService.GetCategoryByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, domain_errors.ErrCategoryNotFound) {
+		if errors.Is(err, errors2.ErrCategoryNotFound) {
 			c.JSON(404, gin.H{"error": "Category not found"})
 			return
 		}
@@ -85,7 +85,7 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 
 	createdCategory, err := h.CategoryService.CreateCategory(ctx, &req)
 	if err != nil {
-		if errors.Is(err, domain_errors.ErrInvalidInput) {
+		if errors.Is(err, errors2.ErrInvalidInput) {
 			c.JSON(400, gin.H{"error": "Invalid category data"})
 			return
 		}
@@ -121,7 +121,7 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 
 	cur, err := h.CategoryService.GetCategoryByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, domain_errors.ErrCategoryNotFound) {
+		if errors.Is(err, errors2.ErrCategoryNotFound) {
 			c.JSON(404, gin.H{"error": "Category not found"})
 			return
 		}
@@ -150,10 +150,10 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 	updated, err := h.CategoryService.UpdateCategory(ctx, entity)
 	if err != nil {
 		switch {
-		case errors.Is(err, domain_errors.ErrCategoryNotFound):
+		case errors.Is(err, errors2.ErrCategoryNotFound):
 			c.JSON(404, gin.H{"error": "Category not found"})
-		case errors.Is(err, domain_errors.ErrInvalidInput),
-			errors.Is(err, domain_errors.ErrInvalidCategoryData):
+		case errors.Is(err, errors2.ErrInvalidInput),
+			errors.Is(err, errors2.ErrInvalidCategoryData):
 			c.JSON(400, gin.H{"error": "Invalid category data"})
 		default:
 			c.JSON(500, gin.H{"error": "Failed to update category"})
@@ -184,11 +184,11 @@ func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
 
 	err = h.CategoryService.DeleteCategory(ctx, id)
 	if err != nil {
-		if errors.Is(err, domain_errors.ErrCategoryNotFound) {
+		if errors.Is(err, errors2.ErrCategoryNotFound) {
 			c.JSON(404, gin.H{"error": "Category not found"})
 			return
 		}
-		if errors.Is(err, domain_errors.ErrInvalidInput) {
+		if errors.Is(err, errors2.ErrInvalidInput) {
 			c.JSON(400, gin.H{"error": "Invalid category ID"})
 			return
 		}

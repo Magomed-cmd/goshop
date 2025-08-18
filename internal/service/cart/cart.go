@@ -3,13 +3,14 @@ package cart
 import (
 	"context"
 	"errors"
+	errors2 "goshop/internal/domain/errors"
 	"time"
+
+	"goshop/internal/domain/entities"
+	"goshop/internal/dto"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
-	"goshop/internal/domain/entities"
-	"goshop/internal/domain_errors"
-	"goshop/internal/dto"
 )
 
 type CartRepository interface {
@@ -40,7 +41,7 @@ func NewCartService(cartRepo CartRepository, productRepo ProductRepository) *Car
 func (s *CartService) GetCart(ctx context.Context, userID int64) (*dto.CartResponse, error) {
 	cart, err := s.cartRepo.GetUserCart(ctx, userID)
 	if err != nil {
-		if errors.Is(err, domain_errors.ErrCartNotFound) {
+		if errors.Is(err, errors2.ErrCartNotFound) {
 			cart, err = s.createCartForUser(ctx, userID)
 			if err != nil {
 				return nil, err
@@ -84,24 +85,24 @@ func (s *CartService) GetCart(ctx context.Context, userID int64) (*dto.CartRespo
 
 func (s *CartService) AddItem(ctx context.Context, userID int64, req *dto.AddToCartRequest) error {
 	if req.Quantity <= 0 {
-		return domain_errors.ErrInvalidQuantity
+		return errors2.ErrInvalidQuantity
 	}
 
 	product, err := s.productRepo.GetProductByID(ctx, req.ProductID)
 	if err != nil {
-		if errors.Is(err, domain_errors.ErrProductNotFound) {
-			return domain_errors.ErrProductNotFound
+		if errors.Is(err, errors2.ErrProductNotFound) {
+			return errors2.ErrProductNotFound
 		}
 		return err
 	}
 
 	if product.Stock < req.Quantity {
-		return domain_errors.ErrInsufficientStock
+		return errors2.ErrInsufficientStock
 	}
 
 	cart, err := s.cartRepo.GetUserCart(ctx, userID)
 	if err != nil {
-		if errors.Is(err, domain_errors.ErrCartNotFound) {
+		if errors.Is(err, errors2.ErrCartNotFound) {
 			cart, err = s.createCartForUser(ctx, userID)
 			if err != nil {
 				return err
@@ -116,7 +117,7 @@ func (s *CartService) AddItem(ctx context.Context, userID int64, req *dto.AddToC
 
 func (s *CartService) UpdateItem(ctx context.Context, userID int64, productID int64, quantity int) error {
 	if quantity <= 0 {
-		return domain_errors.ErrInvalidQuantity
+		return errors2.ErrInvalidQuantity
 	}
 
 	product, err := s.productRepo.GetProductByID(ctx, productID)
@@ -125,7 +126,7 @@ func (s *CartService) UpdateItem(ctx context.Context, userID int64, productID in
 	}
 
 	if product.Stock < quantity {
-		return domain_errors.ErrInsufficientStock
+		return errors2.ErrInsufficientStock
 	}
 
 	cart, err := s.cartRepo.GetUserCart(ctx, userID)
