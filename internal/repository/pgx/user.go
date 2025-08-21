@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"goshop/internal/domain/entities"
 	errors2 "goshop/internal/domain/errors"
-	"goshop/internal/service/user"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
@@ -14,13 +13,15 @@ import (
 	"go.uber.org/zap"
 )
 
+const DefaultAvatarURL = "avatars/default-avatar.png"
+
 type UserRepository struct {
 	db     *pgxpool.Pool
 	psql   squirrel.StatementBuilderType
 	logger *zap.Logger
 }
 
-func NewUserRepository(conn *pgxpool.Pool, logger *zap.Logger) user.UserRepository {
+func NewUserRepository(conn *pgxpool.Pool, logger *zap.Logger) *UserRepository {
 	return &UserRepository{
 		db:     conn,
 		psql:   squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
@@ -165,6 +166,71 @@ func (r *UserRepository) UpdateUserProfile(ctx context.Context, userID int64, na
 	r.logger.Info("User profile updated successfully",
 		zap.Int64("user_id", userID),
 		zap.Int("params_updated", paramsCnt))
+
+	return nil
+}
+
+func (r *UserRepository) SaveAvatar(ctx context.Context, userAvatarInfo *entities.UserAvatar) (int, error) {
+
+	query := `INSERT INTO user_avatars (user_id, image_url, created_at, updated_at, uuid) 
+				VALUES ($1, $2, $3, $4, $5) 
+				ON CONFLICT (user_id) 
+				DO UPDATE 
+				SET image_url = EXCLUDED.image_url, 
+				    updated_at = EXCLUDED.updated_at, 
+				    uuid = EXCLUDED.uuid 
+				RETURNING id`
+
+	var id int
+
+	if err := r.db.QueryRow(
+		ctx,
+		query,
+		userAvatarInfo.UserID,
+		userAvatarInfo.ImageURL,
+		userAvatarInfo.CreatedAt,
+		userAvatarInfo.UpdatedAt,
+		userAvatarInfo.UUID).
+		Scan(&id); err != nil {
+		return 0, err
+	}
+
+	return id, nil
+}
+
+func (r *UserRepository) GetAvatar(ctx context.Context, userID int) (*entities.UserAvatar, error) {
+
+	query := `SELECT id, user_id, image_url, created_at, updated_at, uuid FROM user_avatars WHERE user_id = $1`
+
+	userAvatarInfo := &entities.UserAvatar{}
+
+	if err := r.db.QueryRow(ctx, query, userID).Scan(
+		&userAvatarInfo.ID,
+		&userAvatarInfo.UserID,
+		&userAvatarInfo.ImageURL,
+		&userAvatarInfo.CreatedAt,
+		&userAvatarInfo.UpdatedAt,
+		&userAvatarInfo.UUID,
+	); err != nil {
+		return nil, err
+	}
+
+	return userAvatarInfo, nil
+}
+
+func (r *UserRepository) DeleteAvatar(ctx context.Context, userID int) error {
+
+	query := `DELETE FROM user_avatars WHERE user_id = $1`
+
+	result, err := r.db.Exec(ctx, query, userID)
+
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		return errors2.ErrAvatarNotFound
+	}
 
 	return nil
 }

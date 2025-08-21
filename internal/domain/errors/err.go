@@ -68,6 +68,11 @@ var (
 	ErrNothingToUpdate        = errors.New("not enough parameters for update")
 	ErrInvalidComment         = errors.New("comment too long (max 1000 characters)")
 	ErrReviewNotOwnedByUser   = errors.New("review does not belong to user")
+
+	// user_avatars errors
+	ErrAvatarNotFound    = errors.New("avatar not found")
+	ErrInvalidAvatarData = errors.New("invalid avatar data")
+	ErrAvatarUploadFail  = errors.New("failed to upload avatar")
 )
 
 func HandleError(c *gin.Context, err error) {

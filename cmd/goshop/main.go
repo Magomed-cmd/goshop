@@ -26,8 +26,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to connect to S3", zap.Error(err))
 	}
-	_ = s3Client // Use the S3 client as needed, or remove if not used
-
 	db, err := postgres.NewConnection(&cfg.Database.Postgres, log)
 	if err != nil {
 		log.Fatal("Failed to connect to Postgres", zap.Error(err))
@@ -49,7 +47,7 @@ func main() {
 
 	r := gin.Default()
 
-	handlers := app.InitApp(cfg, db, log, rdb)
+	handlers := app.InitApp(cfg, db, log, rdb, s3Client)
 	routes.RegisterRoutes(r, handlers, cfg.JWT.Secret, log)
 
 	log.Info("Server starting", zap.String("address", cfg.Server.GetServerAddr()))

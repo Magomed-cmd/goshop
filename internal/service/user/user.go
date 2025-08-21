@@ -3,10 +3,12 @@ package user
 import (
 	"context"
 	"errors"
+	"fmt"
 	"goshop/internal/domain/entities"
 	errors2 "goshop/internal/domain/errors"
 	"goshop/internal/dto"
 	"goshop/internal/utils"
+	"io"
 	"time"
 
 	"github.com/google/uuid"
@@ -15,6 +17,7 @@ import (
 
 const (
 	defaultUserRole = "user"
+	defaultImgURL   = "https://storage.yandexcloud.net/goshop/avatars/default/default-avatar.jpg"
 )
 
 type RoleRepository interface {
@@ -26,7 +29,17 @@ type UserRepository interface {
 	CreateUser(ctx context.Context, user *entities.User) error
 	GetUserByEmail(ctx context.Context, email string) (*entities.User, error)
 	GetUserByID(ctx context.Context, id int64) (*entities.User, error)
+	GetAvatar(ctx context.Context, userID int) (*entities.UserAvatar, error)
+	SaveAvatar(ctx context.Context, userAvatarInfo *entities.UserAvatar) (int, error)
 	UpdateUserProfile(ctx context.Context, userID int64, name *string, phone *string) error
+	DeleteAvatar(ctx context.Context, userID int) error
+}
+
+type ImgStorage interface {
+	UploadImage(ctx context.Context, objectName string, reader io.ReadCloser, size int64, contentType string) (*string, error)
+	DeleteImage(ctx context.Context, objectName string) error
+	GetImageURL(objectName string) string
+	DownloadImage(ctx context.Context, objectName string) (io.ReadCloser, error)
 }
 
 type UserService struct {
@@ -34,15 +47,17 @@ type UserService struct {
 	userRepo     UserRepository
 	jwtSecretKey string
 	bcryptCost   int
+	ImgStorage   ImgStorage
 	logger       *zap.Logger
 }
 
-func NewUserService(roleRepo RoleRepository, userRepo UserRepository, jwtSecret string, bcryptCost int, logger *zap.Logger) *UserService {
+func NewUserService(roleRepo RoleRepository, userRepo UserRepository, jwtSecret string, bcryptCost int, imgStorage ImgStorage, logger *zap.Logger) *UserService {
 	return &UserService{
 		roleRepo:     roleRepo,
 		userRepo:     userRepo,
 		jwtSecretKey: jwtSecret,
 		bcryptCost:   bcryptCost,
+		ImgStorage:   imgStorage,
 		logger:       logger,
 	}
 }
@@ -51,7 +66,7 @@ func (s *UserService) Register(ctx context.Context, req *dto.RegisterRequest) (*
 	s.logger.Info("UserService Register started", zap.String("email", req.Email))
 
 	s.logger.Debug("Checking if user exists", zap.String("email", req.Email))
-	if err := s.checkUserExists(ctx, req.Email); err != nil {
+	if err := s.CheckUserExists(ctx, req.Email); err != nil {
 		s.logger.Error("User exists check failed", zap.Error(err), zap.String("email", req.Email))
 		return nil, "", err
 	}
@@ -64,12 +79,20 @@ func (s *UserService) Register(ctx context.Context, req *dto.RegisterRequest) (*
 	}
 
 	s.logger.Debug("Creating user", zap.String("email", req.Email), zap.Int64("role_id", role.ID))
-	user, err := s.createUser(ctx, req, role.ID)
+	user, err := s.CreateUser(ctx, req, role.ID)
 	if err != nil {
 		s.logger.Error("Failed to create user", zap.Error(err), zap.String("email", req.Email))
 		return nil, "", err
 	}
 
+	_, err = s.userRepo.SaveAvatar(ctx, &entities.UserAvatar{
+		ID:        0,
+		UserID:    user.ID,
+		ImageURL:  defaultImgURL,
+		UUID:      uuid.New().String(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	})
 	user.Role = role
 
 	s.logger.Debug("Generating JWT token", zap.Int64("user_id", user.ID))
@@ -168,7 +191,7 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID int64, req *dto.
 	return nil
 }
 
-func (s *UserService) checkUserExists(ctx context.Context, email string) error {
+func (s *UserService) CheckUserExists(ctx context.Context, email string) error {
 	s.logger.Debug("Checking if user exists", zap.String("email", email))
 
 	existingUser, err := s.userRepo.GetUserByEmail(ctx, email)
@@ -190,7 +213,7 @@ func (s *UserService) checkUserExists(ctx context.Context, email string) error {
 	return nil
 }
 
-func (s *UserService) createUser(ctx context.Context, req *dto.RegisterRequest, roleID int64) (*entities.User, error) {
+func (s *UserService) CreateUser(ctx context.Context, req *dto.RegisterRequest, roleID int64) (*entities.User, error) {
 	s.logger.Debug("Creating new user", zap.String("email", req.Email), zap.Int64("role_id", roleID))
 
 	s.logger.Debug("Generating UUID")
@@ -225,4 +248,67 @@ func (s *UserService) createUser(ctx context.Context, req *dto.RegisterRequest, 
 
 	s.logger.Info("User created successfully", zap.Int64("user_id", user.ID), zap.String("email", req.Email))
 	return user, nil
+}
+
+func (s *UserService) UploadAvatar(ctx context.Context, reader io.ReadCloser, size, userID int64, contentType, extension string) (string, error) {
+	s.logger.Debug("Start UploadAvatar",
+		zap.Int64("user_id", userID),
+		zap.Int64("size", size),
+		zap.String("content_type", contentType),
+		zap.String("extension", extension),
+	)
+
+	if userID < 1 {
+		s.logger.Error("Invalid user ID", zap.Int64("user_id", userID))
+		return "", errors2.ErrInvalidUserID
+	}
+
+	userAvatarInfo := &entities.UserAvatar{
+		UserID:    userID,
+		UUID:      uuid.New().String(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	objectName := fmt.Sprintf("avatars/%d/avatar%s", userID, extension)
+	s.logger.Debug("Prepared object name for storage", zap.String("object_name", objectName))
+
+	url, err := s.ImgStorage.UploadImage(ctx, objectName, reader, size, contentType)
+	if err != nil {
+		s.logger.Error("Failed to upload image to storage", zap.Error(err))
+		return "", err
+	}
+
+	userAvatarInfo.ImageURL = *url
+	s.logger.Info("Image uploaded successfully", zap.String("image_url", userAvatarInfo.ImageURL))
+
+	s.logger.Debug("Saving avatar info to database", zap.Int64("user_id", userID))
+	id, err := s.userRepo.SaveAvatar(ctx, userAvatarInfo)
+
+	if err != nil {
+		s.logger.Error("Failed to save avatar info to database", zap.Error(err))
+		return "", err
+	}
+	s.logger.Info("Avatar info saved to database", zap.Int64("avatar_id", int64(id)))
+
+	userAvatarInfo.ID = int64(id)
+
+	return userAvatarInfo.ImageURL, nil
+}
+
+func (s *UserService) GetAvatar(ctx context.Context, userID int) (string, error) {
+	s.logger.Debug("Getting avatar", zap.Int("user_id", userID))
+
+	avatar, err := s.userRepo.GetAvatar(ctx, userID)
+	if err != nil {
+		if errors.Is(err, errors2.ErrNotFound) {
+			s.logger.Info("No avatar found, using default", zap.Int("user_id", userID))
+			return s.ImgStorage.GetImageURL("avatars/default/default_avatar.jpg"), nil
+		}
+		s.logger.Error("Failed to get avatar from repo", zap.Error(err), zap.Int("user_id", userID))
+		return "", err
+	}
+
+	s.logger.Info("Avatar retrieved", zap.Int("user_id", userID), zap.String("url", avatar.ImageURL))
+	return avatar.ImageURL, nil
 }

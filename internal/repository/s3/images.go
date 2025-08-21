@@ -22,7 +22,7 @@ func NewImgStorage(client *minio.Client, bucket string, region string) *ImgStora
 	}
 }
 
-func (st *ImgStorage) UploadImage(ctx context.Context, objectName string, reader io.Reader, size int64, contentType string) (*string, error) {
+func (st *ImgStorage) UploadImage(ctx context.Context, objectName string, reader io.ReadCloser, size int64, contentType string) (*string, error) {
 	_, err := st.client.PutObject(ctx, st.bucket, objectName, reader, size, minio.PutObjectOptions{
 		ContentType: contentType,
 	})
@@ -30,6 +30,7 @@ func (st *ImgStorage) UploadImage(ctx context.Context, objectName string, reader
 		return nil, fmt.Errorf("failed to upload image: %w", err)
 	}
 	url := fmt.Sprintf("https://%s/%s/%s", st.client.EndpointURL().Host, st.bucket, objectName)
+
 	return &url, nil
 }
 

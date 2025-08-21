@@ -46,6 +46,9 @@ func RegisterRoutes(router *gin.Engine, handlers *Handlers, jwtSecret string, lo
 	protected := router.Group("/api/v1")
 	protected.Use(middleware.JWTMiddleware(jwtSecret, logger))
 	{
+		protected.PUT("/profile/avatar", handlers.UserHandler.UploadAvatar)
+		protected.GET("/avatar", handlers.UserHandler.GetAvatar)
+
 		protected.GET("/profile", handlers.UserHandler.GetProfile)
 		protected.PUT("/profile", handlers.UserHandler.UpdateProfile)
 
