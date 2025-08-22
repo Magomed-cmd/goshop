@@ -2,11 +2,13 @@ package product
 
 import (
 	"context"
+	"fmt"
 	"goshop/internal/domain/entities"
 	"goshop/internal/domain/errors"
 	"goshop/internal/domain/types"
 	"goshop/internal/dto"
 	"goshop/internal/validation"
+	"io"
 	"strings"
 	"time"
 
@@ -24,6 +26,13 @@ type CategoryRepository interface {
 	CheckCategoriesExist(ctx context.Context, categoryIDs []int64) (bool, error)
 }
 
+type ImgStorage interface {
+	UploadImage(ctx context.Context, objectName string, reader io.ReadCloser, size int64, contentType string) (*string, error)
+	DeleteImage(ctx context.Context, objectName string) error
+	GetImageURL(objectName string) string
+	DownloadImage(ctx context.Context, objectName string) (io.ReadCloser, error)
+}
+
 type ProductRepository interface {
 	CreateProduct(ctx context.Context, product *entities.Product) error
 	GetProductByID(ctx context.Context, id int64) (*entities.Product, error)
@@ -33,6 +42,9 @@ type ProductRepository interface {
 	AddProductToCategories(ctx context.Context, productID int64, categoryIDs []int64) error
 	RemoveProductFromCategories(ctx context.Context, productID int64) error
 	GetProductCategories(ctx context.Context, productID int64) ([]*entities.Category, error)
+	SaveProductImage(ctx context.Context, productImage *entities.ProductImage) (int64, int, error)
+	GetProductImgs(ctx context.Context, productID int64) ([]*entities.ProductImage, error)
+	DeleteProductImg(ctx context.Context, productID, imageID int64) error
 }
 
 type ProductCache interface {
@@ -49,15 +61,17 @@ type ProductCache interface {
 type ProductService struct {
 	ProductRepo  ProductRepository
 	CategoryRepo CategoryRepository
+	ImgStorage   ImgStorage
 	ProductCache ProductCache
 	logger       *zap.Logger
 }
 
-func NewProductService(productRepo ProductRepository, categoryRepo CategoryRepository, cache ProductCache, logger *zap.Logger) *ProductService {
+func NewProductService(productRepo ProductRepository, categoryRepo CategoryRepository, imgStorage ImgStorage, cache ProductCache, logger *zap.Logger) *ProductService {
 	return &ProductService{
 		ProductRepo:  productRepo,
 		CategoryRepo: categoryRepo,
 		ProductCache: cache,
+		ImgStorage:   imgStorage,
 		logger:       logger,
 	}
 }
@@ -178,6 +192,11 @@ func (s *ProductService) GetProductByID(ctx context.Context, id int64) (*dto.Pro
 		}
 	}
 
+	productImgs, err := s.ProductRepo.GetProductImgs(ctx, product.ID)
+	if err != nil {
+		return nil, err
+	}
+
 	resp := &dto.ProductResponse{
 		ID:          product.ID,
 		UUID:        product.UUID.String(),
@@ -185,6 +204,7 @@ func (s *ProductService) GetProductByID(ctx context.Context, id int64) (*dto.Pro
 		Description: product.Description,
 		Price:       product.Price.StringFixed(2),
 		Stock:       product.Stock,
+		ProductImgs: productImgs,
 		Categories:  categoryResponses,
 		CreatedAt:   product.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:   product.UpdatedAt.Format(time.RFC3339),
@@ -395,4 +415,106 @@ func (s *ProductService) GetProducts(ctx context.Context, filters types.ProductF
 		zap.Int("limit", filters.Limit))
 
 	return resp, nil
+}
+
+func (s *ProductService) SaveProductImg(ctx context.Context, reader io.ReadCloser, size, productID int64, contentType, extension string) (*string, error) {
+
+	s.logger.Info("Saving product image",
+		zap.Int64("product_id", productID),
+		zap.String("content_type", contentType),
+		zap.String("extension", extension),
+		zap.Int64("size", size))
+
+	imgUUID := uuid.New()
+	objectName := fmt.Sprintf("products/%d/%s.%s", productID, imgUUID.String(), extension)
+
+	imageURL, err := s.ImgStorage.UploadImage(ctx, objectName, reader, size, contentType)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upload product image: %w", err)
+	}
+	if imageURL == nil {
+		return nil, fmt.Errorf("image URL is nil after upload")
+	}
+
+	productImgInfo := &entities.ProductImage{
+		ID:        0,
+		ProductID: productID,
+		ImageURL:  *imageURL,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		UUID:      imgUUID,
+	}
+
+	s.logger.Info("Product image uploaded to storage",
+		zap.Int64("product_id", productID),
+		zap.String("image_url", *imageURL),
+		zap.Int64("image_id", productImgInfo.ID))
+
+	id, position, err := s.ProductRepo.SaveProductImage(ctx, productImgInfo)
+	if err != nil {
+		_ = s.ImgStorage.DeleteImage(ctx, objectName)
+		return nil, err
+	}
+
+	s.logger.Info("Product image saved in repository",
+		zap.Int64("image_id", productImgInfo.ID),
+		zap.Int64("product_id", productID),
+		zap.Int("position", productImgInfo.Position),
+		zap.String("image_url", *imageURL),
+	)
+
+	productImgInfo.ID = id
+	productImgInfo.Position = position
+	s.logger.Info("Product image saved in repository")
+
+	return imageURL, nil
+}
+
+func (s *ProductService) DeleteProductImg(ctx context.Context, productID, imgID int64) error {
+	s.logger.Info("Deleting product image", zap.Int64("product_id", productID), zap.Int64("image_id", imgID))
+
+	if err := validation.ValidateProductID(productID); err != nil {
+		s.logger.Error("Product ID validation failed", zap.Error(err), zap.Int64("product_id", productID))
+		return errors.ErrInvalidProductID
+	}
+
+	if imgID <= 0 {
+		s.logger.Error("Invalid image ID for deletion", zap.Int64("image_id", imgID))
+		return errors.ErrInvalidInput
+	}
+
+	productImgs, err := s.ProductRepo.GetProductImgs(ctx, productID)
+	if err != nil {
+		s.logger.Error("Failed to get product images from repository", zap.Error(err), zap.Int64("product_id", productID))
+		return err
+	}
+
+	var imgToDelete *entities.ProductImage
+	for _, img := range productImgs {
+		if img.ID == imgID {
+			imgToDelete = img
+			break
+		}
+	}
+
+	if imgToDelete == nil {
+		s.logger.Warn("Product image not found for deletion", zap.Int64("product_id", productID), zap.Int64("image_id", imgID))
+		return errors.ErrProductImageNotFound
+	}
+
+	if err := s.ImgStorage.DeleteImage(ctx, imgToDelete.UUID.String()); err != nil {
+		s.logger.Error("Failed to delete image from storage", zap.Error(err), zap.String("image_url", imgToDelete.ImageURL))
+		return fmt.Errorf("failed to delete image from storage: %w", err)
+	}
+
+	if err := s.ProductRepo.DeleteProductImg(ctx, productID, imgToDelete.ID); err != nil {
+		s.logger.Error("Failed to delete product image from repository", zap.Error(err), zap.Int64("image_id", imgToDelete.ID))
+		return errors.ErrProductImageNotFound
+	}
+
+	s.logger.Info("Product image deleted successfully",
+		zap.Int64("product_id", productID),
+		zap.Int64("image_id", imgToDelete.ID))
+
+	return nil
 }

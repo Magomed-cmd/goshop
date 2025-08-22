@@ -38,6 +38,7 @@ func RegisterRoutes(router *gin.Engine, handlers *Handlers, jwtSecret string, lo
 	router.GET("/products", handlers.ProductHandler.GetProducts)
 	router.GET("/products/:id", handlers.ProductHandler.GetProductByID)
 	router.GET("/products/category/:id", handlers.ProductHandler.GetProductsByCategory)
+	router.POST("/products/append", handlers.ProductHandler.SaveProductImg)
 
 	router.GET("/reviews", handlers.ReviewHandler.GetReviews)
 	router.GET("/reviews/:id", handlers.ReviewHandler.GetReviewByID)
@@ -71,6 +72,9 @@ func RegisterRoutes(router *gin.Engine, handlers *Handlers, jwtSecret string, lo
 		admin.PUT("/categories/:id", handlers.CategoryHandler.UpdateCategory)
 		admin.DELETE("/categories/:id", handlers.CategoryHandler.DeleteCategory)
 
+		admin.POST("/products/:id/images", handlers.ProductHandler.SaveProductImg)
+		admin.DELETE("/products/:id/images/:img_id", handlers.ProductHandler.DeleteProductImg)
+		
 		admin.POST("/products", handlers.ProductHandler.CreateProduct)
 		admin.GET("/products", handlers.ProductHandler.GetProducts)
 		admin.PUT("/products/:id", handlers.ProductHandler.UpdateProduct)

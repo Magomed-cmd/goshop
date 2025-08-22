@@ -29,8 +29,10 @@ func (st *ImgStorage) UploadImage(ctx context.Context, objectName string, reader
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload image: %w", err)
 	}
-	url := fmt.Sprintf("https://%s/%s/%s", st.client.EndpointURL().Host, st.bucket, objectName)
-
+	url := st.GetImageURL(objectName)
+	if url == "" {
+		return nil, fmt.Errorf("failed to get image URL after upload")
+	}
 	return &url, nil
 }
 

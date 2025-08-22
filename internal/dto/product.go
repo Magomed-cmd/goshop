@@ -1,6 +1,10 @@
 package dto
 
-import "github.com/shopspring/decimal"
+import (
+	"goshop/internal/domain/entities"
+
+	"github.com/shopspring/decimal"
+)
 
 type CreateProductRequest struct {
 	Name        string          `json:"name" binding:"required,min=2,max=200"`
@@ -19,15 +23,16 @@ type UpdateProductRequest struct {
 }
 
 type ProductResponse struct {
-	ID          int64              `json:"id"`
-	UUID        string             `json:"uuid"`
-	Name        string             `json:"name"`
-	Description *string            `json:"description"`
-	Price       string             `json:"price"`
-	Stock       int                `json:"stock"`
-	Categories  []CategoryResponse `json:"categories"`
-	CreatedAt   string             `json:"created_at"`
-	UpdatedAt   string             `json:"updated_at"`
+	ID          int64                    `json:"id"`
+	UUID        string                   `json:"uuid"`
+	Name        string                   `json:"name"`
+	Description *string                  `json:"description"`
+	Price       string                   `json:"price"`
+	Stock       int                      `json:"stock"`
+	ProductImgs []*entities.ProductImage `json:"product_imgs"`
+	Categories  []CategoryResponse       `json:"categories"`
+	CreatedAt   string                   `json:"created_at"`
+	UpdatedAt   string                   `json:"updated_at"`
 }
 
 type ProductsListResponse struct {

@@ -338,3 +338,109 @@ func (r *ProductRepository) GetProductCategories(ctx context.Context, productID 
 
 	return categories, nil
 }
+
+func (r *ProductRepository) SaveProductImage(ctx context.Context, productImage *entities.ProductImage) (int64, int, error) {
+	r.logger.Debug("Saving product image",
+		zap.Int64("product_id", productImage.ProductID),
+		zap.String("image_url", productImage.ImageURL))
+
+	query := `
+		INSERT INTO product_images (product_id, image_url, position, created_at, updated_at)
+		VALUES (
+			$1,
+			$2,
+			COALESCE((SELECT MAX(position) + 1 FROM product_images WHERE product_id = $1), 1),
+			$3,
+			$4
+		)
+		RETURNING id, position
+	`
+
+	err := r.db.QueryRow(ctx, query,
+		productImage.ProductID,
+		productImage.ImageURL,
+		productImage.CreatedAt,
+		productImage.UpdatedAt,
+	).Scan(&productImage.ID, &productImage.Position)
+
+	if err != nil {
+		r.logger.Error("Failed to save product image",
+			zap.Error(err),
+			zap.Int64("product_id", productImage.ProductID),
+			zap.String("image_url", productImage.ImageURL))
+		return 0, 0, err
+	}
+
+	r.logger.Info("Product image saved successfully",
+		zap.Int64("image_id", productImage.ID),
+		zap.Int64("product_id", productImage.ProductID),
+		zap.Int("position", productImage.Position))
+
+	return productImage.ID, productImage.Position, nil
+}
+
+func (r *ProductRepository) GetProductImgs(ctx context.Context, productID int64) ([]*entities.ProductImage, error) {
+
+	query := `SELECT 
+    		  id, 
+    		  uuid,
+    		  product_id, 
+    		  image_url, 
+    		  position,
+    		  created_at,
+    		  updated_at
+			  FROM product_images
+			  WHERE product_id = $1
+			  ORDER BY position`
+
+	rows, err := r.db.Query(ctx, query, productID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	productImgs := make([]*entities.ProductImage, 0, 100)
+	for rows.Next() {
+		productImg := &entities.ProductImage{}
+
+		if err := rows.Scan(
+			&productImg.ID,
+			&productImg.UUID,
+			&productImg.ProductID,
+			&productImg.ImageURL,
+			&productImg.Position,
+			&productImg.CreatedAt,
+			&productImg.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+
+		productImgs = append(productImgs, productImg)
+	}
+	if err := rows.Err(); err != nil {
+		r.logger.Error("Row iteration error", zap.Error(err))
+		return nil, err
+	}
+
+	return productImgs, nil
+}
+
+func (r *ProductRepository) DeleteProductImg(ctx context.Context, productID, imageID int64) error {
+	r.logger.Debug("Deleting product image", zap.Int64("image_id", imageID))
+
+	query := `DELETE FROM product_images WHERE id = $1 and product_id = $2`
+	result, err := r.db.Exec(ctx, query, imageID, productID)
+
+	if err != nil {
+		r.logger.Error("Failed to delete product image", zap.Error(err), zap.Int64("image_id", imageID))
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		r.logger.Warn("Product image not found for deletion", zap.Int64("image_id", imageID))
+		return errors2.ErrProductImageNotFound
+	}
+
+	r.logger.Info("Product image deleted successfully", zap.Int64("image_id", imageID))
+	return nil
+}

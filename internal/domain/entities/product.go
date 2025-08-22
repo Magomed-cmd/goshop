@@ -36,3 +36,13 @@ type ProductCategory struct {
 	ProductID  int64 `db:"product_id" json:"product_id"`
 	CategoryID int64 `db:"category_id" json:"category_id"`
 }
+
+type ProductImage struct {
+	ID        int64     `json:"id"`
+	ProductID int64     `json:"product_id"`
+	ImageURL  string    `json:"image_url"`
+	Position  int       `json:"position"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	UUID      uuid.UUID `json:"uuid"`
+}

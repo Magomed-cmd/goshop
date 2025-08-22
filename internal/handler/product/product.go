@@ -4,11 +4,10 @@ import (
 	"context"
 	"errors"
 	errors2 "goshop/internal/domain/errors"
-	"net/http"
-	"strconv"
-
 	"goshop/internal/domain/types"
 	"goshop/internal/dto"
+	"io"
+	"net/http"
 
 	"go.uber.org/zap"
 
@@ -21,6 +20,8 @@ type ProductService interface {
 	UpdateProduct(ctx context.Context, id int64, req *dto.UpdateProductRequest) (*dto.ProductResponse, error)
 	DeleteProduct(ctx context.Context, id int64) error
 	GetProducts(ctx context.Context, filters types.ProductFilters) (*dto.ProductCatalogResponse, error)
+	SaveProductImg(ctx context.Context, reader io.ReadCloser, size, productID int64, contentType, extension string) (*string, error)
+	DeleteProductImg(ctx context.Context, productID, imgID int64) error
 }
 
 type ProductHandler struct {
@@ -211,30 +212,99 @@ func (h *ProductHandler) ToggleProductStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Product status toggled"})
 }
 
-func (h *ProductHandler) parseID(c *gin.Context, param string) (int64, error) {
-	idStr := c.Param(param)
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil || id <= 0 {
-		return 0, err
+func (h *ProductHandler) SaveProductImg(c *gin.Context) {
+	h.logger.Info("SaveProductImg handler started")
+
+	productID, ok := h.getProductID(c)
+	if !ok {
+		return
 	}
-	return id, nil
+
+	file, ok := h.getFormFile(c, "image")
+	if !ok {
+		return
+	}
+	defer func() {
+		if err := file.Reader.Close(); err != nil {
+			h.logger.Error("Failed to close file reader", zap.Error(err), zap.String("filename", file.Filename))
+			c.JSON(500, gin.H{"error": "Failed to process file"})
+			return
+		}
+	}()
+
+	if !h.validateFileSize(c, file) {
+		return
+	}
+
+	ext, ok := h.getFileExtension(c, file)
+	if !ok {
+		return
+	}
+
+	if !h.validateExtension(c, ext) {
+		return
+	}
+
+	detectedType, ok := h.detectContentType(c, file.Reader, file.Header.Header.Get("Content-Type"))
+	if !ok {
+		return
+	}
+
+	ctx := c.Request.Context()
+	url, err := h.productService.SaveProductImg(ctx, file.Reader, file.Size, productID, detectedType, ext[1:])
+	if err != nil {
+		h.logger.Error("service failed to save product image", zap.Error(err))
+		c.JSON(500, gin.H{"error": "Internal server error"})
+		return
+	}
+	if url == nil {
+		h.logger.Error("service returned nil URL for product image")
+		c.JSON(500, gin.H{"error": "Failed to save product image"})
+		return
+	}
+
+	h.logger.Info("Product image uploaded successfully",
+		zap.Int64("product_id", productID),
+		zap.String("url", *url))
+
+	c.JSON(200, gin.H{
+		"message":  "Product image uploaded successfully",
+		"imageURL": *url,
+	})
 }
 
-func (h *ProductHandler) mapServiceError(err error) (int, string) {
-	switch {
-	case errors.Is(err, errors2.ErrInvalidInput):
-		return http.StatusBadRequest, "Invalid input data"
-	case errors.Is(err, errors2.ErrInvalidProductData):
-		return http.StatusUnprocessableEntity, "Invalid product data"
-	case errors.Is(err, errors2.ErrInvalidPrice):
-		return http.StatusUnprocessableEntity, "Invalid price"
-	case errors.Is(err, errors2.ErrInvalidStock):
-		return http.StatusUnprocessableEntity, "Invalid stock value"
-	case errors.Is(err, errors2.ErrProductNotFound):
-		return http.StatusNotFound, "Product not found"
-	case errors.Is(err, errors2.ErrCategoryNotFound):
-		return http.StatusUnprocessableEntity, "Category not found"
-	default:
-		return http.StatusInternalServerError, "Internal server error"
+func (h *ProductHandler) DeleteProductImg(c *gin.Context) {
+	h.logger.Info("Starting DeleteProductImg handler")
+
+	ctx := c.Request.Context()
+
+	productID, ok := h.getProductID(c)
+	if !ok {
+		h.logger.Error("Failed to get product ID from context")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
 	}
+
+	imgID, err := h.parseID(c, "img_id")
+	if err != nil {
+		h.logger.Error("Failed to parse image ID", zap.Error(err), zap.String("img_id_param", c.Param("img_id")))
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid image ID"})
+		return
+	}
+
+	h.logger.Debug("Calling productService.DeleteProductImg", zap.Int64("product_id", productID), zap.Int64("img_id", imgID))
+	err = h.productService.DeleteProductImg(ctx, productID, imgID)
+	if err != nil {
+		h.logger.Error("DeleteProductImg service failed", zap.Error(err), zap.Int64("product_id", productID), zap.Int64("img_id", imgID))
+		if errors.Is(err, errors2.ErrProductImageNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Product image not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete product image"})
+		return
+	}
+	h.logger.Info("DeleteProductImg successful",
+		zap.Int64("product_id", productID),
+		zap.Int64("img_id", imgID))
+
+	c.JSON(http.StatusOK, gin.H{"message": "Product image deleted successfully"})
 }

@@ -49,7 +49,7 @@ func InitApp(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger, rdb *redi
 	categoryService := category.NewCategoryService(categoryRepo, categoryCache, logger)
 	userService := user.NewUserService(roleRepo, userRepo, cfg.JWT.Secret, cfg.Security.BcryptCost, storage, logger)
 	addressService := address.NewAddressService(addressRepo)
-	productService := product.NewProductService(productRepo, categoryRepo, productCache, logger)
+	productService := product.NewProductService(productRepo, categoryRepo, storage, productCache, logger)
 	cartService := cart.NewCartService(cartRepo, productRepo)
 	orderService := order.NewOrderService(orderRepo, cartRepo, userRepo, addressRepo, orderItemRepo, logger)
 	reviewService := review.NewReviewsService(reviewRepo, userRepo, productRepo, reviewCache, logger)

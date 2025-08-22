@@ -73,6 +73,9 @@ var (
 	ErrAvatarNotFound    = errors.New("avatar not found")
 	ErrInvalidAvatarData = errors.New("invalid avatar data")
 	ErrAvatarUploadFail  = errors.New("failed to upload avatar")
+
+	// product_images errors
+	ErrProductImageNotFound = errors.New("product image not found")
 )
 
 func HandleError(c *gin.Context, err error) {
