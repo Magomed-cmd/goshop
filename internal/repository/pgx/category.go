@@ -10,6 +10,7 @@ import (
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.uber.org/zap"
 )
 
 type CategoryRepository struct {
@@ -17,7 +18,7 @@ type CategoryRepository struct {
 	psql squirrel.StatementBuilderType
 }
 
-func NewCategoryRepository(db *pgxpool.Pool) *CategoryRepository {
+func NewCategoryRepository(db *pgxpool.Pool, logger *zap.Logger) *CategoryRepository {
 	return &CategoryRepository{
 		db:   db,
 		psql: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),

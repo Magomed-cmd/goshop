@@ -99,14 +99,6 @@ func LoadConfig(path string, logger *zap.Logger) (*Config, error) {
 	viper.SetEnvPrefix("GOSHOP")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
-	viper.SetDefault("security.bcrypt_cost", 12)
-	viper.SetDefault("gin.mode", "debug")
-	viper.SetDefault("gin.enable_cors", true)
-	viper.SetDefault("gin.max_multipart_memory", 32)
-	viper.SetDefault("logger.level", "info")
-	viper.SetDefault("logger.encoding", "console")
-	viper.SetDefault("logger.development", true)
-
 	logger.Debug("Loading configuration", zap.String("path", path))
 
 	if err := viper.ReadInConfig(); err != nil {

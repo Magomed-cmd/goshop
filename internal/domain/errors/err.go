@@ -76,6 +76,14 @@ var (
 
 	// product_images errors
 	ErrProductImageNotFound = errors.New("product image not found")
+
+	// Message errors
+	ErrMessageNotFound       = errors.New("message not found")
+	ErrMessageNotOwnedByUser = errors.New("message does not belong to user")
+	ErrInvalidMessageData    = errors.New("invalid message data")
+	ErrInvalidMessageID      = errors.New("invalid message id")
+	ErrMessageContentEmpty   = errors.New("message content cannot be empty")
+	ErrMessageTooLong        = errors.New("message too long (max 5000 characters)")
 )
 
 func HandleError(c *gin.Context, err error) {
@@ -183,6 +191,20 @@ func HandleError(c *gin.Context, err error) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Comment too long (max 1000 characters)"})
 	case errors.Is(err, ErrReviewNotOwnedByUser):
 		c.JSON(http.StatusForbidden, gin.H{"error": "Review does not belong to user"})
+
+		// Message errors
+	case errors.Is(err, ErrMessageNotFound):
+		c.JSON(http.StatusNotFound, gin.H{"error": "Message not found"})
+	case errors.Is(err, ErrMessageNotOwnedByUser):
+		c.JSON(http.StatusForbidden, gin.H{"error": "Message does not belong to user"})
+	case errors.Is(err, ErrInvalidMessageData):
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid message data"})
+	case errors.Is(err, ErrInvalidMessageID):
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid message id"})
+	case errors.Is(err, ErrMessageContentEmpty):
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Message content cannot be empty"})
+	case errors.Is(err, ErrMessageTooLong):
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Message too long (max 5000 characters)"})
 
 	// Default case для неизвестных ошибок
 	default:
