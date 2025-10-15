@@ -1,13 +1,13 @@
 package routes
 
 import (
-	"goshop/internal/handler/address"
-	"goshop/internal/handler/cart"
-	"goshop/internal/handler/category"
-	"goshop/internal/handler/order"
-	"goshop/internal/handler/product"
-	"goshop/internal/handler/review"
-	"goshop/internal/handler/user"
+	"goshop/internal/handler/http/address"
+	"goshop/internal/handler/http/cart"
+	"goshop/internal/handler/http/category"
+	"goshop/internal/handler/http/order"
+	"goshop/internal/handler/http/product"
+	"goshop/internal/handler/http/review"
+	"goshop/internal/handler/http/user"
 	"goshop/internal/middleware"
 
 	"github.com/gin-gonic/gin"
@@ -74,7 +74,7 @@ func RegisterRoutes(router *gin.Engine, handlers *Handlers, jwtSecret string, lo
 
 		admin.POST("/products/:id/images", handlers.ProductHandler.SaveProductImg)
 		admin.DELETE("/products/:id/images/:img_id", handlers.ProductHandler.DeleteProductImg)
-		
+
 		admin.POST("/products", handlers.ProductHandler.CreateProduct)
 		admin.GET("/products", handlers.ProductHandler.GetProducts)
 		admin.PUT("/products/:id", handlers.ProductHandler.UpdateProduct)

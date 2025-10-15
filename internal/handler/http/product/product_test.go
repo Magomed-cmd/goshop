@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	errors2 "goshop/internal/domain/errors"
+	"goshop/internal/handler/http/product"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,7 +14,6 @@ import (
 
 	"goshop/internal/domain/types"
 	"goshop/internal/dto"
-	"goshop/internal/handler/product"
 	"goshop/internal/handler/product/mocks"
 
 	"github.com/gin-gonic/gin"

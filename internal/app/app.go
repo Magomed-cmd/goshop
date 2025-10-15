@@ -3,13 +3,13 @@ package app
 import (
 	"goshop/internal/cache"
 	"goshop/internal/config"
-	address2 "goshop/internal/handler/address"
-	cart2 "goshop/internal/handler/cart"
-	category2 "goshop/internal/handler/category"
-	order2 "goshop/internal/handler/order"
-	product2 "goshop/internal/handler/product"
-	review2 "goshop/internal/handler/review"
-	user2 "goshop/internal/handler/user"
+	address2 "goshop/internal/handler/http/address"
+	cart2 "goshop/internal/handler/http/cart"
+	category2 "goshop/internal/handler/http/category"
+	order2 "goshop/internal/handler/http/order"
+	product2 "goshop/internal/handler/http/product"
+	review2 "goshop/internal/handler/http/review"
+	user2 "goshop/internal/handler/http/user"
 	"goshop/internal/repository/pgx"
 	imgStorage "goshop/internal/repository/s3"
 	"goshop/internal/routes"
@@ -33,7 +33,7 @@ func InitApp(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger, rdb *redi
 	userRepo := pgx.NewUserRepository(db, logger)
 	roleRepo := pgx.NewRoleRepository(db)
 	addressRepo := pgx.NewAddressRepository(db)
-	categoryRepo := pgx.NewCategoryRepository(db)
+	categoryRepo := pgx.NewCategoryRepository(db, logger)
 	productRepo := pgx.NewProductRepository(db, logger)
 	cartRepo := pgx.NewCartRepository(db, logger)
 	orderRepo := pgx.NewOrderRepository(db)

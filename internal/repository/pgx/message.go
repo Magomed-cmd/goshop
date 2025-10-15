@@ -163,6 +163,29 @@ func (r *MessageRepository) GetMessagesAfterID(ctx context.Context, afterID int6
 	return messages, nil
 }
 
+func (r *MessageRepository) GetRecentMessages(ctx context.Context, limit int) ([]*entities.Message, error) {
+	query := `
+        SELECT * FROM messages 
+        ORDER BY id DESC 
+        LIMIT $1
+    `
+
+	rows, err := r.db.Query(ctx, query, limit)
+	if err != nil {
+		r.logger.Error("Failed to get recent messages", zap.Error(err))
+		return nil, err
+	}
+	defer rows.Close()
+
+	messages, err := r.scanMessages(rows)
+	if err != nil {
+		r.logger.Error("Failed to scan messages", zap.Error(err))
+		return nil, err
+	}
+
+	return messages, nil
+}
+
 // --------- helpers ---------
 
 func (r *MessageRepository) scanMessage(row pgx.Rows) (*entities.Message, error) {

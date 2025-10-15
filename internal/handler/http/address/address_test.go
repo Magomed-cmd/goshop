@@ -4,18 +4,19 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"goshop/internal/handler/http/address"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"goshop/internal/domain/entities"
+	"goshop/internal/dto"
+	addressMocks "goshop/internal/handler/address/mocks"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"goshop/internal/domain/entities"
-	"goshop/internal/dto"
-	"goshop/internal/handler/address"
-	addressMocks "goshop/internal/handler/address/mocks"
 )
 
 func setupTestRouter() *gin.Engine {

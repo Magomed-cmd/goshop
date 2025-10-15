@@ -84,6 +84,8 @@ var (
 	ErrInvalidMessageID      = errors.New("invalid message id")
 	ErrMessageContentEmpty   = errors.New("message content cannot be empty")
 	ErrMessageTooLong        = errors.New("message too long (max 5000 characters)")
+	ErrInvalidLimit          = errors.New("limit must be greater than 0")
+	ErrInvalidAfterID        = errors.New("after_id cannot be negative")
 )
 
 func HandleError(c *gin.Context, err error) {
@@ -205,8 +207,11 @@ func HandleError(c *gin.Context, err error) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Message content cannot be empty"})
 	case errors.Is(err, ErrMessageTooLong):
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Message too long (max 5000 characters)"})
+	case errors.Is(err, ErrInvalidLimit):
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Limit must be greater than 0"})
+	case errors.Is(err, ErrInvalidAfterID):
+		c.JSON(http.StatusBadRequest, gin.H{"error": "After ID cannot be negative"})
 
-	// Default case для неизвестных ошибок
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 	}

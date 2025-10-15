@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"goshop/internal/handler/user"
+	"goshop/internal/handler/http/user"
 	"net/http/httptest"
 	"testing"
 

@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	errors2 "goshop/internal/domain/errors"
+	"goshop/internal/handler/http/category"
 	"net/http/httptest"
 	"testing"
 
 	"goshop/internal/domain/entities"
 	"goshop/internal/dto"
-	"goshop/internal/handler/category"
 	"goshop/internal/handler/category/mocks"
 
 	"github.com/gin-gonic/gin"

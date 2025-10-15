@@ -2,12 +2,13 @@ package address
 
 import (
 	"context"
-	"github.com/gin-gonic/gin"
 	"goshop/internal/domain/entities"
 	"goshop/internal/dto"
 	"goshop/internal/middleware"
 	"strconv"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
 type AddressService interface {
@@ -189,5 +190,5 @@ func (h *AddressHandler) DeleteAddress(c *gin.Context) {
 		return
 	}
 
-	c.Status(204) 
+	c.Status(204)
 }
