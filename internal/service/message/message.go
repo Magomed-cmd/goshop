@@ -43,10 +43,19 @@ func NewMessageService(messageRepo MessageRepository, logger *zap.Logger) *Messa
 	}
 }
 
-func (m *MessageService) CreateMessage(ctx context.Context, userID int64, content string) (*dto.MessageResponse, error) {
+func (m *MessageService) CreateMessage(ctx context.Context, senderID int64, recipientID int64, content string) (*dto.MessageResponse, error) {
+	if senderID < 1 {
+		m.logger.Error("invalid sender ID", zap.Int64("senderID", senderID))
+		return nil, errors.ErrInvalidUserID
+	}
 
-	if userID < 1 {
-		m.logger.Error("invalid user ID", zap.Int64("userID", userID))
+	if recipientID < 1 {
+		m.logger.Error("invalid recipient ID", zap.Int64("recipientID", recipientID))
+		return nil, errors.ErrInvalidUserID
+	}
+
+	if senderID == recipientID {
+		m.logger.Error("sender and recipient cannot be the same", zap.Int64("userID", senderID))
 		return nil, errors.ErrInvalidUserID
 	}
 
@@ -56,19 +65,21 @@ func (m *MessageService) CreateMessage(ctx context.Context, userID int64, conten
 	}
 
 	if len(content) > 5000 {
-		m.logger.Error("message content is too long", zap.Int("length", len(content)), zap.String("content", content))
+		m.logger.Error("message content is too long", zap.Int("length", len(content)))
 		return nil, errors.ErrMessageTooLong
 	}
 
 	message := &entities.Message{
-		UUID:      uuid.New(),
-		UserID:    userID,
-		Content:   content,
-		CreatedAt: time.Now(),
+		UUID:        uuid.New(),
+		SenderID:    senderID,
+		RecipientID: recipientID,
+		Content:     content,
+		CreatedAt:   time.Now(),
 	}
 
 	id, err := m.messageRepo.CreateMessage(ctx, message)
 	if err != nil {
+		m.logger.Error("failed to save message", zap.Error(err))
 		return nil, err
 	}
 	message.ID = id
@@ -76,7 +87,7 @@ func (m *MessageService) CreateMessage(ctx context.Context, userID int64, conten
 	return &dto.MessageResponse{
 		ID:        message.ID,
 		UUID:      message.UUID.String(),
-		UserID:    message.UserID,
+		UserID:    message.SenderID,
 		Content:   message.Content,
 		CreatedAt: message.CreatedAt,
 	}, nil
@@ -100,7 +111,7 @@ func (m *MessageService) DeleteMessage(ctx context.Context, messageID int64, use
 		return err
 	}
 
-	if message.UserID != userID {
+	if message.SenderID != userID {
 		m.logger.Error("user does not own message", zap.Int64("userID", userID), zap.Int64("messageID", messageID))
 		return errors.ErrMessageNotOwnedByUser
 	}
@@ -138,14 +149,14 @@ func (m *MessageService) UpdateMessage(ctx context.Context, messageID int64, use
 		return err
 	}
 
-	if message.UserID != userID {
+	if message.SenderID != userID {
 		m.logger.Error("user does not own message", zap.Int64("userID", userID), zap.Int64("messageID", messageID))
 		return errors.ErrMessageNotOwnedByUser
 	}
 
 	messageEntity := &entities.Message{
 		ID:        messageID,
-		UserID:    message.UserID,
+		SenderID:  message.SenderID,
 		Content:   newContent,
 		CreatedAt: message.CreatedAt,
 	}
@@ -182,7 +193,7 @@ func (m *MessageService) GetMessagesAfterID(ctx context.Context, afterID int64, 
 		messagesDTO = append(messagesDTO, &dto.MessageResponse{
 			ID:        message.ID,
 			UUID:      message.UUID.String(),
-			UserID:    message.UserID,
+			UserID:    message.SenderID,
 			Content:   message.Content,
 			CreatedAt: message.CreatedAt,
 		})
@@ -209,7 +220,7 @@ func (m *MessageService) GetRecentMessages(ctx context.Context, limit int) ([]*d
 		messagesDTO = append(messagesDTO, &dto.MessageResponse{
 			ID:        message.ID,
 			UUID:      message.UUID.String(),
-			UserID:    message.UserID,
+			UserID:    message.SenderID,
 			Content:   message.Content,
 			CreatedAt: message.CreatedAt,
 		})

@@ -34,9 +34,10 @@ type UserAvatar struct {
 }
 
 type Message struct {
-	ID        int64     `db:"id" json:"id"`
-	UUID      uuid.UUID `db:"uuid" json:"uuid"`
-	UserID    int64     `db:"user_id" json:"user_id"`
-	Content   string    `db:"content" json:"content"`
-	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	ID          int64     `db:"id" json:"id"`
+	UUID        uuid.UUID `db:"uuid" json:"uuid"`
+	SenderID    int64     `db:"sender_id" json:"sender_id"`
+	RecipientID int64     `db:"recipient_id" json:"recipient_id"`
+	Content     string    `db:"content" json:"content"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
 }

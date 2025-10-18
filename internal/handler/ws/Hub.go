@@ -23,11 +23,11 @@ type Hub struct {
 	logger         *zap.Logger
 }
 
-func (h *Hub) Add(userID int, conn *websocket.Conn) {
+func (h *Hub) Add(userID int64, conn *websocket.Conn) {
 	h.connections.Store(userID, conn)
 }
 
-func (h *Hub) Remove(userID int) {
+func (h *Hub) Remove(userID int64) {
 	val, ok := h.connections.Load(userID)
 	if ok {
 		conn := val.(*websocket.Conn)
@@ -36,21 +36,18 @@ func (h *Hub) Remove(userID int) {
 	}
 }
 
-func (h *Hub) SendToUser(userID int, message *dto.MessageResponse) {
+func (h *Hub) SendToUser(userID int64, message *dto.MessageResponse) {
 	user, ok := h.connections.Load(userID)
 	if !ok {
-		h.logger.Info("user not found")
-
+		h.logger.Info("user not found", zap.Int64("userID", userID))
 		return
 	}
 
 	userConn := user.(*websocket.Conn)
 
-	err := userConn.WriteJSON(message)
-	if err != nil {
+	if err := userConn.WriteJSON(message); err != nil {
 		h.logger.Error("failed to send message to user", zap.Error(err))
-		return
+		h.connections.Delete(userID)
+		userConn.Close()
 	}
-
-	return
 }

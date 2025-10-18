@@ -3,7 +3,8 @@ package dto
 import "time"
 
 type CreateMessageRequest struct {
-	Content string `json:"content" validate:"required,min=1,max=5000"`
+	RecipientID int64  `json:"recipient_id" validate:"required"`
+	Content     string `json:"content" validate:"required,min=1,max=5000"`
 }
 
 type UpdateMessageRequest struct {

@@ -28,19 +28,20 @@ func NewMessageRepository(db *pgxpool.Pool, logger *zap.Logger) *MessageReposito
 }
 
 func (r *MessageRepository) CreateMessage(ctx context.Context, message *entities.Message) (int64, error) {
-
-	query := `INSERT INTO messages (uuid, content, user_id, created_at) VALUES ($1, $2, $3, $4) RETURNING id`
+	query := `INSERT INTO messages (uuid, content, user_id, recipient_id, created_at)
+	          VALUES ($1, $2, $3, $4, $5) RETURNING id`
 
 	err := r.db.QueryRow(
 		ctx,
 		query,
 		message.UUID,
 		message.Content,
-		message.UserID,
+		message.SenderID,    // отправитель
+		message.RecipientID, // получатель
 		message.CreatedAt,
 	).Scan(&message.ID)
 	if err != nil {
-		r.logger.Error("Error to resp of query")
+		r.logger.Error("Error executing insert query", zap.Error(err))
 		return 0, err
 	}
 
@@ -48,19 +49,19 @@ func (r *MessageRepository) CreateMessage(ctx context.Context, message *entities
 }
 
 func (r *MessageRepository) GetMessageByID(ctx context.Context, id int64) (*entities.Message, error) {
-
-	query := `SELECT * FROM messages WHERE id = $1`
+	query := `SELECT id, uuid, user_id, recipient_id, content, created_at FROM messages WHERE id = $1`
 	message := &entities.Message{}
 
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&message.ID,
 		&message.UUID,
-		&message.UserID,
+		message.SenderID,
+		&message.RecipientID,
 		&message.Content,
 		&message.CreatedAt,
 	)
 	if err != nil {
-		r.logger.Error("Error to resp of query")
+		r.logger.Error("Error scanning message by ID", zap.Error(err))
 		return nil, err
 	}
 
@@ -68,8 +69,7 @@ func (r *MessageRepository) GetMessageByID(ctx context.Context, id int64) (*enti
 }
 
 func (r *MessageRepository) GetMessages(ctx context.Context) ([]*entities.Message, error) {
-
-	query := `SELECT * FROM messages`
+	query := `SELECT id, uuid, user_id, recipient_id, content, created_at FROM messages`
 
 	rows, err := r.db.Query(ctx, query)
 	if err != nil {
@@ -79,7 +79,7 @@ func (r *MessageRepository) GetMessages(ctx context.Context) ([]*entities.Messag
 
 	messages, err := r.scanMessages(rows)
 	if err != nil {
-		r.logger.Error("Failed to scan message row", zap.Error(err))
+		r.logger.Error("Failed to scan messages", zap.Error(err))
 		return nil, err
 	}
 
@@ -87,8 +87,7 @@ func (r *MessageRepository) GetMessages(ctx context.Context) ([]*entities.Messag
 }
 
 func (r *MessageRepository) GetUserMessages(ctx context.Context, userID int64) ([]*entities.Message, error) {
-
-	query := `SELECT * FROM messages WHERE user_id = $1`
+	query := `SELECT id, uuid, user_id, recipient_id, content, created_at FROM messages WHERE user_id = $1`
 
 	rows, err := r.db.Query(ctx, query, userID)
 	if err != nil {
@@ -98,7 +97,7 @@ func (r *MessageRepository) GetUserMessages(ctx context.Context, userID int64) (
 
 	messages, err := r.scanMessages(rows)
 	if err != nil {
-		r.logger.Error("Failed to scan message row", zap.Error(err))
+		r.logger.Error("Failed to scan user messages", zap.Error(err))
 		return nil, err
 	}
 
@@ -106,12 +105,11 @@ func (r *MessageRepository) GetUserMessages(ctx context.Context, userID int64) (
 }
 
 func (r *MessageRepository) DeleteMessage(ctx context.Context, id int64) error {
-
 	query := `DELETE FROM messages WHERE id = $1`
 
 	result, err := r.db.Exec(ctx, query, id)
 	if err != nil {
-		r.logger.Error("Failed to delete message", zap.Error(err), zap.Int64("message_id", id))
+		r.logger.Error("Failed to delete message", zap.Error(err))
 		return err
 	}
 
@@ -124,7 +122,6 @@ func (r *MessageRepository) DeleteMessage(ctx context.Context, id int64) error {
 }
 
 func (r *MessageRepository) UpdateMessage(ctx context.Context, message *entities.Message) error {
-
 	query := `UPDATE messages SET content = $1 WHERE id = $2`
 
 	res, err := r.db.Exec(ctx, query, message.Content, message.ID)
@@ -139,40 +136,11 @@ func (r *MessageRepository) UpdateMessage(ctx context.Context, message *entities
 }
 
 func (r *MessageRepository) GetMessagesAfterID(ctx context.Context, afterID int64, limit int) ([]*entities.Message, error) {
-
-	query := `
-			SELECT * FROM messages 
-			WHERE id > $1 
-			ORDER BY id
-			LIMIT $2
-			 `
+	query := `SELECT id, uuid, user_id, recipient_id, content, created_at FROM messages WHERE id > $1 ORDER BY id LIMIT $2`
 
 	rows, err := r.db.Query(ctx, query, afterID, limit)
 	if err != nil {
-		r.logger.Error("Failed to scan message row", zap.Error(err))
-		return nil, err
-	}
-	defer rows.Close()
-
-	messages, err := r.scanMessages(rows)
-	if err != nil {
-		r.logger.Error("Failed to scan message row", zap.Error(err))
-		return nil, err
-	}
-
-	return messages, nil
-}
-
-func (r *MessageRepository) GetRecentMessages(ctx context.Context, limit int) ([]*entities.Message, error) {
-	query := `
-        SELECT * FROM messages 
-        ORDER BY id DESC 
-        LIMIT $1
-    `
-
-	rows, err := r.db.Query(ctx, query, limit)
-	if err != nil {
-		r.logger.Error("Failed to get recent messages", zap.Error(err))
+		r.logger.Error("Failed to query messages after ID", zap.Error(err))
 		return nil, err
 	}
 	defer rows.Close()
@@ -186,14 +154,32 @@ func (r *MessageRepository) GetRecentMessages(ctx context.Context, limit int) ([
 	return messages, nil
 }
 
-// --------- helpers ---------
+func (r *MessageRepository) GetRecentMessages(ctx context.Context, limit int) ([]*entities.Message, error) {
+	query := `SELECT id, uuid, user_id, recipient_id, content, created_at FROM messages ORDER BY id DESC LIMIT $1`
+
+	rows, err := r.db.Query(ctx, query, limit)
+	if err != nil {
+		r.logger.Error("Failed to get recent messages", zap.Error(err))
+		return nil, err
+	}
+	defer rows.Close()
+
+	messages, err := r.scanMessages(rows)
+	if err != nil {
+		r.logger.Error("Failed to scan recent messages", zap.Error(err))
+		return nil, err
+	}
+
+	return messages, nil
+}
 
 func (r *MessageRepository) scanMessage(row pgx.Rows) (*entities.Message, error) {
 	message := &entities.Message{}
 	return message, row.Scan(
 		&message.ID,
 		&message.UUID,
-		&message.UserID,
+		message.SenderID,
+		&message.RecipientID,
 		&message.Content,
 		&message.CreatedAt,
 	)
