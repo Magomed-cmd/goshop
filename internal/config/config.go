@@ -18,6 +18,17 @@ type Config struct {
 	Logger   LoggerConfig   `mapstructure:"logger"`
 	Redis    RedisConfig    `mapstructure:"redis"`
 	S3       S3Config       `mapstructure:"s3"`
+	OAuth    OAuthConfig    `mapstructure:"oauth"`
+}
+
+type OAuthConfig struct {
+	Google GoogleOAuthConfig `mapstructure:"google"`
+}
+
+type GoogleOAuthConfig struct {
+	ClientID     string `mapstructure:"client_id"`
+	ClientSecret string `mapstructure:"client_secret"`
+	RedirectURL  string `mapstructure:"redirect_url"`
 }
 
 type ServerConfig struct {

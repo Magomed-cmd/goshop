@@ -20,7 +20,6 @@ type OrderFilters struct {
 	Page  int `form:"page,default=1"`   // Номер страницы
 	Limit int `form:"limit,default=10"` // Количество заказов на странице
 
-	// Фильтры по статусу
 	Status *string `form:"status"` // "pending", "paid", "shipped", "delivered", "cancelled"
 
 	DateFrom *time.Time `form:"date_from" time_format:"2006-01-02"`

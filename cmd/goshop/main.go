@@ -6,6 +6,7 @@ import (
 	"goshop/internal/db/postgres"
 	"goshop/internal/db/redisDB"
 	"goshop/internal/logger"
+	"goshop/internal/oauth/google"
 	"goshop/internal/routes"
 	"goshop/internal/storage"
 
@@ -26,6 +27,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to connect to S3", zap.Error(err))
 	}
+
 	db, err := postgres.NewConnection(&cfg.Database.Postgres, log)
 	if err != nil {
 		log.Fatal("Failed to connect to Postgres", zap.Error(err))
@@ -43,11 +45,17 @@ func main() {
 		}
 	}()
 
+	googleOAuth := google.New(google.Config{
+		ClientID:     cfg.OAuth.Google.ClientID,
+		ClientSecret: cfg.OAuth.Google.ClientSecret,
+		RedirectURL:  cfg.OAuth.Google.RedirectURL,
+	})
+
 	gin.SetMode(gin.ReleaseMode)
 
 	r := gin.Default()
 
-	handlers := app.InitApp(cfg, db, log, rdb, s3Client)
+	handlers := app.InitApp(cfg, db, log, rdb, s3Client, googleOAuth)
 	routes.RegisterRoutes(r, handlers, cfg.JWT.Secret, log)
 
 	log.Info("Server starting", zap.String("address", cfg.Server.GetServerAddr()))

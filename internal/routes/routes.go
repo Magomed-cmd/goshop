@@ -2,6 +2,7 @@ package routes
 
 import (
 	"goshop/internal/handler/address"
+	"goshop/internal/handler/auth"
 	"goshop/internal/handler/cart"
 	"goshop/internal/handler/category"
 	"goshop/internal/handler/order"
@@ -22,6 +23,7 @@ type Handlers struct {
 	CartHandler     *cart.CartHandler
 	OrderHandler    *order.OrderHandler
 	ReviewHandler   *review.ReviewHandler
+	OAuthHandler    *auth.OAuthHandler
 }
 
 func RegisterRoutes(router *gin.Engine, handlers *Handlers, jwtSecret string, logger *zap.Logger) {
@@ -43,6 +45,9 @@ func RegisterRoutes(router *gin.Engine, handlers *Handlers, jwtSecret string, lo
 	router.GET("/reviews", handlers.ReviewHandler.GetReviews)
 	router.GET("/reviews/:id", handlers.ReviewHandler.GetReviewByID)
 	router.GET("/reviews/stats/:productId", handlers.ReviewHandler.GetProductReviewStats)
+
+	router.GET("/auth/google/login", handlers.OAuthHandler.GoogleLogin)
+	router.GET("/auth/google/callback", handlers.OAuthHandler.GoogleCallback)
 
 	protected := router.Group("/api/v1")
 	protected.Use(middleware.JWTMiddleware(jwtSecret, logger))
@@ -74,7 +79,7 @@ func RegisterRoutes(router *gin.Engine, handlers *Handlers, jwtSecret string, lo
 
 		admin.POST("/products/:id/images", handlers.ProductHandler.SaveProductImg)
 		admin.DELETE("/products/:id/images/:img_id", handlers.ProductHandler.DeleteProductImg)
-		
+
 		admin.POST("/products", handlers.ProductHandler.CreateProduct)
 		admin.GET("/products", handlers.ProductHandler.GetProducts)
 		admin.PUT("/products/:id", handlers.ProductHandler.UpdateProduct)

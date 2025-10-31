@@ -4,12 +4,14 @@ import (
 	"goshop/internal/cache"
 	"goshop/internal/config"
 	address2 "goshop/internal/handler/address"
+	"goshop/internal/handler/auth"
 	cart2 "goshop/internal/handler/cart"
 	category2 "goshop/internal/handler/category"
 	order2 "goshop/internal/handler/order"
 	product2 "goshop/internal/handler/product"
 	review2 "goshop/internal/handler/review"
 	user2 "goshop/internal/handler/user"
+	"goshop/internal/oauth/google"
 	"goshop/internal/repository/pgx"
 	imgStorage "goshop/internal/repository/s3"
 	"goshop/internal/routes"
@@ -28,7 +30,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func InitApp(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger, rdb *redis.Client, mcl *minio.Client) *routes.Handlers {
+func InitApp(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger, rdb *redis.Client, mcl *minio.Client, googleOAuth *google.GoogleOAuth) *routes.Handlers {
 
 	userRepo := pgx.NewUserRepository(db, logger)
 	roleRepo := pgx.NewRoleRepository(db)
@@ -61,6 +63,7 @@ func InitApp(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger, rdb *redi
 	cartHandler := cart2.NewCartHandler(cartService)
 	orderHandler := order2.NewOrderHandler(orderService)
 	reviewHandler := review2.NewReviewHandler(reviewService)
+	oauthHandler := auth.NewOAuthHandler(googleOAuth, userService, rdb, logger)
 
 	return &routes.Handlers{
 		UserHandler:     userHandler,
@@ -70,5 +73,6 @@ func InitApp(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger, rdb *redi
 		CartHandler:     cartHandler,
 		OrderHandler:    orderHandler,
 		ReviewHandler:   reviewHandler,
+		OAuthHandler:    oauthHandler,
 	}
 }

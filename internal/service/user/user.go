@@ -7,8 +7,10 @@ import (
 	"goshop/internal/domain/entities"
 	errors2 "goshop/internal/domain/errors"
 	"goshop/internal/dto"
+	"goshop/internal/oauth/google"
 	"goshop/internal/utils"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -311,4 +313,89 @@ func (s *UserService) GetAvatar(ctx context.Context, userID int) (string, error)
 
 	s.logger.Info("Avatar retrieved", zap.Int("user_id", userID), zap.String("url", avatar.ImageURL))
 	return avatar.ImageURL, nil
+}
+
+func (s *UserService) OAuthLogin(ctx context.Context, userInfo *google.UserInfo) (*entities.User, string, error) {
+	existingUser, err := s.userRepo.GetUserByEmail(ctx, userInfo.Email)
+	if err != nil {
+		if !errors.Is(err, errors2.ErrUserNotFound) {
+			s.logger.Error("database error during user lookup", zap.Error(err))
+			return nil, "", err
+		}
+
+		newUser, err := s.createOAuthUser(ctx, userInfo)
+		if err != nil {
+			return nil, "", err
+		}
+
+		token, err := s.generateTokenForUser(newUser)
+		if err != nil {
+			return nil, "", err
+		}
+
+		return newUser, token, nil
+	}
+
+	token, err := s.generateTokenForUser(existingUser)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return existingUser, token, nil
+}
+
+func (s *UserService) generateTokenForUser(user *entities.User) (string, error) {
+	roleName := ""
+	if user.Role != nil {
+		roleName = user.Role.Name
+	}
+
+	token, err := utils.GenerateJWT(user.ID, user.Email, roleName, s.jwtSecretKey)
+	if err != nil {
+		s.logger.Error("failed to generate JWT token", zap.Error(err), zap.Int64("user_id", user.ID))
+		return "", errors2.ErrInvalidInput
+	}
+	return token, nil
+}
+
+func (s *UserService) createOAuthUser(ctx context.Context, userInfo *google.UserInfo) (*entities.User, error) {
+
+	role, err := s.roleRepo.GetByName(ctx, defaultUserRole)
+	if err != nil {
+		s.logger.Error("failed to get default role", zap.Error(err))
+		return nil, err
+	}
+
+	name := userInfo.Name
+	newUser := &entities.User{
+		UUID:         uuid.New(),
+		Email:        userInfo.Email,
+		Name:         &name,
+		PasswordHash: "",
+		Phone:        nil,
+		RoleID:       &role.ID,
+	}
+
+	err = s.userRepo.CreateUser(ctx, newUser)
+	if err != nil {
+		s.logger.Error("failed to create oauth user", zap.Error(err))
+		if strings.Contains(err.Error(), "already exists") {
+			return nil, errors2.ErrEmailExists
+		}
+		return nil, errors2.ErrInvalidInput
+	}
+
+	_, err = s.userRepo.SaveAvatar(ctx, &entities.UserAvatar{
+		UserID:    newUser.ID,
+		ImageURL:  defaultImgURL,
+		UUID:      uuid.New().String(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	})
+	if err != nil {
+		s.logger.Warn("failed to create default avatar for oauth user", zap.Error(err))
+	}
+
+	newUser.Role = role
+	return newUser, nil
 }

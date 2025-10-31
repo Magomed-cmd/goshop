@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 
 	"golang.org/x/crypto/bcrypt"
@@ -20,4 +22,13 @@ func ValidatePassword(hashedPassword, password string) error {
 		return fmt.Errorf("invalid password")
 	}
 	return nil
+}
+
+func GenerateState() string {
+	b := make([]byte, 32)
+	_, err := rand.Read(b)
+	if err != nil {
+		return ""
+	}
+	return base64.URLEncoding.EncodeToString(b)
 }

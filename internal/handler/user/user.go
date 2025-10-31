@@ -7,6 +7,7 @@ import (
 	errors2 "goshop/internal/domain/errors"
 	"goshop/internal/dto"
 	"goshop/internal/middleware"
+	"goshop/internal/oauth/google"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -23,6 +24,7 @@ type UserService interface {
 	UpdateProfile(ctx context.Context, userID int64, req *dto.UpdateProfileRequest) error
 	UploadAvatar(ctx context.Context, reader io.ReadCloser, size, userID int64, contentType, extension string) (string, error)
 	GetAvatar(ctx context.Context, userID int) (string, error)
+	OAuthLogin(ctx context.Context, userInfo *google.UserInfo) (*entities.User, string, error)
 }
 
 type UserHandler struct {
