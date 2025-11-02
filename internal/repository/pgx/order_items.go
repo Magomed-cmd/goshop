@@ -5,24 +5,28 @@ import (
 	"errors"
 	"goshop/internal/domain/entities"
 	errors2 "goshop/internal/domain/errors"
+	"goshop/internal/domain/repository"
 	"strings"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
 
 type OrderItemRepository struct {
-	db     *pgxpool.Pool
+	base   BaseRepository
 	psql   squirrel.StatementBuilderType
 	logger *zap.Logger
 }
 
-func NewOrderItemRepository(db *pgxpool.Pool) *OrderItemRepository {
+func NewOrderItemRepository(conn repository.DBConn, logger *zap.Logger) *OrderItemRepository {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
 	return &OrderItemRepository{
-		db:   db,
-		psql: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
+		base:   NewBaseRepository(conn),
+		psql:   squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
+		logger: logger,
 	}
 }
 
@@ -55,7 +59,7 @@ func (r *OrderItemRepository) Create(ctx context.Context, items []*entities.Orde
 
 	r.logger.Debug("Executing order items insert", zap.String("query", sql), zap.Int("items_count", len(items)))
 
-	_, err = r.db.Exec(ctx, sql, args...)
+	_, err = r.base.Conn().Exec(ctx, sql, args...)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {

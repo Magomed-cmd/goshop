@@ -5,21 +5,21 @@ import (
 	"errors"
 	"goshop/internal/domain/entities"
 	errors2 "goshop/internal/domain/errors"
+	"goshop/internal/domain/repository"
 	"time"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type AddressRepository struct {
-	db   *pgxpool.Pool
+	base BaseRepository
 	psql squirrel.StatementBuilderType
 }
 
-func NewAddressRepository(db *pgxpool.Pool) *AddressRepository {
+func NewAddressRepository(conn repository.DBConn) *AddressRepository {
 	return &AddressRepository{
-		db:   db,
+		base: NewBaseRepository(conn),
 		psql: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
 	}
 }
@@ -34,7 +34,7 @@ func (r *AddressRepository) CreateAddress(ctx context.Context, address *entities
 		return err
 	}
 
-	_, err = r.db.Exec(ctx, sql, args...)
+	_, err = r.base.Conn().Exec(ctx, sql, args...)
 	return err
 }
 
@@ -48,7 +48,7 @@ func (r *AddressRepository) GetUserAddresses(ctx context.Context, userID int64) 
 		return nil, err
 	}
 
-	rows, err := r.db.Query(ctx, sql, args...)
+	rows, err := r.base.Conn().Query(ctx, sql, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func (r *AddressRepository) GetAddressByID(ctx context.Context, addressID int64)
 		return nil, err
 	}
 
-	row := r.db.QueryRow(ctx, sql, args...)
+	row := r.base.Conn().QueryRow(ctx, sql, args...)
 	var address entities.UserAddress
 	if err := row.Scan(
 		&address.ID,
@@ -139,7 +139,7 @@ func (r *AddressRepository) UpdateAddress(ctx context.Context, address *entities
 		return err
 	}
 
-	result, err := r.db.Exec(ctx, sql, args...)
+	result, err := r.base.Conn().Exec(ctx, sql, args...)
 	if err != nil {
 		return err
 	}
@@ -158,7 +158,7 @@ func (r *AddressRepository) DeleteAddress(ctx context.Context, addressID int64) 
 		return err
 	}
 
-	result, err := r.db.Exec(ctx, sql, args...)
+	result, err := r.base.Conn().Exec(ctx, sql, args...)
 	if err != nil {
 		return err
 	}

@@ -5,21 +5,21 @@ import (
 	"errors"
 	"goshop/internal/domain/entities"
 	errors2 "goshop/internal/domain/errors"
+	"goshop/internal/domain/repository"
 	"time"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type CategoryRepository struct {
-	db   *pgxpool.Pool
+	base BaseRepository
 	psql squirrel.StatementBuilderType
 }
 
-func NewCategoryRepository(db *pgxpool.Pool) *CategoryRepository {
+func NewCategoryRepository(conn repository.DBConn) *CategoryRepository {
 	return &CategoryRepository{
-		db:   db,
+		base: NewBaseRepository(conn),
 		psql: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
 	}
 }
@@ -31,7 +31,7 @@ func (r *CategoryRepository) GetAllCategories(ctx context.Context) ([]*entities.
              GROUP BY c.id, c.uuid, c.name, c.description, c.created_at, c.updated_at
              ORDER BY c.name;`
 
-	rows, err := r.db.Query(ctx, query)
+	rows, err := r.base.Conn().Query(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func (r *CategoryRepository) GetCategoryByID(ctx context.Context, id int64) (*en
         GROUP BY c.id, c.uuid, c.name, c.description, c.created_at, c.updated_at`
 
 	var category entities.CategoryWithCount
-	err := r.db.QueryRow(ctx, query, id).Scan(
+	err := r.base.Conn().QueryRow(ctx, query, id).Scan(
 		&category.Category.ID,
 		&category.Category.UUID,
 		&category.Category.Name,
@@ -98,7 +98,7 @@ func (r *CategoryRepository) CreateCategory(ctx context.Context, category *entit
         VALUES ($1, $2, $3, $4, $5)
         RETURNING id`
 
-	err := r.db.QueryRow(ctx, query,
+	err := r.base.Conn().QueryRow(ctx, query,
 		category.UUID,
 		category.Name,
 		category.Description,
@@ -141,7 +141,7 @@ func (r *CategoryRepository) UpdateCategory(ctx context.Context, category *entit
 
 	var updated entities.Category
 
-	if err := r.db.QueryRow(ctx, sql, args...).Scan(
+	if err := r.base.Conn().QueryRow(ctx, sql, args...).Scan(
 		&updated.ID,
 		&updated.UUID,
 		&updated.Name,
@@ -162,7 +162,7 @@ func (r *CategoryRepository) UpdateCategory(ctx context.Context, category *entit
 func (r *CategoryRepository) DeleteCategory(ctx context.Context, id int64) error {
 	query := "DELETE FROM categories WHERE id = $1"
 
-	result, err := r.db.Exec(ctx, query, id)
+	result, err := r.base.Conn().Exec(ctx, query, id)
 
 	if err != nil {
 		return err
@@ -178,7 +178,7 @@ func (r *CategoryRepository) CheckCategoriesExist(ctx context.Context, categoryI
 	query := `SELECT COUNT(*) FROM categories WHERE id = ANY($1)`
 
 	var count int
-	err := r.db.QueryRow(ctx, query, categoryIDs).Scan(&count)
+	err := r.base.Conn().QueryRow(ctx, query, categoryIDs).Scan(&count)
 	if err != nil {
 		return false, err
 	}

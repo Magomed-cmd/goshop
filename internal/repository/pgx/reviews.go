@@ -3,22 +3,25 @@ package pgx
 import (
 	"context"
 	"goshop/internal/domain/entities"
+	"goshop/internal/domain/repository"
 	"goshop/internal/domain/types"
 
 	"github.com/Masterminds/squirrel"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
 
 type ReviewRepository struct {
-	db     *pgxpool.Pool
+	base   BaseRepository
 	psql   squirrel.StatementBuilderType
 	logger *zap.Logger
 }
 
-func NewReviewRepository(db *pgxpool.Pool, logger *zap.Logger) *ReviewRepository {
+func NewReviewRepository(conn repository.DBConn, logger *zap.Logger) *ReviewRepository {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
 	return &ReviewRepository{
-		db:     db,
+		base:   NewBaseRepository(conn),
 		psql:   squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
 		logger: logger,
 	}
@@ -38,7 +41,7 @@ func (r *ReviewRepository) CreateReview(ctx context.Context, review *entities.Re
 	}
 
 	var id int64
-	err := r.db.QueryRow(ctx, query, args...).Scan(&id)
+	err := r.base.Conn().QueryRow(ctx, query, args...).Scan(&id)
 	if err != nil {
 		r.logger.Error("Failed to create review", zap.Error(err))
 		return nil, err
@@ -88,7 +91,7 @@ func (r *ReviewRepository) GetReviewsWithFilters(ctx context.Context, filters ty
 		return nil, 0, err
 	}
 
-	rows, err := r.db.Query(ctx, sql, args...)
+	rows, err := r.base.Conn().Query(ctx, sql, args...)
 	if err != nil {
 		r.logger.Error("Failed to execute review query", zap.Error(err), zap.String("sql", sql))
 		return nil, 0, err
@@ -138,7 +141,7 @@ func (r *ReviewRepository) GetReviewsWithFilters(ctx context.Context, filters ty
 	}
 
 	var totalCount int64
-	err = r.db.QueryRow(ctx, countSql, countArgs...).Scan(&totalCount)
+	err = r.base.Conn().QueryRow(ctx, countSql, countArgs...).Scan(&totalCount)
 	if err != nil {
 		r.logger.Error("Failed to get reviews count", zap.Error(err))
 		return nil, 0, err
@@ -160,7 +163,7 @@ func (r *ReviewRepository) GetReviewByID(ctx context.Context, reviewID int64) (*
 	}
 
 	review := &entities.Review{}
-	err = r.db.QueryRow(ctx, sql, args...).Scan(
+	err = r.base.Conn().QueryRow(ctx, sql, args...).Scan(
 		&review.ID,
 		&review.UUID,
 		&review.ProductID,
@@ -197,7 +200,7 @@ func (r *ReviewRepository) UpdateReview(ctx context.Context, reviewID int64, rat
 		return err
 	}
 
-	_, err = r.db.Exec(ctx, sql, args...)
+	_, err = r.base.Conn().Exec(ctx, sql, args...)
 	if err != nil {
 		r.logger.Error("Failed to update review", zap.Error(err), zap.Int64("review_id", reviewID))
 		return err
@@ -216,7 +219,7 @@ func (r *ReviewRepository) DeleteReview(ctx context.Context, reviewID int64) err
 		return err
 	}
 
-	_, err = r.db.Exec(ctx, sql, args...)
+	_, err = r.base.Conn().Exec(ctx, sql, args...)
 	if err != nil {
 		r.logger.Error("Failed to delete review", zap.Error(err), zap.Int64("review_id", reviewID))
 		return err
@@ -230,7 +233,7 @@ func (r *ReviewRepository) CheckUserReviewExists(ctx context.Context, userID, pr
 	query := "SELECT COUNT(*) FROM reviews WHERE user_id = $1 AND product_id = $2"
 
 	var count int
-	err := r.db.QueryRow(ctx, query, userID, productID).Scan(&count)
+	err := r.base.Conn().QueryRow(ctx, query, userID, productID).Scan(&count)
 	if err != nil {
 		r.logger.Error("Failed to check if user review exists",
 			zap.Error(err),
@@ -261,7 +264,7 @@ func (r *ReviewRepository) GetReviewStats(ctx context.Context, productID int64) 
 	}
 
 	var rating1, rating2, rating3, rating4, rating5 int64
-	err = r.db.QueryRow(ctx, sql, args...).Scan(
+	err = r.base.Conn().QueryRow(ctx, sql, args...).Scan(
 		&totalReviews,
 		&averageRating,
 		&rating1, &rating2, &rating3, &rating4, &rating5,

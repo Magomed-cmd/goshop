@@ -4,17 +4,17 @@ import (
 	"context"
 	"errors"
 	"goshop/internal/domain/entities"
+	"goshop/internal/domain/repository"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type RoleRepository struct {
-	db *pgxpool.Pool
+	base BaseRepository
 }
 
-func NewRoleRepository(conn *pgxpool.Pool) *RoleRepository {
-	return &RoleRepository{db: conn}
+func NewRoleRepository(conn repository.DBConn) *RoleRepository {
+	return &RoleRepository{base: NewBaseRepository(conn)}
 }
 
 func (r *RoleRepository) GetByID(ctx context.Context, id int64) (*entities.Role, error) {
@@ -22,7 +22,7 @@ func (r *RoleRepository) GetByID(ctx context.Context, id int64) (*entities.Role,
 	query := "SELECT * FROM roles WHERE id = $1"
 	var role entities.Role
 
-	err := r.db.QueryRow(ctx, query, id).Scan(&role.ID, &role.UUID, &role.Name)
+	err := r.base.Conn().QueryRow(ctx, query, id).Scan(&role.ID, &role.UUID, &role.Name)
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -38,7 +38,7 @@ func (r *RoleRepository) GetByID(ctx context.Context, id int64) (*entities.Role,
 func (r *RoleRepository) GetByName(ctx context.Context, name string) (*entities.Role, error) {
 	query := "SELECT * FROM roles WHERE name = $1"
 	var role entities.Role
-	err := r.db.QueryRow(ctx, query, name).Scan(&role.ID, &role.UUID, &role.Name)
+	err := r.base.Conn().QueryRow(ctx, query, name).Scan(&role.ID, &role.UUID, &role.Name)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil

@@ -5,24 +5,24 @@ import (
 	"errors"
 	"goshop/internal/domain/entities"
 	errors2 "goshop/internal/domain/errors"
+	"goshop/internal/domain/repository"
 	"strings"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
 
 type CartRepository struct {
-	db     *pgxpool.Pool
+	base   BaseRepository
 	psql   squirrel.StatementBuilderType
 	logger *zap.Logger
 }
 
-func NewCartRepository(db *pgxpool.Pool, logger *zap.Logger) *CartRepository {
+func NewCartRepository(conn repository.DBConn, logger *zap.Logger) *CartRepository {
 	return &CartRepository{
-		db:     db,
+		base:   NewBaseRepository(conn),
 		psql:   squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
 		logger: logger,
 	}
@@ -38,7 +38,7 @@ func (r *CartRepository) GetUserCart(ctx context.Context, userID int64) (*entiti
 
 	var cart entities.Cart
 
-	if err := r.db.QueryRow(ctx, query, userID).Scan(
+	if err := r.base.Conn().QueryRow(ctx, query, userID).Scan(
 		&cart.ID,
 		&cart.UUID,
 		&cart.UserID,
@@ -61,7 +61,7 @@ func (r *CartRepository) GetUserCart(ctx context.Context, userID int64) (*entiti
 	WHERE cart_id = $1
 	`
 
-	rows, err := r.db.Query(ctx, query, cart.ID)
+	rows, err := r.base.Conn().Query(ctx, query, cart.ID)
 	if err != nil {
 		r.logger.Error("Failed to get cart items", zap.Error(err), zap.Int64("cart_id", cart.ID))
 		return nil, err
@@ -112,7 +112,7 @@ func (r *CartRepository) AddItem(ctx context.Context, cartID int64, productID in
 			  DO UPDATE SET quantity = cart_items.quantity + excluded.quantity
 			  `
 
-	result, err := r.db.Exec(ctx, query, cartID, productID, quantity)
+	result, err := r.base.Conn().Exec(ctx, query, cartID, productID, quantity)
 
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -144,7 +144,7 @@ func (r *CartRepository) UpdateItem(ctx context.Context, cartID int64, productID
 			  WHERE cart_id = $1 AND product_id = $2
 			  `
 
-	result, err := r.db.Exec(ctx, query, cartID, productID, quantity)
+	result, err := r.base.Conn().Exec(ctx, query, cartID, productID, quantity)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -174,7 +174,7 @@ func (r *CartRepository) RemoveItem(ctx context.Context, cartID int64, productID
 			  WHERE cart_id = $1 AND product_id = $2
 			  `
 
-	result, err := r.db.Exec(ctx, query, cartID, productID)
+	result, err := r.base.Conn().Exec(ctx, query, cartID, productID)
 	if err != nil {
 		r.logger.Error("Failed to remove cart item", zap.Error(err), zap.Int64("cart_id", cartID), zap.Int64("product_id", productID))
 		return err
@@ -190,7 +190,7 @@ func (r *CartRepository) RemoveItem(ctx context.Context, cartID int64, productID
 func (r *CartRepository) ClearCart(ctx context.Context, cartID int64) error {
 	query := `DELETE FROM cart_items WHERE cart_id = $1`
 
-	_, err := r.db.Exec(ctx, query, cartID)
+	_, err := r.base.Conn().Exec(ctx, query, cartID)
 	if err != nil {
 		r.logger.Error("Failed to clear cart", zap.Error(err), zap.Int64("cart_id", cartID))
 		return err
@@ -204,7 +204,7 @@ func (r *CartRepository) CreateCart(ctx context.Context, cart *entities.Cart) er
 			  VALUES ($1, $2, $3)
 			  RETURNING id`
 
-	err := r.db.QueryRow(ctx, query, cart.UUID, cart.UserID, cart.CreatedAt).Scan(&cart.ID)
+	err := r.base.Conn().QueryRow(ctx, query, cart.UUID, cart.UserID, cart.CreatedAt).Scan(&cart.ID)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {

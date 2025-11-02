@@ -3,6 +3,7 @@ package app
 import (
 	"goshop/internal/cache"
 	"goshop/internal/config"
+	"goshop/internal/domain/repository"
 	address2 "goshop/internal/handler/address"
 	"goshop/internal/handler/auth"
 	cart2 "goshop/internal/handler/cart"
@@ -23,24 +24,30 @@ import (
 	"goshop/internal/service/review"
 	"goshop/internal/service/user"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/minio/minio-go/v7"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
-
-	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// createRepositories создает набор репозиториев с указанным соединением
+func createRepositories(conn repository.DBConn, logger *zap.Logger) pgx.Set {
+	return pgx.Set{
+		Users:      pgx.NewUserRepository(conn, logger),
+		Roles:      pgx.NewRoleRepository(conn),
+		Addresses:  pgx.NewAddressRepository(conn),
+		Categories: pgx.NewCategoryRepository(conn),
+		Products:   pgx.NewProductRepository(conn, logger),
+		Carts:      pgx.NewCartRepository(conn, logger),
+		Orders:     pgx.NewOrderRepository(conn, logger),
+		OrderItems: pgx.NewOrderItemRepository(conn, logger),
+		Reviews:    pgx.NewReviewRepository(conn, logger),
+	}
+}
 
 func InitApp(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger, rdb *redis.Client, mcl *minio.Client, googleOAuth *google.GoogleOAuth) *routes.Handlers {
 
-	userRepo := pgx.NewUserRepository(db, logger)
-	roleRepo := pgx.NewRoleRepository(db)
-	addressRepo := pgx.NewAddressRepository(db)
-	categoryRepo := pgx.NewCategoryRepository(db)
-	productRepo := pgx.NewProductRepository(db, logger)
-	cartRepo := pgx.NewCartRepository(db, logger)
-	orderRepo := pgx.NewOrderRepository(db)
-	orderItemRepo := pgx.NewOrderItemRepository(db)
-	reviewRepo := pgx.NewReviewRepository(db, logger)
+	repos := createRepositories(db, logger)
 
 	productCache := cache.NewProductCache(rdb, logger)
 	categoryCache := cache.NewCategoryCache(rdb, logger)
@@ -48,13 +55,13 @@ func InitApp(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger, rdb *redi
 
 	storage := imgStorage.NewImgStorage(mcl, cfg.S3.Bucket, cfg.S3.Region)
 
-	categoryService := category.NewCategoryService(categoryRepo, categoryCache, logger)
-	userService := user.NewUserService(roleRepo, userRepo, cfg.JWT.Secret, cfg.Security.BcryptCost, storage, logger)
-	addressService := address.NewAddressService(addressRepo)
-	productService := product.NewProductService(productRepo, categoryRepo, storage, productCache, logger)
-	cartService := cart.NewCartService(cartRepo, productRepo)
-	orderService := order.NewOrderService(orderRepo, cartRepo, userRepo, addressRepo, orderItemRepo, logger)
-	reviewService := review.NewReviewsService(reviewRepo, userRepo, productRepo, reviewCache, logger)
+	categoryService := category.NewCategoryService(repos.Categories, categoryCache, logger)
+	userService := user.NewUserService(repos.Roles, repos.Users, cfg.JWT.Secret, cfg.Security.BcryptCost, storage, logger)
+	addressService := address.NewAddressService(repos.Addresses)
+	productService := product.NewProductService(repos.Products, repos.Categories, storage, productCache, logger)
+	cartService := cart.NewCartService(repos.Carts, repos.Products)
+	orderService := order.NewOrderService(repos.Orders, repos.Carts, repos.Users, repos.Addresses, repos.OrderItems, logger)
+	reviewService := review.NewReviewsService(repos.Reviews, repos.Users, repos.Products, reviewCache, logger)
 
 	userHandler := user2.NewUserHandler(userService, logger)
 	addressHandler := address2.NewAddressHandler(addressService)

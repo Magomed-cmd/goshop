@@ -6,24 +6,27 @@ import (
 	"fmt"
 	"goshop/internal/domain/entities"
 	errors2 "goshop/internal/domain/errors"
+	"goshop/internal/domain/repository"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
 
 const DefaultAvatarURL = "avatars/default-avatar.png"
 
 type UserRepository struct {
-	db     *pgxpool.Pool
+	base   BaseRepository
 	psql   squirrel.StatementBuilderType
 	logger *zap.Logger
 }
 
-func NewUserRepository(conn *pgxpool.Pool, logger *zap.Logger) *UserRepository {
+func NewUserRepository(conn repository.DBConn, logger *zap.Logger) *UserRepository {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
 	return &UserRepository{
-		db:     conn,
+		base:   NewBaseRepository(conn),
 		psql:   squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
 		logger: logger,
 	}
@@ -40,7 +43,7 @@ func (r *UserRepository) CreateUser(ctx context.Context, user *entities.User) er
        VALUES ($1, $2, $3, $4, $5, $6, $7) 
        RETURNING id`
 
-	err := r.db.QueryRow(ctx, query,
+	err := r.base.Conn().QueryRow(ctx, query,
 		user.UUID, user.Email, user.PasswordHash,
 		user.Name, user.Phone, user.RoleID, user.CreatedAt,
 	).Scan(&user.ID)
@@ -68,7 +71,7 @@ func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*ent
 	query := "SELECT id, uuid, email, password_hash, name, phone, role_id, created_at FROM users WHERE email = $1"
 
 	var userStruct entities.User
-	err := r.db.QueryRow(ctx, query, email).Scan(
+	err := r.base.Conn().QueryRow(ctx, query, email).Scan(
 		&userStruct.ID, &userStruct.UUID, &userStruct.Email, &userStruct.PasswordHash,
 		&userStruct.Name, &userStruct.Phone, &userStruct.RoleID, &userStruct.CreatedAt,
 	)
@@ -95,7 +98,7 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id int64) (*entities.U
 	query := "SELECT id, uuid, email, password_hash, name, phone, role_id, created_at FROM users WHERE id = $1"
 
 	var userStruct entities.User
-	err := r.db.QueryRow(ctx, query, id).Scan(
+	err := r.base.Conn().QueryRow(ctx, query, id).Scan(
 		&userStruct.ID, &userStruct.UUID, &userStruct.Email, &userStruct.PasswordHash,
 		&userStruct.Name, &userStruct.Phone, &userStruct.RoleID, &userStruct.CreatedAt,
 	)
@@ -152,7 +155,7 @@ func (r *UserRepository) UpdateUserProfile(ctx context.Context, userID int64, na
 
 	r.logger.Debug("Executing update query", zap.Int64("user_id", userID), zap.String("query", sql))
 
-	result, err := r.db.Exec(ctx, sql, args...)
+	result, err := r.base.Conn().Exec(ctx, sql, args...)
 	if err != nil {
 		r.logger.Error("Failed to execute update query", zap.Error(err), zap.Int64("user_id", userID))
 		return err
@@ -183,7 +186,7 @@ func (r *UserRepository) SaveAvatar(ctx context.Context, userAvatarInfo *entitie
 
 	var id int
 
-	if err := r.db.QueryRow(
+	if err := r.base.Conn().QueryRow(
 		ctx,
 		query,
 		userAvatarInfo.UserID,
@@ -204,7 +207,7 @@ func (r *UserRepository) GetAvatar(ctx context.Context, userID int) (*entities.U
 
 	userAvatarInfo := &entities.UserAvatar{}
 
-	if err := r.db.QueryRow(ctx, query, userID).Scan(
+	if err := r.base.Conn().QueryRow(ctx, query, userID).Scan(
 		&userAvatarInfo.ID,
 		&userAvatarInfo.UserID,
 		&userAvatarInfo.ImageURL,
@@ -222,7 +225,7 @@ func (r *UserRepository) DeleteAvatar(ctx context.Context, userID int) error {
 
 	query := `DELETE FROM user_avatars WHERE user_id = $1`
 
-	result, err := r.db.Exec(ctx, query, userID)
+	result, err := r.base.Conn().Exec(ctx, query, userID)
 
 	if err != nil {
 		return err

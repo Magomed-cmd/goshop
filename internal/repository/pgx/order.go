@@ -5,26 +5,30 @@ import (
 	"errors"
 	"goshop/internal/domain/entities"
 	errors2 "goshop/internal/domain/errors"
+	"goshop/internal/domain/repository"
 	"goshop/internal/domain/types"
 	"strings"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
 
 type OrderRepository struct {
-	db     *pgxpool.Pool
+	base   BaseRepository
 	psql   squirrel.StatementBuilderType
 	logger *zap.Logger
 }
 
-func NewOrderRepository(db *pgxpool.Pool) *OrderRepository {
+func NewOrderRepository(conn repository.DBConn, logger *zap.Logger) *OrderRepository {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
 	return &OrderRepository{
-		db:   db,
-		psql: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
+		base:   NewBaseRepository(conn),
+		psql:   squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
+		logger: logger,
 	}
 }
 
@@ -36,7 +40,7 @@ func (r *OrderRepository) CreateOrder(ctx context.Context, order *entities.Order
 			`
 
 	var id int64
-	err := r.db.QueryRow(
+	err := r.base.Conn().QueryRow(
 		ctx,
 		query,
 		order.UUID,
@@ -110,7 +114,7 @@ func (r *OrderRepository) GetUserOrders(ctx context.Context, userID int64, filte
 	}
 
 	var totalCount int64
-	err = r.db.QueryRow(ctx, countSql, countArgs...).Scan(&totalCount)
+	err = r.base.Conn().QueryRow(ctx, countSql, countArgs...).Scan(&totalCount)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -119,7 +123,7 @@ func (r *OrderRepository) GetUserOrders(ctx context.Context, userID int64, filte
 		return nil, 0, err
 	}
 
-	rows, err := r.db.Query(ctx, sql, args...)
+	rows, err := r.base.Conn().Query(ctx, sql, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -157,7 +161,7 @@ func (r *OrderRepository) GetOrderByID(ctx context.Context, userID int64, orderI
 	query := `SELECT * from orders WHERE id = $1 AND user_id = $2`
 
 	order := &entities.Order{}
-	if err := r.db.QueryRow(ctx, query, orderID, userID).
+	if err := r.base.Conn().QueryRow(ctx, query, orderID, userID).
 		Scan(
 			&order.ID,
 			&order.UUID,
@@ -183,7 +187,7 @@ func (r *OrderRepository) UpdateOrderStatus(ctx context.Context, orderID int64, 
 			UPDATE orders SET status = $1 WHERE id = $2
 			`
 
-	result, err := r.db.Exec(ctx, query, orderID, status)
+	result, err := r.base.Conn().Exec(ctx, query, orderID, status)
 	if err != nil {
 		return err
 	}
@@ -202,7 +206,7 @@ func (r *OrderRepository) CancelOrder(ctx context.Context, orderID int64) error 
               WHERE id = $1 AND status IN ('pending', 'paid')
               `
 
-	result, err := r.db.Exec(ctx, query, orderID)
+	result, err := r.base.Conn().Exec(ctx, query, orderID)
 	if err != nil {
 		return err
 	}
@@ -265,7 +269,7 @@ func (r *OrderRepository) GetAllOrders(ctx context.Context, filters types.AdminO
 	}
 
 	var totalCount int64
-	err = r.db.QueryRow(ctx, countSql, countArgs...).Scan(&totalCount)
+	err = r.base.Conn().QueryRow(ctx, countSql, countArgs...).Scan(&totalCount)
 	if err != nil {
 		r.logger.Error("Failed to execute count query", zap.Error(err))
 		return nil, 0, err
@@ -277,7 +281,7 @@ func (r *OrderRepository) GetAllOrders(ctx context.Context, filters types.AdminO
 		return nil, 0, err
 	}
 
-	rows, err := r.db.Query(ctx, sql, args...)
+	rows, err := r.base.Conn().Query(ctx, sql, args...)
 	if err != nil {
 		r.logger.Error("Failed to execute data query", zap.Error(err))
 		return nil, 0, err
