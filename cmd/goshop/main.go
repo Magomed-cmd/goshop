@@ -1,21 +1,19 @@
 package main
 
 import (
-	"goshop/internal/app"
-	"goshop/internal/config"
-	"goshop/internal/db/postgres"
-	"goshop/internal/db/redisDB"
-	"goshop/internal/logger"
-	"goshop/internal/oauth/google"
-	"goshop/internal/routes"
-	"goshop/internal/storage"
-
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+
+	storageadapter "goshop/internal/adapters/output/storage"
+	"goshop/internal/config"
+	"goshop/internal/infrastructure"
+	"goshop/internal/infrastructure/database/postgres"
+	redisdb "goshop/internal/infrastructure/database/redis"
+	"goshop/internal/logger"
+	"goshop/internal/oauth/google"
 )
 
 func main() {
-
 	log := logger.NewFromGinMode("debug")
 
 	cfg, err := config.LoadConfig(".", log)
@@ -23,7 +21,7 @@ func main() {
 		log.Fatal("Failed to load configuration", zap.Error(err))
 	}
 
-	s3Client, err := storage.NewS3Connection(cfg.S3.Endpoint, cfg.S3.AccessKey, cfg.S3.Secret, cfg.S3.UseSSL, log)
+	s3Client, err := storageadapter.NewS3Connection(cfg.S3.Endpoint, cfg.S3.AccessKey, cfg.S3.Secret, cfg.S3.UseSSL, log)
 	if err != nil {
 		log.Fatal("Failed to connect to S3", zap.Error(err))
 	}
@@ -34,7 +32,7 @@ func main() {
 	}
 	defer db.Close()
 
-	rdb, err := redisDB.NewConnection(&cfg.Redis, log)
+	rdb, err := redisdb.NewConnection(&cfg.Redis, log)
 	if err != nil {
 		log.Fatal("failed to connect to Redis", zap.Error(err))
 	}
@@ -55,8 +53,8 @@ func main() {
 
 	r := gin.Default()
 
-	handlers := app.InitApp(cfg, db, log, rdb, s3Client, googleOAuth)
-	routes.RegisterRoutes(r, handlers, cfg.JWT.Secret, log)
+	handlers := infrastructure.InitApp(cfg, db, log, rdb, s3Client, googleOAuth)
+	infrastructure.RegisterRoutes(r, handlers, cfg.JWT.Secret, log)
 
 	log.Info("Server starting", zap.String("address", cfg.Server.GetServerAddr()))
 	if err := r.Run(cfg.Server.GetServerAddr()); err != nil {
