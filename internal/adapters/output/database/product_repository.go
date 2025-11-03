@@ -1,17 +1,17 @@
 package database
 
 import (
-    "context"
-    "errors"
+	"context"
+	"errors"
 
-    "github.com/Masterminds/squirrel"
-    "github.com/jackc/pgx/v5"
-    "go.uber.org/zap"
+	"github.com/Masterminds/squirrel"
+	"github.com/jackc/pgx/v5"
+	"go.uber.org/zap"
 
-    "goshop/internal/core/domain/entities"
-    errors2 "goshop/internal/core/domain/errors"
-    "goshop/internal/core/domain/types"
-    portrepo "goshop/internal/core/ports/repositories"
+	"goshop/internal/core/domain/entities"
+	errors2 "goshop/internal/core/domain/errors"
+	"goshop/internal/core/domain/types"
+	portrepo "goshop/internal/core/ports/repositories"
 )
 
 type ProductRepository struct {

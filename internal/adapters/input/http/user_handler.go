@@ -1,21 +1,22 @@
 package httpadapter
 
 import (
-    "context"
-    "errors"
-    "io"
-    "net/http"
-    "path/filepath"
-    "strings"
+	"context"
+	"errors"
+	"io"
+	"net/http"
+	"path/filepath"
+	"strings"
 
-    "github.com/gin-gonic/gin"
-    "go.uber.org/zap"
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
-    "goshop/internal/core/domain/entities"
-    errors2 "goshop/internal/core/domain/errors"
-    "goshop/internal/dto"
-    "goshop/internal/middleware"
-    "goshop/internal/oauth/google"
+	"goshop/internal/core/domain/entities"
+	errors2 "goshop/internal/core/domain/errors"
+	"goshop/internal/core/mappers"
+	"goshop/internal/dto"
+	"goshop/internal/middleware"
+	"goshop/internal/oauth/google"
 )
 
 type UserService interface {
@@ -65,15 +66,10 @@ func (h *UserHandler) Register(c *gin.Context) {
 		roleName = result.Role.Name
 	}
 
+	profile := mappers.ToUserProfile(result, roleName)
 	resp := dto.AuthResponse{
 		Token: token,
-		User: dto.UserProfile{
-			UUID:  result.UUID.String(),
-			Email: result.Email,
-			Name:  result.Name,
-			Phone: result.Phone,
-			Role:  roleName,
-		},
+		User:  profile,
 	}
 
 	c.JSON(201, resp)
@@ -100,15 +96,10 @@ func (h *UserHandler) Login(c *gin.Context) {
 		roleName = result.Role.Name
 	}
 
+	profile := mappers.ToUserProfile(result, roleName)
 	resp := dto.AuthResponse{
 		Token: token,
-		User: dto.UserProfile{
-			UUID:  result.UUID.String(),
-			Email: result.Email,
-			Name:  result.Name,
-			Phone: result.Phone,
-			Role:  roleName,
-		},
+		User:  profile,
 	}
 
 	c.JSON(200, resp)

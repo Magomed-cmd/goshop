@@ -1,19 +1,20 @@
 package services
 
 import (
-    "context"
-    "time"
+	"context"
+	"time"
 
-    "github.com/google/uuid"
-    "go.uber.org/zap"
+	"github.com/google/uuid"
+	"go.uber.org/zap"
 
-    "goshop/internal/core/domain/entities"
-    "goshop/internal/core/domain/errors"
-    "goshop/internal/core/domain/types"
-    cacheports "goshop/internal/core/ports/cache"
-    repositories "goshop/internal/core/ports/repositories"
-    "goshop/internal/dto"
-    "goshop/internal/validation"
+	"goshop/internal/core/domain/entities"
+	"goshop/internal/core/domain/errors"
+	"goshop/internal/core/domain/types"
+	"goshop/internal/core/mappers"
+	cacheports "goshop/internal/core/ports/cache"
+	repositories "goshop/internal/core/ports/repositories"
+	"goshop/internal/dto"
+	"goshop/internal/validation"
 )
 
 const (
@@ -21,11 +22,11 @@ const (
 )
 
 type ReviewService struct {
-    reviewRepo  repositories.ReviewRepository
-    reviewCache cacheports.ReviewCache
-    userRepo    repositories.UserRepository
-    productRepo repositories.ProductRepository
-    logger      *zap.Logger
+	reviewRepo  repositories.ReviewRepository
+	reviewCache cacheports.ReviewCache
+	userRepo    repositories.UserRepository
+	productRepo repositories.ProductRepository
+	logger      *zap.Logger
 }
 
 func NewReviewsService(reviewRepo repositories.ReviewRepository, userRepository repositories.UserRepository, productRepository repositories.ProductRepository, cache cacheports.ReviewCache, logger *zap.Logger) *ReviewService {
@@ -70,23 +71,9 @@ func (s *ReviewService) CreateReview(ctx context.Context, req *dto.CreateReviewR
 		return nil, err
 	}
 
-	resp := dto.ReviewResponse{
-		ID:        *reviewID,
-		UUID:      review.UUID.String(),
-		ProductID: req.ProductID,
-		UserID:    userID,
-		Rating:    req.Rating,
-		Comment:   req.Comment,
-		CreatedAt: review.CreatedAt,
-		User: &dto.UserInfo{
-			UUID: user.UUID.String(),
-			Name: user.Name,
-		},
-		Product: &dto.ProductInfo{
-			UUID: product.UUID.String(),
-			Name: product.Name,
-		},
-	}
+	review.ID = *reviewID
+
+	resp := mappers.ToReviewResponse(review)
 
 	return &resp, nil
 }
@@ -116,43 +103,19 @@ func (s *ReviewService) GetReviewsWithFilters(ctx context.Context, filters types
 		return nil, err
 	}
 
-	var avgRating float64
-	respReviews := make([]dto.ReviewResponse, 0, 10)
-
 	for _, review := range reviews {
-		respReview := dto.ReviewResponse{
-			ID:        review.ID,
-			UUID:      review.UUID.String(),
-			ProductID: review.ProductID,
-			UserID:    review.UserID,
-			Rating:    review.Rating,
-			Comment:   review.Comment,
-			CreatedAt: review.CreatedAt,
-			User: &dto.UserInfo{
-				UUID: user.UUID.String(),
-				Name: user.Name,
-			},
-			Product: &dto.ProductInfo{
-				UUID: product.UUID.String(),
-				Name: product.Name,
-			},
+		if review == nil {
+			continue
 		}
-
-		respReviews = append(respReviews, respReview)
-
-		avgRating += float64(review.Rating)
-	}
-	avgRating = avgRating / float64(len(reviews))
-
-	resp := &dto.ReviewsListResponse{
-		Reviews:       respReviews,
-		TotalCount:    totalCount,
-		Page:          filters.Page,
-		Limit:         filters.Limit,
-		AverageRating: &avgRating,
+		if review.User == nil {
+			review.User = user
+		}
+		if review.Product == nil {
+			review.Product = product
+		}
 	}
 
-	return resp, nil
+	return mappers.ToReviewsListResponse(reviews, totalCount, filters.Page, filters.Limit), nil
 }
 
 func (s *ReviewService) GetReviewByID(ctx context.Context, reviewID int64) (*dto.ReviewResponse, error) {
@@ -186,29 +149,16 @@ func (s *ReviewService) GetReviewByID(ctx context.Context, reviewID int64) (*dto
 		return nil, err
 	}
 
-	resp := &dto.ReviewResponse{
-		ID:        review.ID,
-		UUID:      review.UUID.String(),
-		ProductID: review.ProductID,
-		UserID:    review.UserID,
-		Rating:    review.Rating,
-		Comment:   review.Comment,
-		CreatedAt: review.CreatedAt,
-		User: &dto.UserInfo{
-			UUID: user.UUID.String(),
-			Name: user.Name,
-		},
-		Product: &dto.ProductInfo{
-			UUID: product.UUID.String(),
-			Name: product.Name,
-		},
-	}
+	review.User = user
+	review.Product = product
 
-	if err := s.reviewCache.SetReviewByID(ctx, reviewID, resp, reviewCacheTTL); err != nil {
+	resp := mappers.ToReviewResponse(review)
+
+	if err := s.reviewCache.SetReviewByID(ctx, reviewID, &resp, reviewCacheTTL); err != nil {
 		s.logger.Warn("failed to set review in cache", zap.Int64("reviewID", reviewID), zap.Error(err))
 	}
 
-	return resp, nil
+	return &resp, nil
 }
 
 func (s *ReviewService) UpdateReview(ctx context.Context, userID int64, reviewID int64, req dto.UpdateReviewRequest) error {
@@ -301,11 +251,5 @@ func (s *ReviewService) GetReviewStats(ctx context.Context, productID int64) (*d
 		return nil, err
 	}
 
-	response := &dto.ReviewStatsResponse{
-		TotalReviews:  totalReviews,
-		AverageRating: averageRating,
-		RatingCounts:  ratingCounts,
-	}
-
-	return response, nil
+	return mappers.ToReviewStatsResponse(totalReviews, averageRating, ratingCounts), nil
 }

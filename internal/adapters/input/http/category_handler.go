@@ -1,16 +1,16 @@
 package httpadapter
 
 import (
-    "context"
-    "errors"
-    "strconv"
+	"context"
+	"errors"
+	"strconv"
 
-    "github.com/gin-gonic/gin"
-    "github.com/google/uuid"
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
-    "goshop/internal/core/domain/entities"
-    errors2 "goshop/internal/core/domain/errors"
-    "goshop/internal/dto"
+	"goshop/internal/core/domain/entities"
+	errors2 "goshop/internal/core/domain/errors"
+	"goshop/internal/dto"
 )
 
 type CategoryService interface {

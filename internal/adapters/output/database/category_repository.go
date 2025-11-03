@@ -1,16 +1,16 @@
 package database
 
 import (
-    "context"
-    "errors"
-    "time"
+	"context"
+	"errors"
+	"time"
 
-    "github.com/Masterminds/squirrel"
-    "github.com/jackc/pgx/v5"
+	"github.com/Masterminds/squirrel"
+	"github.com/jackc/pgx/v5"
 
-    "goshop/internal/core/domain/entities"
-    errors2 "goshop/internal/core/domain/errors"
-    portrepo "goshop/internal/core/ports/repositories"
+	"goshop/internal/core/domain/entities"
+	errors2 "goshop/internal/core/domain/errors"
+	portrepo "goshop/internal/core/ports/repositories"
 )
 
 type CategoryRepository struct {

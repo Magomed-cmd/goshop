@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,6 +9,7 @@ import (
 
 	"goshop/internal/core/domain/entities"
 	"goshop/internal/core/domain/errors"
+	"goshop/internal/core/mappers"
 	cacheports "goshop/internal/core/ports/cache"
 	"goshop/internal/core/ports/repositories"
 	"goshop/internal/dto"
@@ -46,24 +46,10 @@ func (s *CategoryService) GetAllCategories(ctx context.Context) (*dto.Categories
 
 	categories, err := s.categoryRepo.GetAllCategories(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get categories: %w", err)
+		return nil, err
 	}
 
-	resp := &dto.CategoriesListResponse{
-		Categories: make([]dto.CategoryResponse, 0, len(categories)),
-	}
-
-	for _, categoryEntity := range categories {
-		resp.Categories = append(resp.Categories, dto.CategoryResponse{
-			ID:           categoryEntity.ID,
-			UUID:         categoryEntity.UUID.String(),
-			Name:         categoryEntity.Name,
-			Description:  categoryEntity.Description,
-			CreatedAt:    categoryEntity.CreatedAt,
-			UpdatedAt:    categoryEntity.UpdatedAt,
-			ProductCount: int(categoryEntity.ProductCount),
-		})
-	}
+	resp := mappers.ToCategoriesListResponse(categories)
 
 	if err = s.categoryCache.SetAllCategories(ctx, resp, GetAllCategoriesTTL); err != nil {
 		s.logger.Warn("failed to set all categories in cache", zap.Error(err))
@@ -96,19 +82,14 @@ func (s *CategoryService) GetCategoryByID(ctx context.Context, id int64) (*dto.C
 		return nil, errors.ErrCategoryNotFound
 	}
 
-	resp := &dto.CategoryResponse{
-		ID:           category.Category.ID,
-		UUID:         category.Category.UUID.String(),
-		Name:         category.Category.Name,
-		Description:  category.Category.Description,
-		ProductCount: int(category.ProductCount),
-	}
+	response := mappers.ToCategoryResponse(&category.Category)
+	response.ProductCount = int(category.ProductCount)
 
-	err = s.categoryCache.SetCategory(ctx, resp, 5*time.Minute)
+	err = s.categoryCache.SetCategory(ctx, &response, 5*time.Minute)
 	if err != nil {
 		s.logger.Error("failed to set category in cache", zap.Error(err))
 	}
-	return resp, nil
+	return &response, nil
 }
 
 func (s *CategoryService) CreateCategory(ctx context.Context, req *dto.CreateCategoryRequest) (*entities.Category, error) {
@@ -123,7 +104,7 @@ func (s *CategoryService) CreateCategory(ctx context.Context, req *dto.CreateCat
 	}
 
 	if err := s.categoryRepo.CreateCategory(ctx, category); err != nil {
-		return nil, fmt.Errorf("failed to create category: %w", err)
+		return nil, err
 	}
 	if err := s.categoryCache.DeleteAllCategories(ctx); err != nil {
 		s.logger.Warn("failed to delete all categories from cache after create", zap.Error(err))

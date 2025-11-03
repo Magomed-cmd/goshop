@@ -1,18 +1,18 @@
 package database
 
 import (
-    "context"
-    "errors"
-    "strings"
+	"context"
+	"errors"
+	"strings"
 
-    "github.com/Masterminds/squirrel"
-    "github.com/jackc/pgx/v5"
-    "github.com/jackc/pgx/v5/pgconn"
-    "go.uber.org/zap"
+	"github.com/Masterminds/squirrel"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"go.uber.org/zap"
 
-    "goshop/internal/core/domain/entities"
-    errors2 "goshop/internal/core/domain/errors"
-    portrepo "goshop/internal/core/ports/repositories"
+	"goshop/internal/core/domain/entities"
+	errors2 "goshop/internal/core/domain/errors"
+	portrepo "goshop/internal/core/ports/repositories"
 )
 
 type CartRepository struct {

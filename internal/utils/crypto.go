@@ -3,9 +3,10 @@ package utils
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"fmt"
 
 	"golang.org/x/crypto/bcrypt"
+
+	errors2 "goshop/internal/core/domain/errors"
 )
 
 const (
@@ -19,7 +20,7 @@ func HashPasswordWithCost(password string, cost int) (string, error) {
 
 func ValidatePassword(hashedPassword, password string) error {
 	if err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password)); err != nil {
-		return fmt.Errorf("invalid password")
+		return errors2.ErrInvalidPassword
 	}
 	return nil
 }

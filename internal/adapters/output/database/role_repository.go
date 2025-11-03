@@ -1,13 +1,13 @@
 package database
 
 import (
-    "context"
-    "errors"
+	"context"
+	"errors"
 
-    "github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5"
 
-    "goshop/internal/core/domain/entities"
-    portrepo "goshop/internal/core/ports/repositories"
+	"goshop/internal/core/domain/entities"
+	portrepo "goshop/internal/core/ports/repositories"
 )
 
 type RoleRepository struct {

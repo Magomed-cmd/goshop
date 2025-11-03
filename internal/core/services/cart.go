@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/shopspring/decimal"
 
-	errors2 "goshop/internal/core/domain/errors"
 	"goshop/internal/core/domain/entities"
+	errors2 "goshop/internal/core/domain/errors"
+	"goshop/internal/core/mappers"
 	"goshop/internal/core/ports/repositories"
 	"goshop/internal/dto"
 )
@@ -39,33 +39,9 @@ func (s *CartService) GetCart(ctx context.Context, userID int64) (*dto.CartRespo
 		}
 	}
 
-	items := cart.Items
-	itemsForResponse := make([]dto.CartItemResponse, len(items))
-
-	totalPrice := decimal.Zero
-	totalItems := 0
-
-	for i, item := range items {
-		priceDecimal := item.Product.Price
-		subtotalDecimal := priceDecimal.Mul(decimal.NewFromInt(int64(item.Quantity)))
-
-		itemsForResponse[i] = dto.CartItemResponse{
-			ProductID:   item.Product.ID,
-			ProductName: item.Product.Name,
-			Quantity:    item.Quantity,
-			Price:       priceDecimal.StringFixed(2),
-			Subtotal:    subtotalDecimal.StringFixed(2),
-		}
-
-		totalPrice = totalPrice.Add(subtotalDecimal)
-		totalItems += item.Quantity
-	}
-
-	response := &dto.CartResponse{
-		ID:         cart.ID,
-		Items:      itemsForResponse,
-		TotalPrice: totalPrice.StringFixed(2),
-		TotalItems: totalItems,
+	response := mappers.ToCartResponse(cart)
+	if response == nil {
+		return nil, errors2.ErrCartNotFound
 	}
 
 	return response, nil

@@ -1,17 +1,17 @@
 package httpadapter
 
 import (
-    "context"
-    "time"
+	"context"
+	"time"
 
-    "github.com/gin-gonic/gin"
-    "github.com/redis/go-redis/v9"
-    "go.uber.org/zap"
+	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 
-    "goshop/internal/core/domain/entities"
-    "goshop/internal/dto"
-    "goshop/internal/oauth/google"
-    "goshop/internal/utils"
+	"goshop/internal/core/domain/entities"
+	"goshop/internal/dto"
+	"goshop/internal/oauth/google"
+	"goshop/internal/utils"
 )
 
 type OAuthProvider interface {

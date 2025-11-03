@@ -1,18 +1,18 @@
 package httpadapter
 
 import (
-    "errors"
-    "io"
-    "mime/multipart"
-    "net/http"
-    "path/filepath"
-    "strconv"
-    "strings"
+	"errors"
+	"io"
+	"mime/multipart"
+	"net/http"
+	"path/filepath"
+	"strconv"
+	"strings"
 
-    "github.com/gin-gonic/gin"
-    "go.uber.org/zap"
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
-    errors2 "goshop/internal/core/domain/errors"
+	errors2 "goshop/internal/core/domain/errors"
 )
 
 type uploadedFile struct {

@@ -1,10 +1,10 @@
 package database
 
 import (
-    "github.com/jackc/pgx/v5/pgxpool"
-    "go.uber.org/zap"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"go.uber.org/zap"
 
-    portrepo "goshop/internal/core/ports/repositories"
+	portrepo "goshop/internal/core/ports/repositories"
 )
 
 type Factory struct {

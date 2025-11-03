@@ -1,14 +1,14 @@
 package database
 
 import (
-    "context"
+	"context"
 
-    "github.com/Masterminds/squirrel"
-    "go.uber.org/zap"
+	"github.com/Masterminds/squirrel"
+	"go.uber.org/zap"
 
-    "goshop/internal/core/domain/entities"
-    "goshop/internal/core/domain/types"
-    portrepo "goshop/internal/core/ports/repositories"
+	"goshop/internal/core/domain/entities"
+	"goshop/internal/core/domain/types"
+	portrepo "goshop/internal/core/ports/repositories"
 )
 
 type ReviewRepository struct {

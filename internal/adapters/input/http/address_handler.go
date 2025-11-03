@@ -1,15 +1,16 @@
 package httpadapter
 
 import (
-    "context"
-    "strconv"
-    "strings"
+	"context"
+	"strconv"
+	"strings"
 
-    "github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin"
 
-    "goshop/internal/core/domain/entities"
-    "goshop/internal/dto"
-    "goshop/internal/middleware"
+	"goshop/internal/core/domain/entities"
+	"goshop/internal/core/mappers"
+	"goshop/internal/dto"
+	"goshop/internal/middleware"
 )
 
 type AddressService interface {
@@ -50,15 +51,7 @@ func (h *AddressHandler) CreateAddress(c *gin.Context) {
 		return
 	}
 
-	response := dto.AddressResponse{
-		ID:         result.ID,
-		UUID:       result.UUID.String(),
-		Address:    result.Address,
-		City:       result.City,
-		PostalCode: result.PostalCode,
-		Country:    result.Country,
-		CreatedAt:  result.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-	}
+	response := mappers.ToAddressResponse(result)
 
 	c.JSON(201, response)
 }
@@ -78,17 +71,10 @@ func (h *AddressHandler) GetUserAddresses(c *gin.Context) {
 		return
 	}
 
-	var response []dto.AddressResponse
+	response := make([]dto.AddressResponse, 0, len(addresses))
 	for _, userAddress := range addresses {
-		response = append(response, dto.AddressResponse{
-			ID:         userAddress.ID,
-			UUID:       userAddress.UUID.String(),
-			Address:    userAddress.Address,
-			City:       userAddress.City,
-			PostalCode: userAddress.PostalCode,
-			Country:    userAddress.Country,
-			CreatedAt:  userAddress.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		})
+		resp := mappers.ToAddressResponse(userAddress)
+		response = append(response, resp)
 	}
 
 	c.JSON(200, response)
@@ -117,17 +103,9 @@ func (h *AddressHandler) GetAddressByID(c *gin.Context) {
 		return
 	}
 
-	response := dto.AddressResponse{
-		ID:         address.ID,
-		UUID:       address.UUID.String(),
-		Address:    address.Address,
-		City:       address.City,
-		PostalCode: address.PostalCode,
-		Country:    address.Country,
-		CreatedAt:  address.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-	}
+	resp := mappers.ToAddressResponse(address)
 
-	c.JSON(200, response)
+	c.JSON(200, resp)
 }
 
 func (h *AddressHandler) UpdateAddress(c *gin.Context) {
@@ -155,17 +133,9 @@ func (h *AddressHandler) UpdateAddress(c *gin.Context) {
 		return
 	}
 
-	response := dto.AddressResponse{
-		ID:         updatedAddress.ID,
-		UUID:       updatedAddress.UUID.String(),
-		Address:    updatedAddress.Address,
-		City:       updatedAddress.City,
-		PostalCode: updatedAddress.PostalCode,
-		Country:    updatedAddress.Country,
-		CreatedAt:  updatedAddress.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-	}
+	resp := mappers.ToAddressResponse(updatedAddress)
 
-	c.JSON(200, response)
+	c.JSON(200, resp)
 }
 
 func (h *AddressHandler) DeleteAddress(c *gin.Context) {
@@ -191,5 +161,5 @@ func (h *AddressHandler) DeleteAddress(c *gin.Context) {
 		return
 	}
 
-	c.Status(204) 
+	c.Status(204)
 }

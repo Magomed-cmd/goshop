@@ -1,23 +1,24 @@
 package services
 
 import (
-    "context"
-    "fmt"
-    "io"
-    "strings"
-    "time"
+	"context"
+	"fmt"
+	"io"
+	"strings"
+	"time"
 
-    "github.com/google/uuid"
-    "go.uber.org/zap"
+	"github.com/google/uuid"
+	"go.uber.org/zap"
 
-    "goshop/internal/core/domain/entities"
-    "goshop/internal/core/domain/errors"
-    "goshop/internal/core/domain/types"
-    cacheports "goshop/internal/core/ports/cache"
-    repositories "goshop/internal/core/ports/repositories"
-    storageports "goshop/internal/core/ports/storage"
-    "goshop/internal/dto"
-    "goshop/internal/validation"
+	"goshop/internal/core/domain/entities"
+	"goshop/internal/core/domain/errors"
+	"goshop/internal/core/domain/types"
+	"goshop/internal/core/mappers"
+	cacheports "goshop/internal/core/ports/cache"
+	repositories "goshop/internal/core/ports/repositories"
+	storageports "goshop/internal/core/ports/storage"
+	"goshop/internal/dto"
+	"goshop/internal/validation"
 )
 
 const (
@@ -27,11 +28,11 @@ const (
 )
 
 type ProductService struct {
-    ProductRepo  repositories.ProductRepository
-    CategoryRepo repositories.CategoryRepository
-    ImgStorage   storageports.ImgStorage
-    ProductCache cacheports.ProductCache
-    logger       *zap.Logger
+	ProductRepo  repositories.ProductRepository
+	CategoryRepo repositories.CategoryRepository
+	ImgStorage   storageports.ImgStorage
+	ProductCache cacheports.ProductCache
+	logger       *zap.Logger
 }
 
 func NewProductService(productRepo repositories.ProductRepository, categoryRepo repositories.CategoryRepository, imgStorage storageports.ImgStorage, cache cacheports.ProductCache, logger *zap.Logger) *ProductService {
@@ -89,27 +90,7 @@ func (s *ProductService) CreateProduct(ctx context.Context, req *dto.CreateProdu
 		return nil, err
 	}
 
-	categoryResponses := make([]dto.CategoryResponse, len(categories))
-	for i, cat := range categories {
-		categoryResponses[i] = dto.CategoryResponse{
-			ID:          cat.ID,
-			UUID:        cat.UUID.String(),
-			Name:        cat.Name,
-			Description: cat.Description,
-		}
-	}
-
-	resp := &dto.ProductResponse{
-		ID:          product.ID,
-		UUID:        product.UUID.String(),
-		Name:        product.Name,
-		Description: product.Description,
-		Price:       product.Price.StringFixed(2),
-		Stock:       product.Stock,
-		Categories:  categoryResponses,
-		CreatedAt:   product.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:   product.UpdatedAt.Format(time.RFC3339),
-	}
+	resp := mappers.ToProductResponse(product, categories, nil)
 
 	if s.ProductCache != nil {
 		if err := s.ProductCache.SetProduct(ctx, resp, ProductCacheTTL); err != nil {
@@ -150,33 +131,12 @@ func (s *ProductService) GetProductByID(ctx context.Context, id int64) (*dto.Pro
 		return nil, err
 	}
 
-	categoryResponses := make([]dto.CategoryResponse, len(categories))
-	for i, cat := range categories {
-		categoryResponses[i] = dto.CategoryResponse{
-			ID:          cat.ID,
-			UUID:        cat.UUID.String(),
-			Name:        cat.Name,
-			Description: cat.Description,
-		}
-	}
-
 	productImgs, err := s.ProductRepo.GetProductImgs(ctx, product.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	resp := &dto.ProductResponse{
-		ID:          product.ID,
-		UUID:        product.UUID.String(),
-		Name:        product.Name,
-		Description: product.Description,
-		Price:       product.Price.StringFixed(2),
-		Stock:       product.Stock,
-		ProductImgs: productImgs,
-		Categories:  categoryResponses,
-		CreatedAt:   product.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:   product.UpdatedAt.Format(time.RFC3339),
-	}
+	resp := mappers.ToProductResponse(product, categories, productImgs)
 
 	if s.ProductCache != nil {
 		if err := s.ProductCache.SetProduct(ctx, resp, ProductCacheTTL); err != nil {
@@ -266,16 +226,6 @@ func (s *ProductService) UpdateProduct(ctx context.Context, id int64, req *dto.U
 		return nil, err
 	}
 
-	categoryResponses := make([]dto.CategoryResponse, len(categories))
-	for i, cat := range categories {
-		categoryResponses[i] = dto.CategoryResponse{
-			ID:          cat.ID,
-			UUID:        cat.UUID.String(),
-			Name:        cat.Name,
-			Description: cat.Description,
-		}
-	}
-
 	if s.ProductCache != nil {
 		if err := s.ProductCache.InvalidateProduct(ctx, product.ID); err != nil {
 			s.logger.Error("Failed to invalidate product cache", zap.Error(err), zap.Int64("product_id", product.ID))
@@ -284,17 +234,7 @@ func (s *ProductService) UpdateProduct(ctx context.Context, id int64, req *dto.U
 
 	s.logger.Info("Product updated successfully", zap.Int64("product_id", id), zap.String("product_name", product.Name))
 
-	return &dto.ProductResponse{
-		ID:          product.ID,
-		UUID:        product.UUID.String(),
-		Name:        product.Name,
-		Description: product.Description,
-		Price:       product.Price.StringFixed(2),
-		Stock:       product.Stock,
-		Categories:  categoryResponses,
-		CreatedAt:   product.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:   product.UpdatedAt.Format(time.RFC3339),
-	}, nil
+	return mappers.ToProductResponse(product, categories, nil), nil
 }
 
 func (s *ProductService) DeleteProduct(ctx context.Context, id int64) error {
@@ -352,23 +292,7 @@ func (s *ProductService) GetProducts(ctx context.Context, filters types.ProductF
 		return nil, err
 	}
 
-	productResponses := make([]dto.ProductCatalogItem, len(products))
-	for i, p := range products {
-		productResponses[i] = dto.ProductCatalogItem{
-			ID:    p.ID,
-			UUID:  p.UUID.String(),
-			Name:  p.Name,
-			Price: p.Price.StringFixed(2),
-			Stock: p.Stock,
-		}
-	}
-
-	resp := &dto.ProductCatalogResponse{
-		Products: productResponses,
-		Total:    total,
-		Page:     filters.Page,
-		Limit:    filters.Limit,
-	}
+	resp := mappers.ToProductCatalogResponse(products, total, filters.Page, filters.Limit)
 
 	if s.ProductCache != nil {
 		if err := s.ProductCache.SetProductsWithFilters(ctx, filters, resp, ProductListCacheTTL); err != nil {
@@ -398,10 +322,12 @@ func (s *ProductService) SaveProductImg(ctx context.Context, reader io.ReadClose
 
 	imageURL, err := s.ImgStorage.UploadImage(ctx, objectName, reader, size, contentType)
 	if err != nil {
-		return nil, fmt.Errorf("failed to upload product image: %w", err)
+		s.logger.Error("Failed to upload image to storage", zap.Error(err))
+		return nil, errors.ErrProductImageUploadFail
 	}
 	if imageURL == nil {
-		return nil, fmt.Errorf("image URL is nil after upload")
+		s.logger.Error("Storage returned empty image URL", zap.Int64("product_id", productID))
+		return nil, errors.ErrProductImageUploadFail
 	}
 
 	productImgInfo := &entities.ProductImage{
@@ -472,12 +398,12 @@ func (s *ProductService) DeleteProductImg(ctx context.Context, productID, imgID 
 
 	if err := s.ImgStorage.DeleteImage(ctx, imgToDelete.UUID.String()); err != nil {
 		s.logger.Error("Failed to delete image from storage", zap.Error(err), zap.String("image_url", imgToDelete.ImageURL))
-		return fmt.Errorf("failed to delete image from storage: %w", err)
+		return errors.ErrProductImageDeleteFail
 	}
 
 	if err := s.ProductRepo.DeleteProductImg(ctx, productID, imgToDelete.ID); err != nil {
 		s.logger.Error("Failed to delete product image from repository", zap.Error(err), zap.Int64("image_id", imgToDelete.ID))
-		return errors.ErrProductImageNotFound
+		return errors.ErrProductImageDeleteFail
 	}
 
 	s.logger.Info("Product image deleted successfully",

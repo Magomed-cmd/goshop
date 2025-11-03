@@ -7,77 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Все твои ошибки
-var (
-	// General errors
-	ErrNotFound     = errors.New("resource not found")
-	ErrUnauthorized = errors.New("unauthorized access")
-	ErrForbidden    = errors.New("access forbidden")
-	ErrDuplicate    = errors.New("duplicate entry")
-	ErrInvalidInput = errors.New("invalid input data")
-
-	// User errors
-	ErrUserNotFound    = errors.New("user not found")
-	ErrEmailExists     = errors.New("email already exists")
-	ErrInvalidPassword = errors.New("invalid password")
-	ErrInvalidEmail    = errors.New("invalid email format")
-	ErrInvalidUserID   = errors.New("invalid id of user")
-
-	// Address errors
-	ErrAddressNotFound    = errors.New("address not found")
-	ErrInvalidAddressData = errors.New("invalid address data")
-
-	// Category errors
-	ErrCategoryNotFound    = errors.New("category not found")
-	ErrCategoryNameExists  = errors.New("category name already exists")
-	ErrInvalidCategoryData = errors.New("invalid category data")
-
-	// Product errors
-	ErrProductNotFound    = errors.New("product not found")
-	ErrProductNameExists  = errors.New("product name already exists")
-	ErrInvalidProductData = errors.New("invalid product data")
-	ErrInvalidPrice       = errors.New("price must be greater than 0")
-	ErrInvalidStock       = errors.New("stock cannot be negative")
-	ErrInvalidProductID   = errors.New("invalid product id")
-
-	// Cart errors
-	ErrCartNotFound        = errors.New("cart not found")
-	ErrCartItemNotFound    = errors.New("cart item not found")
-	ErrInvalidQuantity     = errors.New("quantity must be greater than 0")
-	ErrInsufficientStock   = errors.New("insufficient product stock")
-	ErrProductNotAvailable = errors.New("product is not available")
-	ErrCartItemExists      = errors.New("product already in cart")
-	ErrCartEmpty           = errors.New("cart is empty")
-
-	// Order errors
-	ErrOrderNotFound          = errors.New("order not found")
-	ErrOrderItemNotFound      = errors.New("order item not found")
-	ErrEmptyCart              = errors.New("cart is empty")
-	ErrInvalidOrderStatus     = errors.New("invalid order status")
-	ErrOrderAlreadyCancelled  = errors.New("order is already cancelled")
-	ErrOrderCannotBeCancelled = errors.New("order cannot be cancelled")
-	ErrOrderNotOwnedByUser    = errors.New("order does not belong to user")
-	ErrAddressRequired        = errors.New("address is required for this order")
-	ErrInvalidOrderData       = errors.New("invalid order data")
-
-	// Review errors
-	ErrInvalidRating          = errors.New("invalid rating of review")
-	ErrInvalidReviewSortBy    = errors.New("invalid sort_by for review filter")
-	ErrInvalidReviewSortOrder = errors.New("invalid sort_order for review filter")
-	ErrInvalidReviewID        = errors.New("invalid id of review")
-	ErrNothingToUpdate        = errors.New("not enough parameters for update")
-	ErrInvalidComment         = errors.New("comment too long (max 1000 characters)")
-	ErrReviewNotOwnedByUser   = errors.New("review does not belong to user")
-
-	// user_avatars errors
-	ErrAvatarNotFound    = errors.New("avatar not found")
-	ErrInvalidAvatarData = errors.New("invalid avatar data")
-	ErrAvatarUploadFail  = errors.New("failed to upload avatar")
-
-	// product_images errors
-	ErrProductImageNotFound = errors.New("product image not found")
-)
-
+// HandleError maps domain errors to HTTP responses.
 func HandleError(c *gin.Context, err error) {
 	switch {
 	// General errors
@@ -131,6 +61,12 @@ func HandleError(c *gin.Context, err error) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Stock cannot be negative"})
 	case errors.Is(err, ErrInvalidProductID):
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product id"})
+	case errors.Is(err, ErrProductImageUploadFail):
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload product image"})
+	case errors.Is(err, ErrProductImageDeleteFail):
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete product image"})
+	case errors.Is(err, ErrProductImageNotFound):
+		c.JSON(http.StatusNotFound, gin.H{"error": "Product image not found"})
 
 	// Cart errors
 	case errors.Is(err, ErrCartNotFound):
@@ -184,7 +120,14 @@ func HandleError(c *gin.Context, err error) {
 	case errors.Is(err, ErrReviewNotOwnedByUser):
 		c.JSON(http.StatusForbidden, gin.H{"error": "Review does not belong to user"})
 
-	// Default case для неизвестных ошибок
+	// Avatar errors
+	case errors.Is(err, ErrAvatarNotFound):
+		c.JSON(http.StatusNotFound, gin.H{"error": "Avatar not found"})
+	case errors.Is(err, ErrInvalidAvatarData):
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid avatar data"})
+	case errors.Is(err, ErrAvatarUploadFail):
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload avatar"})
+
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 	}

@@ -1,13 +1,13 @@
 package pgxrunner
 
 import (
-    "context"
+	"context"
 
-    "github.com/jackc/pgx/v5"
-    "github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
-    portrepo "goshop/internal/core/ports/repositories"
-    dtx "goshop/internal/core/ports/transaction"
+	portrepo "goshop/internal/core/ports/repositories"
+	dtx "goshop/internal/core/ports/transaction"
 )
 
 type Runner struct {

@@ -1,37 +1,38 @@
 package services
 
 import (
-    "context"
-    "slices"
-    "time"
+	"context"
+	"slices"
+	"time"
 
-    "github.com/google/uuid"
-    "github.com/shopspring/decimal"
-    "go.uber.org/zap"
+	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
 
-    "goshop/internal/core/domain/entities"
-    "goshop/internal/core/domain/errors"
-    "goshop/internal/core/domain/types"
-    "goshop/internal/core/ports/repositories"
-    "goshop/internal/dto"
+	"goshop/internal/core/domain/entities"
+	"goshop/internal/core/domain/errors"
+	"goshop/internal/core/domain/types"
+	"goshop/internal/core/mappers"
+	"goshop/internal/core/ports/repositories"
+	"goshop/internal/dto"
 )
 
 type OrderService struct {
-    orderRepo     repositories.OrderRepository
-    cartRepo      repositories.CartRepository
-    userRepo      repositories.UserRepository
-    addressRepo   repositories.AddressRepository
-    orderItemRepo repositories.OrderItemRepository
-    logger        *zap.Logger
+	orderRepo     repositories.OrderRepository
+	cartRepo      repositories.CartRepository
+	userRepo      repositories.UserRepository
+	addressRepo   repositories.AddressRepository
+	orderItemRepo repositories.OrderItemRepository
+	logger        *zap.Logger
 }
 
 func NewOrderService(
-    orderRepo repositories.OrderRepository,
-    cartRepo repositories.CartRepository,
-    userRepo repositories.UserRepository,
-    addressRepo repositories.AddressRepository,
-    orderItemRepo repositories.OrderItemRepository,
-    logger *zap.Logger,
+	orderRepo repositories.OrderRepository,
+	cartRepo repositories.CartRepository,
+	userRepo repositories.UserRepository,
+	addressRepo repositories.AddressRepository,
+	orderItemRepo repositories.OrderItemRepository,
+	logger *zap.Logger,
 ) *OrderService {
 	return &OrderService{
 		orderRepo:     orderRepo,
@@ -117,6 +118,14 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID int64, req *dto.C
 		return nil, err
 	}
 
+	orderItemEntities := make([]entities.OrderItem, len(orderItems))
+	for i, item := range orderItems {
+		orderItemEntities[i] = *item
+	}
+
+	order.ID = *id
+	order.Items = orderItemEntities
+
 	s.logger.Debug("Clearing cart", zap.Int64("cart_id", cart.ID))
 	err = s.cartRepo.ClearCart(ctx, cart.ID)
 	if err != nil {
@@ -124,36 +133,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID int64, req *dto.C
 		return nil, err
 	}
 
-	itemResponses := make([]dto.OrderItemResponse, len(orderItems))
-	for i, item := range orderItems {
-		itemResponses[i] = dto.OrderItemResponse{
-			ProductID:    item.ProductID,
-			ProductName:  item.ProductName,
-			PriceAtOrder: item.PriceAtOrder.StringFixed(2),
-			Quantity:     item.Quantity,
-		}
-	}
-
-	response := &dto.OrderResponse{
-		ID:         *id,
-		UUID:       order.UUID.String(),
-		UserID:     userID,
-		AddressID:  req.AddressID,
-		TotalPrice: order.TotalPrice.StringFixed(2),
-		Status:     string(order.Status),
-		CreatedAt:  order.CreatedAt,
-		UpdatedAt:  order.UpdatedAt,
-		Items:      itemResponses,
-		Address: &dto.AddressResponse{
-			ID:         userAddress.ID,
-			UUID:       userAddress.UUID.String(),
-			Address:    userAddress.Address,
-			City:       userAddress.City,
-			PostalCode: userAddress.PostalCode,
-			Country:    userAddress.Country,
-			CreatedAt:  userAddress.CreatedAt.Format(time.RFC3339),
-		},
-	}
+	response := mappers.ToOrderResponse(order)
 
 	s.logger.Info("Order created successfully",
 		zap.Int64("order_id", *id),
@@ -170,59 +150,7 @@ func (s *OrderService) GetUserOrders(ctx context.Context, userID int64, filters 
 		return nil, err
 	}
 
-	resp := &dto.OrdersListResponse{}
-	orderResponses := make([]dto.OrderResponse, 0, len(orders))
-	totalAmount := decimal.Zero
-
-	for _, order := range orders {
-		items := make([]dto.OrderItemResponse, 0, len(order.Items))
-		for _, orderItem := range order.Items {
-
-			subTotal := orderItem.PriceAtOrder.Mul(decimal.NewFromInt(int64(orderItem.Quantity)))
-
-			totalAmount = totalAmount.Add(subTotal)
-			item := dto.OrderItemResponse{
-				ProductID:    orderItem.ProductID,
-				ProductName:  orderItem.ProductName,
-				PriceAtOrder: orderItem.PriceAtOrder.StringFixed(2),
-				Quantity:     orderItem.Quantity,
-				Subtotal:     subTotal.StringFixed(2),
-			}
-			items = append(items, item)
-		}
-
-		Address := &dto.AddressResponse{
-			ID:         order.Address.ID,
-			UUID:       order.Address.UUID.String(),
-			Address:    order.Address.Address,
-			City:       order.Address.City,
-			PostalCode: order.Address.PostalCode,
-			Country:    order.Address.Country,
-			CreatedAt:  order.Address.CreatedAt.Format(time.RFC3339),
-		}
-
-		orderResponse := dto.OrderResponse{
-			ID:         order.ID,
-			UUID:       order.UUID.String(),
-			UserID:     order.UserID,
-			AddressID:  order.AddressID,
-			TotalPrice: order.TotalPrice.StringFixed(2),
-			Status:     string(order.Status),
-			CreatedAt:  order.CreatedAt,
-			UpdatedAt:  order.UpdatedAt,
-			Items:      items,
-			Address:    Address,
-		}
-		orderResponses = append(orderResponses, orderResponse)
-	}
-
-	resp.Orders = orderResponses
-	resp.TotalCount = totalCount
-	resp.TotalAmount = totalAmount.StringFixed(2)
-	resp.Page = filters.Page
-	resp.Limit = filters.Limit
-
-	return resp, nil
+	return mappers.ToOrdersListResponse(orders, totalCount, filters.Page, filters.Limit), nil
 }
 
 func (s *OrderService) GetOrderByID(ctx context.Context, userID int64, orderID int64) (*dto.OrderResponse, error) {
@@ -232,44 +160,7 @@ func (s *OrderService) GetOrderByID(ctx context.Context, userID int64, orderID i
 		return nil, err
 	}
 
-	orderItems := make([]dto.OrderItemResponse, 0, len(order.Items))
-	for _, item := range order.Items {
-		subTotal := item.PriceAtOrder.Mul(decimal.NewFromInt(int64(item.Quantity)))
-
-		orderItem := dto.OrderItemResponse{
-			ProductID:    item.ProductID,
-			ProductName:  item.ProductName,
-			PriceAtOrder: item.PriceAtOrder.StringFixed(2),
-			Quantity:     item.Quantity,
-			Subtotal:     subTotal.StringFixed(2),
-		}
-		orderItems = append(orderItems, orderItem)
-	}
-
-	address := &dto.AddressResponse{
-		ID:         order.Address.ID,
-		UUID:       order.Address.UUID.String(),
-		Address:    order.Address.Address,
-		City:       order.Address.City,
-		PostalCode: order.Address.PostalCode,
-		Country:    order.Address.Country,
-		CreatedAt:  order.Address.CreatedAt.Format(time.RFC3339),
-	}
-
-	resp := &dto.OrderResponse{
-		ID:         order.ID,
-		UUID:       order.UUID.String(),
-		UserID:     order.UserID,
-		AddressID:  order.AddressID,
-		TotalPrice: order.TotalPrice.StringFixed(2),
-		Status:     string(order.Status),
-		CreatedAt:  order.CreatedAt,
-		UpdatedAt:  order.UpdatedAt,
-		Items:      orderItems,
-		Address:    address,
-	}
-
-	return resp, nil
+	return mappers.ToOrderResponse(order), nil
 }
 
 func (s *OrderService) CancelOrder(ctx context.Context, userID int64, orderID int64) error {
@@ -315,61 +206,9 @@ func (s *OrderService) GetAllOrders(ctx context.Context, filters types.AdminOrde
 		return nil, err
 	}
 
-	orderResponses := make([]dto.OrderResponse, 0, len(orders))
-	var totalAmount decimal.Decimal
-
-	for _, order := range orders {
-		items := make([]dto.OrderItemResponse, 0, len(order.Items))
-
-		for _, orderItem := range order.Items {
-			subTotal := orderItem.PriceAtOrder.Mul(decimal.NewFromInt(int64(orderItem.Quantity)))
-
-			item := dto.OrderItemResponse{
-				ProductID:    orderItem.ProductID,
-				ProductName:  orderItem.ProductName,
-				PriceAtOrder: orderItem.PriceAtOrder.StringFixed(2),
-				Quantity:     orderItem.Quantity,
-				Subtotal:     subTotal.StringFixed(2),
-			}
-			items = append(items, item)
-		}
-
-		address := &dto.AddressResponse{
-			ID:         order.Address.ID,
-			UUID:       order.Address.UUID.String(),
-			Address:    order.Address.Address,
-			City:       order.Address.City,
-			PostalCode: order.Address.PostalCode,
-			Country:    order.Address.Country,
-			CreatedAt:  order.Address.CreatedAt.Format(time.RFC3339),
-		}
-
-		orderResponse := dto.OrderResponse{
-			ID:         order.ID,
-			UUID:       order.UUID.String(),
-			UserID:     order.UserID,
-			AddressID:  order.AddressID,
-			TotalPrice: order.TotalPrice.StringFixed(2),
-			Status:     string(order.Status),
-			CreatedAt:  order.CreatedAt,
-			UpdatedAt:  order.UpdatedAt,
-			Items:      items,
-			Address:    address,
-		}
-
-		orderResponses = append(orderResponses, orderResponse)
-		totalAmount = totalAmount.Add(order.TotalPrice)
-	}
-
 	s.logger.Info("All orders retrieved successfully",
 		zap.Int("orders_count", len(orders)),
 		zap.Int64("total_count", totalCount))
 
-	return &dto.OrdersListResponse{
-		Orders:      orderResponses,
-		TotalCount:  totalCount,
-		TotalAmount: totalAmount.StringFixed(2),
-		Page:        filters.Page,
-		Limit:       filters.Limit,
-	}, nil
+	return mappers.ToOrdersListResponse(orders, totalCount, filters.Page, filters.Limit), nil
 }

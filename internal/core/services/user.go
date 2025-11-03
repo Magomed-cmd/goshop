@@ -1,23 +1,24 @@
 package services
 
 import (
-    "context"
-    "errors"
-    "fmt"
-    "io"
-    "strings"
-    "time"
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"strings"
+	"time"
 
-    "github.com/google/uuid"
-    "go.uber.org/zap"
+	"github.com/google/uuid"
+	"go.uber.org/zap"
 
-    "goshop/internal/core/domain/entities"
-    errors2 "goshop/internal/core/domain/errors"
-    "goshop/internal/core/ports/repositories"
-    storageports "goshop/internal/core/ports/storage"
-    "goshop/internal/dto"
-    "goshop/internal/oauth/google"
-    "goshop/internal/utils"
+	"goshop/internal/core/domain/entities"
+	errors2 "goshop/internal/core/domain/errors"
+	"goshop/internal/core/mappers"
+	"goshop/internal/core/ports/repositories"
+	storageports "goshop/internal/core/ports/storage"
+	"goshop/internal/dto"
+	"goshop/internal/oauth/google"
+	"goshop/internal/utils"
 )
 
 const (
@@ -26,12 +27,12 @@ const (
 )
 
 type UserService struct {
-    roleRepo     repositories.RoleRepository
-    userRepo     repositories.UserRepository
-    jwtSecretKey string
-    bcryptCost   int
-    ImgStorage   storageports.ImgStorage
-    logger       *zap.Logger
+	roleRepo     repositories.RoleRepository
+	userRepo     repositories.UserRepository
+	jwtSecretKey string
+	bcryptCost   int
+	ImgStorage   storageports.ImgStorage
+	logger       *zap.Logger
 }
 
 func NewUserService(roleRepo repositories.RoleRepository, userRepo repositories.UserRepository, jwtSecret string, bcryptCost int, imgStorage storageports.ImgStorage, logger *zap.Logger) *UserService {
@@ -143,16 +144,10 @@ func (s *UserService) GetUserProfile(ctx context.Context, userID int64) (*dto.Us
 		return nil, err
 	}
 
-	userResponse := &dto.UserProfile{
-		UUID:  user.UUID.String(),
-		Email: user.Email,
-		Name:  user.Name,
-		Phone: user.Phone,
-		Role:  userRole.Name,
-	}
+	profile := mappers.ToUserProfile(user, userRole.Name)
 
 	s.logger.Debug("User profile retrieved successfully", zap.Int64("user_id", userID), zap.String("role", userRole.Name))
-	return userResponse, nil
+	return &profile, nil
 }
 
 func (s *UserService) UpdateProfile(ctx context.Context, userID int64, req *dto.UpdateProfileRequest) error {

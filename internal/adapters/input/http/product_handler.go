@@ -1,17 +1,17 @@
 package httpadapter
 
 import (
-    "context"
-    "errors"
-    "io"
-    "net/http"
+	"context"
+	"errors"
+	"io"
+	"net/http"
 
-    "github.com/gin-gonic/gin"
-    "go.uber.org/zap"
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
-    errors2 "goshop/internal/core/domain/errors"
-    "goshop/internal/core/domain/types"
-    "goshop/internal/dto"
+	errors2 "goshop/internal/core/domain/errors"
+	"goshop/internal/core/domain/types"
+	"goshop/internal/dto"
 )
 
 type ProductService interface {
