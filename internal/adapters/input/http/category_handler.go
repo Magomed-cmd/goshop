@@ -1,14 +1,13 @@
 package httpadapter
 
 import (
-	"errors"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	httpErrors "goshop/internal/adapters/input/http/errors"
 	"goshop/internal/core/domain/entities"
-	errors2 "goshop/internal/core/domain/errors"
 	"goshop/internal/core/mappers"
 	serviceports "goshop/internal/core/ports/services"
 	"goshop/internal/dto"
@@ -29,9 +28,8 @@ func (h *CategoryHandler) GetAllCategories(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	resp, err := h.categoryService.GetAllCategories(ctx)
-
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to fetch categories"})
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -49,11 +47,7 @@ func (h *CategoryHandler) GetCategoryByID(c *gin.Context) {
 
 	category, err := h.categoryService.GetCategoryByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, errors2.ErrCategoryNotFound) {
-			c.JSON(404, gin.H{"error": "Category not found"})
-			return
-		}
-		c.JSON(500, gin.H{"error": "Failed to fetch category"})
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -79,11 +73,7 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 
 	createdCategory, err := h.categoryService.CreateCategory(ctx, &req)
 	if err != nil {
-		if errors.Is(err, errors2.ErrInvalidInput) {
-			c.JSON(400, gin.H{"error": "Invalid category data"})
-			return
-		}
-		c.JSON(500, gin.H{"error": "Failed to create category"})
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -115,11 +105,7 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 
 	cur, err := h.categoryService.GetCategoryByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, errors2.ErrCategoryNotFound) {
-			c.JSON(404, gin.H{"error": "Category not found"})
-			return
-		}
-		c.JSON(500, gin.H{"error": "Failed to fetch category"})
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -143,15 +129,7 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 
 	updated, err := h.categoryService.UpdateCategory(ctx, entity)
 	if err != nil {
-		switch {
-		case errors.Is(err, errors2.ErrCategoryNotFound):
-			c.JSON(404, gin.H{"error": "Category not found"})
-		case errors.Is(err, errors2.ErrInvalidInput),
-			errors.Is(err, errors2.ErrInvalidCategoryData):
-			c.JSON(400, gin.H{"error": "Invalid category data"})
-		default:
-			c.JSON(500, gin.H{"error": "Failed to update category"})
-		}
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -172,15 +150,7 @@ func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
 
 	err = h.categoryService.DeleteCategory(ctx, id)
 	if err != nil {
-		if errors.Is(err, errors2.ErrCategoryNotFound) {
-			c.JSON(404, gin.H{"error": "Category not found"})
-			return
-		}
-		if errors.Is(err, errors2.ErrInvalidInput) {
-			c.JSON(400, gin.H{"error": "Invalid category ID"})
-			return
-		}
-		c.JSON(500, gin.H{"error": "Failed to delete category"})
+		httpErrors.HandleError(c, err)
 		return
 	}
 

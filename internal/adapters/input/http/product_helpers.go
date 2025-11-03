@@ -1,7 +1,6 @@
 package httpadapter
 
 import (
-	"errors"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -11,8 +10,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
-
-	errors2 "goshop/internal/core/domain/errors"
 )
 
 type uploadedFile struct {
@@ -129,25 +126,6 @@ func (h *ProductHandler) detectContentType(c *gin.Context, reader multipart.File
 	}
 
 	return detectedType, true
-}
-
-func (h *ProductHandler) mapServiceError(err error) (int, string) {
-	switch {
-	case errors.Is(err, errors2.ErrInvalidInput):
-		return http.StatusBadRequest, "Invalid input data"
-	case errors.Is(err, errors2.ErrInvalidProductData):
-		return http.StatusUnprocessableEntity, "Invalid product data"
-	case errors.Is(err, errors2.ErrInvalidPrice):
-		return http.StatusUnprocessableEntity, "Invalid price"
-	case errors.Is(err, errors2.ErrInvalidStock):
-		return http.StatusUnprocessableEntity, "Invalid stock value"
-	case errors.Is(err, errors2.ErrProductNotFound):
-		return http.StatusNotFound, "Product not found"
-	case errors.Is(err, errors2.ErrCategoryNotFound):
-		return http.StatusUnprocessableEntity, "Category not found"
-	default:
-		return http.StatusInternalServerError, "Internal server error"
-	}
 }
 
 func (h *ProductHandler) parseID(c *gin.Context, param string) (int64, error) {

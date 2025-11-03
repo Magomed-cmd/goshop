@@ -1,8 +1,6 @@
 package httpadapter
 
 import (
-	"context"
-	"errors"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -11,12 +9,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
-	errors2 "goshop/internal/core/domain/errors"
+	httpErrors "goshop/internal/adapters/input/http/errors"
 	"goshop/internal/core/mappers"
 	serviceports "goshop/internal/core/ports/services"
 	"goshop/internal/dto"
 	"goshop/internal/middleware"
-	"goshop/internal/oauth/google"
 )
 
 type UserHandler struct {
@@ -43,11 +40,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 
 	result, token, err := h.service.Register(ctx, &req)
 	if err != nil {
-		if strings.Contains(err.Error(), "already exists") {
-			c.JSON(409, gin.H{"error": "User already exists"})
-			return
-		}
-		c.JSON(500, gin.H{"error": "Internal server error"})
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -77,7 +70,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 
 	result, token, err := h.service.Login(ctx, &req)
 	if err != nil {
-		c.JSON(401, gin.H{"error": "Invalid email or password"})
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -106,7 +99,7 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 	ctx := c.Request.Context()
 	profile, err := h.service.GetUserProfile(ctx, userID)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Internal server error"})
+		httpErrors.HandleError(c, err)
 		return
 	}
 	c.JSON(200, profile)
@@ -128,15 +121,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateProfile(ctx, userID, &req); err != nil {
-		if errors.Is(err, errors2.ErrInvalidInput) {
-			c.JSON(400, gin.H{"error": "No fields to update"})
-			return
-		}
-		if strings.Contains(err.Error(), "no fields to update") {
-			c.JSON(400, gin.H{"error": "No fields to update"})
-			return
-		}
-		c.JSON(500, gin.H{"error": "Internal server error"})
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -257,22 +242,15 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 func (h *UserHandler) GetAvatar(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	userIDAny, exists := c.Get("user_id")
+	userID, exists := middleware.GetUserID(c)
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-
-	userID, ok := userIDAny.(int64)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user id"})
+		c.JSON(401, gin.H{"error": "Unauthorized"})
 		return
 	}
 
 	url, err := h.service.GetAvatar(ctx, int(userID))
 	if err != nil {
-		h.logger.Error("failed to get avatar", zap.Error(err), zap.Int64("user_id", userID))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get avatar"})
+		httpErrors.HandleError(c, err)
 		return
 	}
 

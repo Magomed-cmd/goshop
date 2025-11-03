@@ -1,12 +1,12 @@
 package httpadapter
 
 import (
-	"context"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 
+	httpErrors "goshop/internal/adapters/input/http/errors"
 	"goshop/internal/core/domain/types"
 	serviceports "goshop/internal/core/ports/services"
 	"goshop/internal/dto"
@@ -27,7 +27,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
@@ -40,7 +40,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 
 	resp, err := h.service.CreateOrder(ctx, userID, req)
 	if err != nil {
-		HandleDomainError(c, err)
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -64,7 +64,7 @@ func (h *OrderHandler) GetUserOrders(c *gin.Context) {
 
 	resp, err := h.service.GetUserOrders(ctx, userID, filters)
 	if err != nil {
-		HandleDomainError(c, err)
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -91,7 +91,7 @@ func (h *OrderHandler) GetOrderByID(c *gin.Context) {
 
 	resp, err := h.service.GetOrderByID(ctx, userID, orderID)
 	if err != nil {
-		HandleDomainError(c, err)
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -117,7 +117,7 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 
 	err = h.service.CancelOrder(ctx, userID, orderID)
 	if err != nil {
-		HandleDomainError(c, err)
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -149,7 +149,7 @@ func (h *OrderHandler) UpdateOrderStatus(c *gin.Context) {
 
 	err = h.service.UpdateOrderStatus(ctx, orderID, req.Status)
 	if err != nil {
-		HandleDomainError(c, err)
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -174,7 +174,7 @@ func (h *OrderHandler) GetAllOrders(c *gin.Context) {
 
 	resp, err := h.service.GetAllOrders(ctx, filters)
 	if err != nil {
-		HandleDomainError(c, err)
+		httpErrors.HandleError(c, err)
 		return
 	}
 

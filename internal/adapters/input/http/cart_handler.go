@@ -1,13 +1,11 @@
 package httpadapter
 
 import (
-	"context"
-	"errors"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 
-	errors2 "goshop/internal/core/domain/errors"
+	httpErrors "goshop/internal/adapters/input/http/errors"
 	serviceports "goshop/internal/core/ports/services"
 	"goshop/internal/dto"
 )
@@ -28,7 +26,7 @@ func (h *CartHandler) GetCart(c *gin.Context) {
 
 	cart, err := h.cartService.GetCart(ctx, userID)
 	if err != nil {
-		h.handleError(c, err)
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -47,7 +45,7 @@ func (h *CartHandler) AddItem(c *gin.Context) {
 
 	err := h.cartService.AddItem(ctx, userID, &req)
 	if err != nil {
-		h.handleError(c, err)
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -75,7 +73,7 @@ func (h *CartHandler) UpdateItem(c *gin.Context) {
 
 	err = h.cartService.UpdateItem(ctx, userID, productID, req.Quantity)
 	if err != nil {
-		h.handleError(c, err)
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -95,7 +93,7 @@ func (h *CartHandler) RemoveItem(c *gin.Context) {
 
 	err = h.cartService.RemoveItem(ctx, userID, productID)
 	if err != nil {
-		h.handleError(c, err)
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -108,32 +106,10 @@ func (h *CartHandler) ClearCart(c *gin.Context) {
 
 	err := h.cartService.ClearCart(ctx, userID)
 	if err != nil {
-		h.handleError(c, err)
+		httpErrors.HandleError(c, err)
 		return
 	}
 
 	c.JSON(200, gin.H{"message": "Cart cleared"})
 }
 
-func (h *CartHandler) handleError(c *gin.Context, err error) {
-	switch {
-	case errors.Is(err, errors2.ErrCartNotFound):
-		c.JSON(404, gin.H{"error": "Cart not found"})
-	case errors.Is(err, errors2.ErrProductNotFound):
-		c.JSON(404, gin.H{"error": "Product not found"})
-	case errors.Is(err, errors2.ErrCartItemNotFound):
-		c.JSON(404, gin.H{"error": "Item not found in cart"})
-	case errors.Is(err, errors2.ErrInvalidQuantity):
-		c.JSON(400, gin.H{"error": "Invalid quantity"})
-	case errors.Is(err, errors2.ErrInsufficientStock):
-		c.JSON(409, gin.H{"error": "Insufficient stock"})
-	case errors.Is(err, errors2.ErrInvalidInput):
-		c.JSON(400, gin.H{"error": "Invalid input"})
-	case errors.Is(err, errors2.ErrUnauthorized):
-		c.JSON(401, gin.H{"error": "Unauthorized"})
-	case errors.Is(err, errors2.ErrForbidden):
-		c.JSON(403, gin.H{"error": "Forbidden"})
-	default:
-		c.JSON(500, gin.H{"error": "Internal server error"})
-	}
-}

@@ -15,7 +15,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// InitApp wires core services with adapters and returns HTTP handlers set.
 func InitApp(
 	cfg *config.Config,
 	db *pgxpool.Pool,

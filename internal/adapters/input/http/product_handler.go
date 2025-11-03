@@ -1,15 +1,12 @@
 package httpadapter
 
 import (
-	"context"
-	"errors"
-	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
-	errors2 "goshop/internal/core/domain/errors"
+	httpErrors "goshop/internal/adapters/input/http/errors"
 	"goshop/internal/core/domain/types"
 	serviceports "goshop/internal/core/ports/services"
 	"goshop/internal/dto"
@@ -41,8 +38,7 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 	result, err := h.productService.CreateProduct(c.Request.Context(), &req)
 	if err != nil {
 		h.logger.Error("CreateProduct service failed", zap.Error(err), zap.String("product_name", req.Name))
-		statusCode, message := h.mapServiceError(err)
-		c.JSON(statusCode, gin.H{"error": message})
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -63,7 +59,7 @@ func (h *ProductHandler) GetProducts(c *gin.Context) {
 	result, err := h.productService.GetProducts(c.Request.Context(), filters)
 	if err != nil {
 		h.logger.Error("GetProducts service failed", zap.Error(err), zap.Any("filters", filters))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get products"})
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -85,11 +81,7 @@ func (h *ProductHandler) GetProductByID(c *gin.Context) {
 	result, err := h.productService.GetProductByID(c.Request.Context(), id)
 	if err != nil {
 		h.logger.Error("GetProductByID service failed", zap.Error(err), zap.Int64("product_id", id))
-		if errors.Is(err, errors2.ErrProductNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get product"})
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -119,7 +111,7 @@ func (h *ProductHandler) GetProductsByCategory(c *gin.Context) {
 	result, err := h.productService.GetProducts(c.Request.Context(), filters)
 	if err != nil {
 		h.logger.Error("GetProductsByCategory service failed", zap.Error(err), zap.Int64("category_id", categoryID))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get products"})
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -148,8 +140,7 @@ func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 	result, err := h.productService.UpdateProduct(c.Request.Context(), id, &req)
 	if err != nil {
 		h.logger.Error("UpdateProduct service failed", zap.Error(err), zap.Int64("product_id", id))
-		statusCode, message := h.mapServiceError(err)
-		c.JSON(statusCode, gin.H{"error": message})
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -171,8 +162,7 @@ func (h *ProductHandler) DeleteProduct(c *gin.Context) {
 	err = h.productService.DeleteProduct(c.Request.Context(), id)
 	if err != nil {
 		h.logger.Error("DeleteProduct service failed", zap.Error(err), zap.Int64("product_id", id))
-		statusCode, message := h.mapServiceError(err)
-		c.JSON(statusCode, gin.H{"error": message})
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -194,8 +184,7 @@ func (h *ProductHandler) ToggleProductStatus(c *gin.Context) {
 	err = h.productService.DeleteProduct(c.Request.Context(), id)
 	if err != nil {
 		h.logger.Error("ToggleProductStatus service failed", zap.Error(err), zap.Int64("product_id", id))
-		statusCode, message := h.mapServiceError(err)
-		c.JSON(statusCode, gin.H{"error": message})
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -286,11 +275,7 @@ func (h *ProductHandler) DeleteProductImg(c *gin.Context) {
 	err = h.productService.DeleteProductImg(ctx, productID, imgID)
 	if err != nil {
 		h.logger.Error("DeleteProductImg service failed", zap.Error(err), zap.Int64("product_id", productID), zap.Int64("img_id", imgID))
-		if errors.Is(err, errors2.ErrProductImageNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Product image not found"})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete product image"})
+		httpErrors.HandleError(c, err)
 		return
 	}
 	h.logger.Info("DeleteProductImg successful",

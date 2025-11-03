@@ -1,12 +1,11 @@
 package httpadapter
 
 import (
-	"context"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 
+	httpErrors "goshop/internal/adapters/input/http/errors"
 	"goshop/internal/core/mappers"
 	serviceports "goshop/internal/core/ports/services"
 	"goshop/internal/dto"
@@ -38,7 +37,7 @@ func (h *AddressHandler) CreateAddress(c *gin.Context) {
 
 	result, err := h.addressService.CreateAddress(c.Request.Context(), userID, &req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -58,7 +57,7 @@ func (h *AddressHandler) GetUserAddresses(c *gin.Context) {
 
 	addresses, err := h.addressService.GetUserAddresses(ctx, userID)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -86,11 +85,7 @@ func (h *AddressHandler) GetAddressByID(c *gin.Context) {
 
 	address, err := h.addressService.GetAddressByIDForUser(c.Request.Context(), userID, int64(addressID))
 	if err != nil {
-		if strings.Contains(err.Error(), "access denied") {
-			c.JSON(403, gin.H{"error": "Access denied"})
-			return
-		}
-		c.JSON(500, gin.H{"error": "Internal server error"})
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -120,7 +115,7 @@ func (h *AddressHandler) UpdateAddress(c *gin.Context) {
 
 	updatedAddress, err := h.addressService.UpdateAddress(c.Request.Context(), userID, int64(addressID), &req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		httpErrors.HandleError(c, err)
 		return
 	}
 
@@ -144,11 +139,7 @@ func (h *AddressHandler) DeleteAddress(c *gin.Context) {
 
 	err = h.addressService.DeleteAddress(c.Request.Context(), userID, int64(addressID))
 	if err != nil {
-		if strings.Contains(err.Error(), "access denied") {
-			c.JSON(403, gin.H{"error": "Access denied"})
-			return
-		}
-		c.JSON(500, gin.H{"error": "Internal server error"})
+		httpErrors.HandleError(c, err)
 		return
 	}
 
