@@ -20,7 +20,7 @@ func ToOrderResponse(order *entities.Order) *dto.OrderResponse {
 	var address *dto.AddressResponse
 	if order.Address != nil {
 		addr := ToAddressResponse(order.Address)
-		address = &addr
+		address = addr
 	}
 
 	return &dto.OrderResponse{

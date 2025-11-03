@@ -4,7 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
+	
+	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -17,6 +18,7 @@ type Config struct {
 
 type GoogleOAuth struct {
 	config *oauth2.Config
+	logger *zap.Logger
 }
 
 type UserInfo struct {
@@ -61,7 +63,11 @@ func (g *GoogleOAuth) GetUserInfo(ctx context.Context, code string) (*UserInfo, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user info: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			g.logger.Error("Error closing response body", zap.Error(err))
+		}
+	}()
 
 	var googleUser googleUserResponse
 	if err := json.NewDecoder(resp.Body).Decode(&googleUser); err != nil {

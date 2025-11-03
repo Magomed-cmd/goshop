@@ -8,6 +8,7 @@ import (
 
 	"goshop/internal/core/domain/entities"
 	"goshop/internal/core/domain/errors"
+	"goshop/internal/core/mappers"
 	"goshop/internal/core/ports/repositories"
 	"goshop/internal/dto"
 )
@@ -22,7 +23,8 @@ func NewAddressService(addressRepo repositories.AddressRepository) *AddressServi
 	}
 }
 
-func (s *AddressService) CreateAddress(ctx context.Context, userID int64, req *dto.CreateAddressRequest) (*entities.UserAddress, error) {
+func (s *AddressService) CreateAddress(ctx context.Context, userID int64, req *dto.CreateAddressRequest) (*dto.AddressResponse, error) {
+
 	if userID <= 0 {
 		return nil, errors.ErrInvalidInput
 	}
@@ -42,10 +44,13 @@ func (s *AddressService) CreateAddress(ctx context.Context, userID int64, req *d
 		return nil, err
 	}
 
-	return address, nil
+	resp := mappers.ToAddressResponse(address)
+
+	return resp, nil
 }
 
-func (s *AddressService) GetUserAddresses(ctx context.Context, userID int64) ([]*entities.UserAddress, error) {
+func (s *AddressService) GetUserAddresses(ctx context.Context, userID int64) ([]*dto.AddressResponse, error) {
+
 	if userID <= 0 {
 		return nil, errors.ErrInvalidInput
 	}
@@ -54,10 +59,17 @@ func (s *AddressService) GetUserAddresses(ctx context.Context, userID int64) ([]
 	if err != nil {
 		return nil, err
 	}
-	return addresses, nil
+
+	response := make([]*dto.AddressResponse, 0, len(addresses))
+	for _, address := range addresses {
+		resp := mappers.ToAddressResponse(address)
+		response = append(response, resp)
+	}
+
+	return response, nil
 }
 
-func (s *AddressService) GetAddressByID(ctx context.Context, addressID int64) (*entities.UserAddress, error) {
+func (s *AddressService) GetAddressByID(ctx context.Context, addressID int64) (*dto.AddressResponse, error) {
 	if addressID <= 0 {
 		return nil, errors.ErrInvalidInput
 	}
@@ -66,10 +78,13 @@ func (s *AddressService) GetAddressByID(ctx context.Context, addressID int64) (*
 	if err != nil {
 		return nil, err
 	}
-	return address, nil
+
+	resp := mappers.ToAddressResponse(address)
+
+	return resp, nil
 }
 
-func (s *AddressService) UpdateAddress(ctx context.Context, userID int64, addressID int64, req *dto.UpdateAddressRequest) (*entities.UserAddress, error) {
+func (s *AddressService) UpdateAddress(ctx context.Context, userID int64, addressID int64, req *dto.UpdateAddressRequest) (*dto.AddressResponse, error) {
 	if userID <= 0 || addressID <= 0 {
 		return nil, errors.ErrInvalidInput
 	}
@@ -105,10 +120,12 @@ func (s *AddressService) UpdateAddress(ctx context.Context, userID int64, addres
 		return nil, err
 	}
 
-	return address, nil
+	resp := mappers.ToAddressResponse(address)
+
+	return resp, nil
 }
 
-func (s *AddressService) GetAddressByIDForUser(ctx context.Context, userID, addressID int64) (*entities.UserAddress, error) {
+func (s *AddressService) GetAddressByIDForUser(ctx context.Context, userID, addressID int64) (*dto.AddressResponse, error) {
 	if userID <= 0 || addressID <= 0 {
 		return nil, errors.ErrInvalidInput
 	}
@@ -122,7 +139,9 @@ func (s *AddressService) GetAddressByIDForUser(ctx context.Context, userID, addr
 		return nil, errors.ErrForbidden
 	}
 
-	return address, nil
+	resp := mappers.ToAddressResponse(address)
+
+	return resp, nil
 }
 
 func (s *AddressService) DeleteAddress(ctx context.Context, userID int64, addressID int64) error {

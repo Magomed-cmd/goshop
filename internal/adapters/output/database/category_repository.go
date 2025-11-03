@@ -44,12 +44,12 @@ func (r *CategoryRepository) GetAllCategories(ctx context.Context) ([]*entities.
 		var category entities.CategoryWithCount
 
 		if err := rows.Scan(
-			&category.Category.ID,
-			&category.Category.UUID,
-			&category.Category.Name,
-			&category.Category.Description,
-			&category.Category.CreatedAt,
-			&category.Category.UpdatedAt,
+			&category.ID,
+			&category.UUID,
+			&category.Name,
+			&category.Description,
+			&category.CreatedAt,
+			&category.UpdatedAt,
 			&category.ProductCount,
 		); err != nil {
 			return nil, err
@@ -75,12 +75,12 @@ func (r *CategoryRepository) GetCategoryByID(ctx context.Context, id int64) (*en
 
 	var category entities.CategoryWithCount
 	err := r.base.Conn().QueryRow(ctx, query, id).Scan(
-		&category.Category.ID,
-		&category.Category.UUID,
-		&category.Category.Name,
-		&category.Category.Description,
-		&category.Category.CreatedAt,
-		&category.Category.UpdatedAt,
+		&category.ID,
+		&category.UUID,
+		&category.Name,
+		&category.Description,
+		&category.CreatedAt,
+		&category.UpdatedAt,
 		&category.ProductCount,
 	)
 	if err != nil {

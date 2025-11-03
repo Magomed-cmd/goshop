@@ -77,6 +77,10 @@ func (s *UserService) Register(ctx context.Context, req *dto.RegisterRequest) (*
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	})
+	if err != nil {
+		s.logger.Error("Error to saving of user avatar")
+		return nil, "", errors2.ErrAvatarUploadFail
+	}
 	user.Role = role
 
 	s.logger.Debug("Generating JWT token", zap.Int64("user_id", user.ID))

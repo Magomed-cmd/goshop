@@ -6,7 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	httpErrors "goshop/internal/adapters/input/http/errors"
-	"goshop/internal/core/mappers"
 	serviceports "goshop/internal/core/ports/services"
 	"goshop/internal/dto"
 	"goshop/internal/middleware"
@@ -23,6 +22,8 @@ func NewAddressHandler(s serviceports.AddressService) *AddressHandler {
 }
 
 func (h *AddressHandler) CreateAddress(c *gin.Context) {
+
+	ctx := c.Request.Context()
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
 		c.JSON(401, gin.H{"error": "Unauthorized"})
@@ -35,15 +36,13 @@ func (h *AddressHandler) CreateAddress(c *gin.Context) {
 		return
 	}
 
-	result, err := h.addressService.CreateAddress(c.Request.Context(), userID, &req)
+	resp, err := h.addressService.CreateAddress(ctx, userID, &req)
 	if err != nil {
 		httpErrors.HandleError(c, err)
 		return
 	}
 
-	response := mappers.ToAddressResponse(result)
-
-	c.JSON(201, response)
+	c.JSON(201, resp)
 }
 
 func (h *AddressHandler) GetUserAddresses(c *gin.Context) {
@@ -55,19 +54,13 @@ func (h *AddressHandler) GetUserAddresses(c *gin.Context) {
 		return
 	}
 
-	addresses, err := h.addressService.GetUserAddresses(ctx, userID)
+	resp, err := h.addressService.GetUserAddresses(ctx, userID)
 	if err != nil {
 		httpErrors.HandleError(c, err)
 		return
 	}
 
-	response := make([]dto.AddressResponse, 0, len(addresses))
-	for _, userAddress := range addresses {
-		resp := mappers.ToAddressResponse(userAddress)
-		response = append(response, resp)
-	}
-
-	c.JSON(200, response)
+	c.JSON(200, resp)
 }
 
 func (h *AddressHandler) GetAddressByID(c *gin.Context) {
@@ -83,13 +76,11 @@ func (h *AddressHandler) GetAddressByID(c *gin.Context) {
 		return
 	}
 
-	address, err := h.addressService.GetAddressByIDForUser(c.Request.Context(), userID, int64(addressID))
+	resp, err := h.addressService.GetAddressByIDForUser(c.Request.Context(), userID, int64(addressID))
 	if err != nil {
 		httpErrors.HandleError(c, err)
 		return
 	}
-
-	resp := mappers.ToAddressResponse(address)
 
 	c.JSON(200, resp)
 }
@@ -113,13 +104,11 @@ func (h *AddressHandler) UpdateAddress(c *gin.Context) {
 		return
 	}
 
-	updatedAddress, err := h.addressService.UpdateAddress(c.Request.Context(), userID, int64(addressID), &req)
+	resp, err := h.addressService.UpdateAddress(c.Request.Context(), userID, int64(addressID), &req)
 	if err != nil {
 		httpErrors.HandleError(c, err)
 		return
 	}
-
-	resp := mappers.ToAddressResponse(updatedAddress)
 
 	c.JSON(200, resp)
 }

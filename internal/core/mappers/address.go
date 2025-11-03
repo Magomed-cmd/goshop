@@ -5,12 +5,12 @@ import (
 	"goshop/internal/dto"
 )
 
-func ToAddressResponse(address *entities.UserAddress) dto.AddressResponse {
+func ToAddressResponse(address *entities.UserAddress) *dto.AddressResponse {
 	if address == nil {
-		return dto.AddressResponse{}
+		return &dto.AddressResponse{}
 	}
 
-	return dto.AddressResponse{
+	return &dto.AddressResponse{
 		ID:         address.ID,
 		UUID:       address.UUID.String(),
 		Address:    address.Address,
