@@ -1,7 +1,6 @@
 package httpadapter
 
 import (
-	"context"
 	"errors"
 	"strconv"
 
@@ -10,24 +9,18 @@ import (
 
 	"goshop/internal/core/domain/entities"
 	errors2 "goshop/internal/core/domain/errors"
+	"goshop/internal/core/mappers"
+	serviceports "goshop/internal/core/ports/services"
 	"goshop/internal/dto"
 )
 
-type CategoryService interface {
-	GetAllCategories(ctx context.Context) (*dto.CategoriesListResponse, error)
-	GetCategoryByID(ctx context.Context, id int64) (*dto.CategoryResponse, error)
-	CreateCategory(ctx context.Context, req *dto.CreateCategoryRequest) (*entities.Category, error)
-	UpdateCategory(ctx context.Context, category *entities.Category) (*entities.Category, error)
-	DeleteCategory(ctx context.Context, id int64) error
-}
-
 type CategoryHandler struct {
-	CategoryService CategoryService
+	categoryService serviceports.CategoryService
 }
 
-func NewCategoryHandler(s CategoryService) *CategoryHandler {
+func NewCategoryHandler(s serviceports.CategoryService) *CategoryHandler {
 	return &CategoryHandler{
-		CategoryService: s,
+		categoryService: s,
 	}
 }
 
@@ -35,7 +28,7 @@ func (h *CategoryHandler) GetAllCategories(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
-	resp, err := h.CategoryService.GetAllCategories(ctx)
+	resp, err := h.categoryService.GetAllCategories(ctx)
 
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to fetch categories"})
@@ -54,7 +47,7 @@ func (h *CategoryHandler) GetCategoryByID(c *gin.Context) {
 		return
 	}
 
-	category, err := h.CategoryService.GetCategoryByID(ctx, id)
+	category, err := h.categoryService.GetCategoryByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, errors2.ErrCategoryNotFound) {
 			c.JSON(404, gin.H{"error": "Category not found"})
@@ -84,7 +77,7 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 		return
 	}
 
-	createdCategory, err := h.CategoryService.CreateCategory(ctx, &req)
+	createdCategory, err := h.categoryService.CreateCategory(ctx, &req)
 	if err != nil {
 		if errors.Is(err, errors2.ErrInvalidInput) {
 			c.JSON(400, gin.H{"error": "Invalid category data"})
@@ -120,7 +113,7 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 		return
 	}
 
-	cur, err := h.CategoryService.GetCategoryByID(ctx, id)
+	cur, err := h.categoryService.GetCategoryByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, errors2.ErrCategoryNotFound) {
 			c.JSON(404, gin.H{"error": "Category not found"})
@@ -148,7 +141,7 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 		UpdatedAt:   cur.UpdatedAt,
 	}
 
-	updated, err := h.CategoryService.UpdateCategory(ctx, entity)
+	updated, err := h.categoryService.UpdateCategory(ctx, entity)
 	if err != nil {
 		switch {
 		case errors.Is(err, errors2.ErrCategoryNotFound):
@@ -162,15 +155,9 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 		return
 	}
 
-	resp := dto.CategoryResponse{
-		ID:           updated.ID,
-		UUID:         updated.UUID.String(),
-		Name:         updated.Name,
-		Description:  updated.Description,
-		CreatedAt:    updated.CreatedAt,
-		UpdatedAt:    updated.UpdatedAt,
-		ProductCount: cur.ProductCount,
-	}
+	resp := mappers.ToCategoryResponse(updated)
+	resp.ProductCount = cur.ProductCount
+
 	c.JSON(200, resp)
 }
 
@@ -183,7 +170,7 @@ func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
 		return
 	}
 
-	err = h.CategoryService.DeleteCategory(ctx, id)
+	err = h.categoryService.DeleteCategory(ctx, id)
 	if err != nil {
 		if errors.Is(err, errors2.ErrCategoryNotFound) {
 			c.JSON(404, gin.H{"error": "Category not found"})

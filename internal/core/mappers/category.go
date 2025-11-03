@@ -42,7 +42,7 @@ func ToCategoriesListResponse(categories []*entities.CategoryWithCount) *dto.Cat
 	}
 
 	for _, categoryWithCount := range categories {
-		category := categoryWithCount // avoid pointer aliasing
+		category := categoryWithCount
 		response := ToCategoryResponse(&category.Category)
 		response.ProductCount = int(category.ProductCount)
 		resp.Categories = append(resp.Categories, response)

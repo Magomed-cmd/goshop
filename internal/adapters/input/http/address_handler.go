@@ -7,28 +7,19 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"goshop/internal/core/domain/entities"
 	"goshop/internal/core/mappers"
+	serviceports "goshop/internal/core/ports/services"
 	"goshop/internal/dto"
 	"goshop/internal/middleware"
 )
 
-type AddressService interface {
-	CreateAddress(ctx context.Context, userID int64, req *dto.CreateAddressRequest) (*entities.UserAddress, error)
-	GetUserAddresses(ctx context.Context, userID int64) ([]*entities.UserAddress, error)
-	GetAddressByID(ctx context.Context, addressID int64) (*entities.UserAddress, error)
-	UpdateAddress(ctx context.Context, userID int64, addressID int64, req *dto.UpdateAddressRequest) (*entities.UserAddress, error)
-	GetAddressByIDForUser(ctx context.Context, userID, addressID int64) (*entities.UserAddress, error)
-	DeleteAddress(ctx context.Context, userID int64, addressID int64) error
-}
-
 type AddressHandler struct {
-	AddressService AddressService
+	addressService serviceports.AddressService
 }
 
-func NewAddressHandler(s AddressService) *AddressHandler {
+func NewAddressHandler(s serviceports.AddressService) *AddressHandler {
 	return &AddressHandler{
-		AddressService: s,
+		addressService: s,
 	}
 }
 
@@ -45,7 +36,7 @@ func (h *AddressHandler) CreateAddress(c *gin.Context) {
 		return
 	}
 
-	result, err := h.AddressService.CreateAddress(c.Request.Context(), userID, &req)
+	result, err := h.addressService.CreateAddress(c.Request.Context(), userID, &req)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
@@ -65,7 +56,7 @@ func (h *AddressHandler) GetUserAddresses(c *gin.Context) {
 		return
 	}
 
-	addresses, err := h.AddressService.GetUserAddresses(ctx, userID)
+	addresses, err := h.addressService.GetUserAddresses(ctx, userID)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
@@ -93,7 +84,7 @@ func (h *AddressHandler) GetAddressByID(c *gin.Context) {
 		return
 	}
 
-	address, err := h.AddressService.GetAddressByIDForUser(c.Request.Context(), userID, int64(addressID))
+	address, err := h.addressService.GetAddressByIDForUser(c.Request.Context(), userID, int64(addressID))
 	if err != nil {
 		if strings.Contains(err.Error(), "access denied") {
 			c.JSON(403, gin.H{"error": "Access denied"})
@@ -127,7 +118,7 @@ func (h *AddressHandler) UpdateAddress(c *gin.Context) {
 		return
 	}
 
-	updatedAddress, err := h.AddressService.UpdateAddress(c.Request.Context(), userID, int64(addressID), &req)
+	updatedAddress, err := h.addressService.UpdateAddress(c.Request.Context(), userID, int64(addressID), &req)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
@@ -151,7 +142,7 @@ func (h *AddressHandler) DeleteAddress(c *gin.Context) {
 		return
 	}
 
-	err = h.AddressService.DeleteAddress(c.Request.Context(), userID, int64(addressID))
+	err = h.addressService.DeleteAddress(c.Request.Context(), userID, int64(addressID))
 	if err != nil {
 		if strings.Contains(err.Error(), "access denied") {
 			c.JSON(403, gin.H{"error": "Access denied"})

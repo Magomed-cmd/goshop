@@ -11,25 +11,16 @@ import (
 
 	errors2 "goshop/internal/core/domain/errors"
 	"goshop/internal/core/domain/types"
+	serviceports "goshop/internal/core/ports/services"
 	"goshop/internal/dto"
 )
 
-type ProductService interface {
-	CreateProduct(ctx context.Context, req *dto.CreateProductRequest) (*dto.ProductResponse, error)
-	GetProductByID(ctx context.Context, id int64) (*dto.ProductResponse, error)
-	UpdateProduct(ctx context.Context, id int64, req *dto.UpdateProductRequest) (*dto.ProductResponse, error)
-	DeleteProduct(ctx context.Context, id int64) error
-	GetProducts(ctx context.Context, filters types.ProductFilters) (*dto.ProductCatalogResponse, error)
-	SaveProductImg(ctx context.Context, reader io.ReadCloser, size, productID int64, contentType, extension string) (*string, error)
-	DeleteProductImg(ctx context.Context, productID, imgID int64) error
-}
-
 type ProductHandler struct {
-	productService ProductService
+	productService serviceports.ProductService
 	logger         *zap.Logger
 }
 
-func NewProductHandler(productService ProductService, logger *zap.Logger) *ProductHandler {
+func NewProductHandler(productService serviceports.ProductService, logger *zap.Logger) *ProductHandler {
 	return &ProductHandler{
 		productService: productService,
 		logger:         logger,

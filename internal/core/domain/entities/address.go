@@ -1,19 +1,20 @@
 package entities
 
 import (
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type UserAddress struct {
-	ID         int64     `gorm:"primaryKey" json:"id"`
-	UUID       uuid.UUID `gorm:"type:uuid;unique;not null" json:"uuid"`
-	UserID     int64     `gorm:"not null;index" json:"user_id"`
-	Address    string    `gorm:"not null" json:"address"`
+	ID         int64     `json:"id"`
+	UUID       uuid.UUID `json:"uuid"`
+	UserID     int64     `json:"user_id"`
+	Address    string    `json:"address"`
 	City       *string   `json:"city"`
 	PostalCode *string   `json:"postal_code"`
 	Country    *string   `json:"country"`
-	CreatedAt  time.Time `gorm:"autoCreateTime" json:"created_at"`
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 func (UserAddress) TableName() string {

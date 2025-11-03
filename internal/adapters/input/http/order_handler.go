@@ -8,25 +8,17 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"goshop/internal/core/domain/types"
+	serviceports "goshop/internal/core/ports/services"
 	"goshop/internal/dto"
 	"goshop/internal/middleware"
 )
 
-type OrderService interface {
-	CreateOrder(ctx context.Context, userID int64, req *dto.CreateOrderRequest) (*dto.OrderResponse, error)
-	GetUserOrders(ctx context.Context, userID int64, filters types.OrderFilters) (*dto.OrdersListResponse, error)
-	GetOrderByID(ctx context.Context, userID int64, orderID int64) (*dto.OrderResponse, error)
-	CancelOrder(ctx context.Context, userID int64, orderID int64) error
-	UpdateOrderStatus(ctx context.Context, orderID int64, status string) error
-	GetAllOrders(ctx context.Context, filters types.AdminOrderFilters) (*dto.OrdersListResponse, error)
-}
-
 type OrderHandler struct {
-	OrderService OrderService
+	service serviceports.OrderService
 }
 
-func NewOrderHandler(s OrderService) *OrderHandler {
-	return &OrderHandler{OrderService: s}
+func NewOrderHandler(s serviceports.OrderService) *OrderHandler {
+	return &OrderHandler{service: s}
 }
 
 func (h *OrderHandler) CreateOrder(c *gin.Context) {
@@ -46,7 +38,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.OrderService.CreateOrder(ctx, userID, req)
+	resp, err := h.service.CreateOrder(ctx, userID, req)
 	if err != nil {
 		HandleDomainError(c, err)
 		return
@@ -70,7 +62,7 @@ func (h *OrderHandler) GetUserOrders(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.OrderService.GetUserOrders(ctx, userID, filters)
+	resp, err := h.service.GetUserOrders(ctx, userID, filters)
 	if err != nil {
 		HandleDomainError(c, err)
 		return
@@ -97,7 +89,7 @@ func (h *OrderHandler) GetOrderByID(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.OrderService.GetOrderByID(ctx, userID, orderID)
+	resp, err := h.service.GetOrderByID(ctx, userID, orderID)
 	if err != nil {
 		HandleDomainError(c, err)
 		return
@@ -123,7 +115,7 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 		return
 	}
 
-	err = h.OrderService.CancelOrder(ctx, userID, orderID)
+	err = h.service.CancelOrder(ctx, userID, orderID)
 	if err != nil {
 		HandleDomainError(c, err)
 		return
@@ -155,7 +147,7 @@ func (h *OrderHandler) UpdateOrderStatus(c *gin.Context) {
 		return
 	}
 
-	err = h.OrderService.UpdateOrderStatus(ctx, orderID, req.Status)
+	err = h.service.UpdateOrderStatus(ctx, orderID, req.Status)
 	if err != nil {
 		HandleDomainError(c, err)
 		return
@@ -180,7 +172,7 @@ func (h *OrderHandler) GetAllOrders(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.OrderService.GetAllOrders(ctx, filters)
+	resp, err := h.service.GetAllOrders(ctx, filters)
 	if err != nil {
 		HandleDomainError(c, err)
 		return

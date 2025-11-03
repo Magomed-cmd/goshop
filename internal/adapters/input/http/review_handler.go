@@ -9,24 +9,16 @@ import (
 
 	errors2 "goshop/internal/core/domain/errors"
 	"goshop/internal/core/domain/types"
+	serviceports "goshop/internal/core/ports/services"
 	"goshop/internal/dto"
 	"goshop/internal/middleware"
 )
 
-type ReviewService interface {
-	CreateReview(ctx context.Context, req *dto.CreateReviewRequest, userID int64) (*dto.ReviewResponse, error)
-	GetReviewsWithFilters(ctx context.Context, filters types.ReviewFilters) (*dto.ReviewsListResponse, error)
-	GetReviewByID(ctx context.Context, reviewID int64) (*dto.ReviewResponse, error)
-	UpdateReview(ctx context.Context, userID int64, reviewID int64, req dto.UpdateReviewRequest) error
-	DeleteReview(ctx context.Context, userID int64, reviewID int64) error
-	GetReviewStats(ctx context.Context, productID int64) (*dto.ReviewStatsResponse, error)
-}
-
 type ReviewHandler struct {
-	reviewService ReviewService
+	reviewService serviceports.ReviewService
 }
 
-func NewReviewHandler(reviewService ReviewService) *ReviewHandler {
+func NewReviewHandler(reviewService serviceports.ReviewService) *ReviewHandler {
 	return &ReviewHandler{
 		reviewService: reviewService,
 	}

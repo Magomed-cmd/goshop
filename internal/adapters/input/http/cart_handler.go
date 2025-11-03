@@ -8,22 +8,15 @@ import (
 	"github.com/gin-gonic/gin"
 
 	errors2 "goshop/internal/core/domain/errors"
+	serviceports "goshop/internal/core/ports/services"
 	"goshop/internal/dto"
 )
 
-type CartService interface {
-	GetCart(ctx context.Context, userID int64) (*dto.CartResponse, error)
-	AddItem(ctx context.Context, userID int64, req *dto.AddToCartRequest) error
-	UpdateItem(ctx context.Context, userID int64, productID int64, quantity int) error
-	RemoveItem(ctx context.Context, userID int64, productID int64) error
-	ClearCart(ctx context.Context, userID int64) error
-}
-
 type CartHandler struct {
-	cartService CartService
+	cartService serviceports.CartService
 }
 
-func NewCartHandler(cartService CartService) *CartHandler {
+func NewCartHandler(cartService serviceports.CartService) *CartHandler {
 	return &CartHandler{
 		cartService: cartService,
 	}

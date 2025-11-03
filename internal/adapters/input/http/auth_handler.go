@@ -8,7 +8,8 @@ import (
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
-	"goshop/internal/core/domain/entities"
+	"goshop/internal/core/mappers"
+	serviceports "goshop/internal/core/ports/services"
 	"goshop/internal/dto"
 	"goshop/internal/oauth/google"
 	"goshop/internal/utils"
@@ -19,18 +20,14 @@ type OAuthProvider interface {
 	GetUserInfo(ctx context.Context, code string) (*google.UserInfo, error)
 }
 
-type AuthService interface {
-	OAuthLogin(ctx context.Context, userInfo *google.UserInfo) (*entities.User, string, error)
-}
-
 type OAuthHandler struct {
 	googleProvider OAuthProvider
-	authService    AuthService
+	authService    serviceports.UserService
 	logger         *zap.Logger
 	redis          *redis.Client
 }
 
-func NewOAuthHandler(googleProvider OAuthProvider, authService AuthService, redis *redis.Client, logger *zap.Logger) *OAuthHandler {
+func NewOAuthHandler(googleProvider OAuthProvider, authService serviceports.UserService, redis *redis.Client, logger *zap.Logger) *OAuthHandler {
 	return &OAuthHandler{
 		googleProvider: googleProvider,
 		authService:    authService,
@@ -97,13 +94,7 @@ func (h *OAuthHandler) GoogleCallback(c *gin.Context) {
 
 	resp := dto.AuthResponse{
 		Token: token,
-		User: dto.UserProfile{
-			UUID:  user.UUID.String(),
-			Email: user.Email,
-			Name:  user.Name,
-			Phone: user.Phone,
-			Role:  roleName,
-		},
+		User:  mappers.ToUserProfile(user, roleName),
 	}
 
 	h.logger.Info("oauth login successful", zap.String("email", user.Email), zap.String("provider", "google"))

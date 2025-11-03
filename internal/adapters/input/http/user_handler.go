@@ -11,30 +11,20 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
-	"goshop/internal/core/domain/entities"
 	errors2 "goshop/internal/core/domain/errors"
 	"goshop/internal/core/mappers"
+	serviceports "goshop/internal/core/ports/services"
 	"goshop/internal/dto"
 	"goshop/internal/middleware"
 	"goshop/internal/oauth/google"
 )
 
-type UserService interface {
-	Register(ctx context.Context, req *dto.RegisterRequest) (*entities.User, string, error)
-	Login(ctx context.Context, req *dto.LoginRequest) (*entities.User, string, error)
-	GetUserProfile(ctx context.Context, userID int64) (*dto.UserProfile, error)
-	UpdateProfile(ctx context.Context, userID int64, req *dto.UpdateProfileRequest) error
-	UploadAvatar(ctx context.Context, reader io.ReadCloser, size, userID int64, contentType, extension string) (string, error)
-	GetAvatar(ctx context.Context, userID int) (string, error)
-	OAuthLogin(ctx context.Context, userInfo *google.UserInfo) (*entities.User, string, error)
-}
-
 type UserHandler struct {
-	service UserService
+	service serviceports.UserService
 	logger  *zap.Logger
 }
 
-func NewUserHandler(s UserService, logger *zap.Logger) *UserHandler {
+func NewUserHandler(s serviceports.UserService, logger *zap.Logger) *UserHandler {
 	return &UserHandler{
 		service: s,
 		logger:  logger,
