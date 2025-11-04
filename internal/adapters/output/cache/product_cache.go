@@ -143,6 +143,5 @@ func (pc *ProductCache) InvalidateProductLists(ctx context.Context) error {
 }
 
 func (pc *ProductCache) InvalidateProductsByCategory(ctx context.Context, categoryID int64) error {
-	// TODO: оптимизировать - удалять только списки с categoryID
 	return pc.InvalidateProductLists(ctx)
 }

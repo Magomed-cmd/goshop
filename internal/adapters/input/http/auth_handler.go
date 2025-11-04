@@ -36,6 +36,14 @@ func NewOAuthHandler(googleProvider OAuthProvider, authService serviceports.User
 	}
 }
 
+// GoogleLogin godoc
+// @Summary     Google OAuth login
+// @Description Redirects the user to the Google OAuth consent screen
+// @Tags        auth
+// @Produce     json
+// @Success     302 {string} string "Redirect to Google OAuth"
+// @Failure     500 {object} map[string]string
+// @Router      /auth/google/login [get]
 func (h *OAuthHandler) GoogleLogin(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -54,6 +62,17 @@ func (h *OAuthHandler) GoogleLogin(c *gin.Context) {
 	c.Redirect(302, url)
 }
 
+// GoogleCallback godoc
+// @Summary     Google OAuth callback
+// @Description Handles Google OAuth callback, exchanges code for user info and returns JWT
+// @Tags        auth
+// @Produce     json
+// @Param       state query string true "OAuth state"
+// @Param       code  query string true "Authorization code"
+// @Success     200 {object} dto.AuthResponse
+// @Failure     400 {object} map[string]string
+// @Failure     500 {object} map[string]string
+// @Router      /auth/google/callback [get]
 func (h *OAuthHandler) GoogleCallback(c *gin.Context) {
 	ctx := c.Request.Context()
 

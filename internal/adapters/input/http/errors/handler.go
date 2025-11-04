@@ -9,7 +9,10 @@ import (
 	domainErrors "goshop/internal/core/domain/errors"
 )
 
-// errorStatusMap маппинг доменных ошибок на HTTP статус-коды
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
 var errorStatusMap = map[error]int{
 	// 404 Not Found
 	domainErrors.ErrNotFound:             http.StatusNotFound,
@@ -29,9 +32,9 @@ var errorStatusMap = map[error]int{
 	domainErrors.ErrInvalidPassword: http.StatusUnauthorized,
 
 	// 403 Forbidden
-	domainErrors.ErrForbidden:             http.StatusForbidden,
-	domainErrors.ErrOrderNotOwnedByUser:   http.StatusForbidden,
-	domainErrors.ErrReviewNotOwnedByUser:  http.StatusForbidden,
+	domainErrors.ErrForbidden:            http.StatusForbidden,
+	domainErrors.ErrOrderNotOwnedByUser:  http.StatusForbidden,
+	domainErrors.ErrReviewNotOwnedByUser: http.StatusForbidden,
 
 	// 400 Bad Request
 	domainErrors.ErrInvalidInput:        http.StatusBadRequest,
@@ -51,33 +54,31 @@ var errorStatusMap = map[error]int{
 	domainErrors.ErrInvalidEmail:        http.StatusBadRequest,
 
 	// 409 Conflict
-	domainErrors.ErrDuplicate:               http.StatusConflict,
-	domainErrors.ErrEmailExists:             http.StatusConflict,
-	domainErrors.ErrCategoryNameExists:      http.StatusConflict,
-	domainErrors.ErrProductNameExists:       http.StatusConflict,
-	domainErrors.ErrCartItemExists:          http.StatusConflict,
-	domainErrors.ErrOrderAlreadyCancelled:   http.StatusConflict,
-	domainErrors.ErrInsufficientStock:       http.StatusConflict,
-	domainErrors.ErrProductNotAvailable:     http.StatusConflict,
-	domainErrors.ErrCartEmpty:               http.StatusConflict,
-	domainErrors.ErrEmptyCart:               http.StatusConflict,
-	domainErrors.ErrOrderCannotBeCancelled:  http.StatusConflict,
+	domainErrors.ErrDuplicate:              http.StatusConflict,
+	domainErrors.ErrEmailExists:            http.StatusConflict,
+	domainErrors.ErrCategoryNameExists:     http.StatusConflict,
+	domainErrors.ErrProductNameExists:      http.StatusConflict,
+	domainErrors.ErrCartItemExists:         http.StatusConflict,
+	domainErrors.ErrOrderAlreadyCancelled:  http.StatusConflict,
+	domainErrors.ErrInsufficientStock:      http.StatusConflict,
+	domainErrors.ErrProductNotAvailable:    http.StatusConflict,
+	domainErrors.ErrCartEmpty:              http.StatusConflict,
+	domainErrors.ErrEmptyCart:              http.StatusConflict,
+	domainErrors.ErrOrderCannotBeCancelled: http.StatusConflict,
 }
 
-// HandleError обрабатывает доменную ошибку и возвращает соответствующий HTTP ответ
+
 func HandleError(c *gin.Context, err error) {
 	if err == nil {
 		return
 	}
 
-	// Ищем соответствующий статус-код в мапе
+
 	for domainErr, statusCode := range errorStatusMap {
 		if errors.Is(err, domainErr) {
 			c.JSON(statusCode, gin.H{"error": err.Error()})
 			return
 		}
 	}
-
-	// Если ошибка не найдена в мапе, возвращаем 500
 	c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 }

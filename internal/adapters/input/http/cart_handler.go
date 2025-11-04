@@ -20,6 +20,17 @@ func NewCartHandler(cartService serviceports.CartService) *CartHandler {
 	}
 }
 
+// GetCart godoc
+// @Summary     Get cart
+// @Description Returns the current cart for the authenticated user
+// @Tags        cart
+// @Produce     json
+// @Success     200 {object} dto.CartResponse
+// @Failure     401 {object} dto.ErrorResponse
+// @Failure     404 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Security    BearerAuth
+// @Router      /api/v1/cart [get]
 func (h *CartHandler) GetCart(c *gin.Context) {
 	ctx := c.Request.Context()
 	userID := c.GetInt64("user_id")
@@ -33,6 +44,21 @@ func (h *CartHandler) GetCart(c *gin.Context) {
 	c.JSON(200, cart)
 }
 
+// AddItem godoc
+// @Summary     Add item to cart
+// @Description Adds a product to the authenticated user's cart
+// @Tags        cart
+// @Accept      json
+// @Produce     json
+// @Param       request body dto.AddToCartRequest true "Cart item payload"
+// @Success     201 {object} map[string]string
+// @Failure     400 {object} dto.ErrorResponse
+// @Failure     401 {object} dto.ErrorResponse
+// @Failure     404 {object} dto.ErrorResponse
+// @Failure     409 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Security    BearerAuth
+// @Router      /api/v1/cart/items [post]
 func (h *CartHandler) AddItem(c *gin.Context) {
 	ctx := c.Request.Context()
 	userID := c.GetInt64("user_id")
@@ -52,6 +78,22 @@ func (h *CartHandler) AddItem(c *gin.Context) {
 	c.JSON(201, gin.H{"message": "Item added to cart"})
 }
 
+// UpdateItem godoc
+// @Summary     Update cart item
+// @Description Updates the quantity of a product in the authenticated user's cart
+// @Tags        cart
+// @Accept      json
+// @Produce     json
+// @Param       product_id path int true "Product ID"
+// @Param       request body dto.UpdateCartItemRequest true "Quantity payload"
+// @Success     200 {object} map[string]string
+// @Failure     400 {object} dto.ErrorResponse
+// @Failure     401 {object} dto.ErrorResponse
+// @Failure     404 {object} dto.ErrorResponse
+// @Failure     409 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Security    BearerAuth
+// @Router      /api/v1/cart/items/{product_id} [put]
 func (h *CartHandler) UpdateItem(c *gin.Context) {
 	ctx := c.Request.Context()
 	userID := c.GetInt64("user_id")
@@ -63,9 +105,7 @@ func (h *CartHandler) UpdateItem(c *gin.Context) {
 		return
 	}
 
-	var req struct {
-		Quantity int `json:"quantity" binding:"required,min=1"`
-	}
+	var req dto.UpdateCartItemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": "Invalid request body"})
 		return
@@ -80,6 +120,19 @@ func (h *CartHandler) UpdateItem(c *gin.Context) {
 	c.JSON(200, gin.H{"message": "Item updated in cart"})
 }
 
+// RemoveItem godoc
+// @Summary     Remove cart item
+// @Description Removes a product from the authenticated user's cart
+// @Tags        cart
+// @Produce     json
+// @Param       product_id path int true "Product ID"
+// @Success     200 {object} map[string]string
+// @Failure     400 {object} dto.ErrorResponse
+// @Failure     401 {object} dto.ErrorResponse
+// @Failure     404 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Security    BearerAuth
+// @Router      /api/v1/cart/items/{product_id} [delete]
 func (h *CartHandler) RemoveItem(c *gin.Context) {
 	ctx := c.Request.Context()
 	userID := c.GetInt64("user_id")
@@ -100,6 +153,16 @@ func (h *CartHandler) RemoveItem(c *gin.Context) {
 	c.JSON(200, gin.H{"message": "Item removed from cart"})
 }
 
+// ClearCart godoc
+// @Summary     Clear cart
+// @Description Removes all products from the authenticated user's cart
+// @Tags        cart
+// @Produce     json
+// @Success     200 {object} map[string]string
+// @Failure     401 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Security    BearerAuth
+// @Router      /api/v1/cart [delete]
 func (h *CartHandler) ClearCart(c *gin.Context) {
 	ctx := c.Request.Context()
 	userID := c.GetInt64("user_id")
@@ -112,4 +175,3 @@ func (h *CartHandler) ClearCart(c *gin.Context) {
 
 	c.JSON(200, gin.H{"message": "Cart cleared"})
 }
-

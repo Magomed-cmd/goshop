@@ -5,6 +5,10 @@ type AddToCartRequest struct {
 	Quantity  int   `json:"quantity" binding:"required,min=1"`
 }
 
+type UpdateCartItemRequest struct {
+	Quantity int `json:"quantity" binding:"required,min=1"`
+}
+
 type CartResponse struct {
 	ID         int64              `json:"id"`
 	Items      []CartItemResponse `json:"items"`

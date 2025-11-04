@@ -24,6 +24,22 @@ func NewProductHandler(productService serviceports.ProductService, logger *zap.L
 	}
 }
 
+// CreateProduct godoc
+// @Summary     Create product
+// @Description Creates a new product (admin only)
+// @Tags        admin/products
+// @Accept      json
+// @Produce     json
+// @Param       request body dto.CreateProductRequest true "Product payload"
+// @Success     201 {object} dto.ProductResponse
+// @Failure     400 {object} dto.ErrorResponse
+// @Failure     401 {object} dto.ErrorResponse
+// @Failure     403 {object} dto.ErrorResponse
+// @Failure     404 {object} dto.ErrorResponse
+// @Failure     409 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Security    BearerAuth
+// @Router      /admin/products [post]
 func (h *ProductHandler) CreateProduct(c *gin.Context) {
 	h.logger.Info("CreateProduct handler started")
 
@@ -46,6 +62,22 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 	c.JSON(http.StatusCreated, result)
 }
 
+// GetProducts godoc
+// @Summary     List products
+// @Description Returns products with optional filters
+// @Tags        products
+// @Produce     json
+// @Param       page        query int    false "Page number"
+// @Param       limit       query int    false "Page size"
+// @Param       category_id query int    false "Category ID filter"
+// @Param       sort_by     query string false "Sort field"
+// @Param       sort_order  query string false "Sort order"
+// @Param       min_price   query number false "Minimum price"
+// @Param       max_price   query number false "Maximum price"
+// @Success     200 {object} dto.ProductCatalogResponse
+// @Failure     400 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Router      /products [get]
 func (h *ProductHandler) GetProducts(c *gin.Context) {
 	h.logger.Debug("GetProducts handler started")
 
@@ -67,6 +99,17 @@ func (h *ProductHandler) GetProducts(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+// GetProductByID godoc
+// @Summary     Get product
+// @Description Returns product details by identifier
+// @Tags        products
+// @Produce     json
+// @Param       id path int true "Product ID"
+// @Success     200 {object} dto.ProductResponse
+// @Failure     400 {object} dto.ErrorResponse
+// @Failure     404 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Router      /products/{id} [get]
 func (h *ProductHandler) GetProductByID(c *gin.Context) {
 	h.logger.Debug("GetProductByID handler started")
 
@@ -89,6 +132,22 @@ func (h *ProductHandler) GetProductByID(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+// GetProductsByCategory godoc
+// @Summary     Products by category
+// @Description Returns products that belong to the specified category
+// @Tags        products
+// @Produce     json
+// @Param       id path int true "Category ID"
+// @Param       page        query int    false "Page number"
+// @Param       limit       query int    false "Page size"
+// @Param       sort_by     query string false "Sort field"
+// @Param       sort_order  query string false "Sort order"
+// @Param       min_price   query number false "Minimum price"
+// @Param       max_price   query number false "Maximum price"
+// @Success     200 {object} dto.ProductCatalogResponse
+// @Failure     400 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Router      /products/category/{id} [get]
 func (h *ProductHandler) GetProductsByCategory(c *gin.Context) {
 	h.logger.Debug("GetProductsByCategory handler started")
 
@@ -119,6 +178,23 @@ func (h *ProductHandler) GetProductsByCategory(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+// UpdateProduct godoc
+// @Summary     Update product
+// @Description Updates product details (admin only)
+// @Tags        admin/products
+// @Accept      json
+// @Produce     json
+// @Param       id      path int                      true "Product ID"
+// @Param       request body dto.UpdateProductRequest true "Product payload"
+// @Success     200 {object} dto.ProductResponse
+// @Failure     400 {object} dto.ErrorResponse
+// @Failure     401 {object} dto.ErrorResponse
+// @Failure     403 {object} dto.ErrorResponse
+// @Failure     404 {object} dto.ErrorResponse
+// @Failure     409 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Security    BearerAuth
+// @Router      /admin/products/{id} [put]
 func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 	h.logger.Info("UpdateProduct handler started")
 
@@ -148,6 +224,20 @@ func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+// DeleteProduct godoc
+// @Summary     Delete product
+// @Description Deletes a product (admin only)
+// @Tags        admin/products
+// @Produce     json
+// @Param       id path int true "Product ID"
+// @Success     204 {string} string "No Content"
+// @Failure     400 {object} dto.ErrorResponse
+// @Failure     401 {object} dto.ErrorResponse
+// @Failure     403 {object} dto.ErrorResponse
+// @Failure     404 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Security    BearerAuth
+// @Router      /admin/products/{id} [delete]
 func (h *ProductHandler) DeleteProduct(c *gin.Context) {
 	h.logger.Info("DeleteProduct handler started")
 
@@ -170,6 +260,20 @@ func (h *ProductHandler) DeleteProduct(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// ToggleProductStatus godoc
+// @Summary     Toggle product status
+// @Description Toggles availability status of a product (admin only)
+// @Tags        admin/products
+// @Produce     json
+// @Param       id path int true "Product ID"
+// @Success     200 {object} map[string]string
+// @Failure     400 {object} dto.ErrorResponse
+// @Failure     401 {object} dto.ErrorResponse
+// @Failure     403 {object} dto.ErrorResponse
+// @Failure     404 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Security    BearerAuth
+// @Router      /admin/products/{id}/toggle [patch]
 func (h *ProductHandler) ToggleProductStatus(c *gin.Context) {
 	h.logger.Info("ToggleProductStatus handler started")
 
@@ -192,6 +296,22 @@ func (h *ProductHandler) ToggleProductStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Product status toggled"})
 }
 
+// SaveProductImg godoc
+// @Summary     Upload product image
+// @Description Uploads an image for a product
+// @Tags        admin/products
+// @Accept      multipart/form-data
+// @Produce     json
+// @Param       id    path     int  true "Product ID"
+// @Param       image formData file true "Product image"
+// @Success     200 {object} map[string]string
+// @Failure     400 {object} dto.ErrorResponse
+// @Failure     401 {object} dto.ErrorResponse
+// @Failure     403 {object} dto.ErrorResponse
+// @Failure     404 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Security    BearerAuth
+// @Router      /admin/products/{id}/images [post]
 func (h *ProductHandler) SaveProductImg(c *gin.Context) {
 	h.logger.Info("SaveProductImg handler started")
 
@@ -253,6 +373,21 @@ func (h *ProductHandler) SaveProductImg(c *gin.Context) {
 	})
 }
 
+// DeleteProductImg godoc
+// @Summary     Delete product image
+// @Description Removes an image from a product (admin only)
+// @Tags        admin/products
+// @Produce     json
+// @Param       id     path int true "Product ID"
+// @Param       img_id path int true "Image ID"
+// @Success     200 {object} map[string]string
+// @Failure     400 {object} dto.ErrorResponse
+// @Failure     401 {object} dto.ErrorResponse
+// @Failure     403 {object} dto.ErrorResponse
+// @Failure     404 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Security    BearerAuth
+// @Router      /admin/products/{id}/images/{img_id} [delete]
 func (h *ProductHandler) DeleteProductImg(c *gin.Context) {
 	h.logger.Info("Starting DeleteProductImg handler")
 

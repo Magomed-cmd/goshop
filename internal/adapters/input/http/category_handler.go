@@ -4,11 +4,8 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
 	httpErrors "goshop/internal/adapters/input/http/errors"
-	"goshop/internal/core/domain/entities"
-	"goshop/internal/core/mappers"
 	serviceports "goshop/internal/core/ports/services"
 	"goshop/internal/dto"
 )
@@ -23,6 +20,14 @@ func NewCategoryHandler(s serviceports.CategoryService) *CategoryHandler {
 	}
 }
 
+// GetAllCategories godoc
+// @Summary     Get categories
+// @Description Returns the full list of categories with product counts
+// @Tags        categories
+// @Produce     json
+// @Success     200 {object} dto.CategoriesListResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Router      /categories [get]
 func (h *CategoryHandler) GetAllCategories(c *gin.Context) {
 
 	ctx := c.Request.Context()
@@ -36,6 +41,17 @@ func (h *CategoryHandler) GetAllCategories(c *gin.Context) {
 	c.JSON(200, resp)
 }
 
+// GetCategoryByID godoc
+// @Summary     Get category by ID
+// @Description Returns category details for the provided identifier
+// @Tags        categories
+// @Produce     json
+// @Param       id path int true "Category ID"
+// @Success     200 {object} dto.CategoryResponse
+// @Failure     400 {object} dto.ErrorResponse
+// @Failure     404 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Router      /categories/{id} [get]
 func (h *CategoryHandler) GetCategoryByID(c *gin.Context) {
 	ctx := c.Request.Context()
 	idStr := c.Param("id")
@@ -51,17 +67,24 @@ func (h *CategoryHandler) GetCategoryByID(c *gin.Context) {
 		return
 	}
 
-	response := dto.CategoryResponse{
-		ID:           category.ID,
-		UUID:         category.UUID,
-		Name:         category.Name,
-		Description:  category.Description,
-		ProductCount: int(category.ProductCount),
-	}
-
-	c.JSON(200, response)
+	c.JSON(200, category)
 }
 
+// CreateCategory godoc
+// @Summary     Create category
+// @Description Creates a new category
+// @Tags        admin/categories
+// @Accept      json
+// @Produce     json
+// @Param       request body dto.CreateCategoryRequest true "Category data"
+// @Success     201 {object} dto.CategoryResponse
+// @Failure     400 {object} dto.ErrorResponse
+// @Failure     401 {object} dto.ErrorResponse
+// @Failure     403 {object} dto.ErrorResponse
+// @Failure     409 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Security    BearerAuth
+// @Router      /admin/categories [post]
 func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 	ctx := c.Request.Context()
 	var req dto.CreateCategoryRequest
@@ -77,17 +100,26 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 		return
 	}
 
-	response := dto.CategoryResponse{
-		ID:           createdCategory.ID,
-		UUID:         createdCategory.UUID.String(),
-		Name:         createdCategory.Name,
-		Description:  createdCategory.Description,
-		ProductCount: 0,
-	}
-
-	c.JSON(201, response)
+	c.JSON(201, createdCategory)
 }
 
+// UpdateCategory godoc
+// @Summary     Update category
+// @Description Updates category fields for the provided identifier
+// @Tags        admin/categories
+// @Accept      json
+// @Produce     json
+// @Param       id path int true "Category ID"
+// @Param       request body dto.UpdateCategoryRequest true "Category data"
+// @Success     200 {object} dto.CategoryResponse
+// @Failure     400 {object} dto.ErrorResponse
+// @Failure     401 {object} dto.ErrorResponse
+// @Failure     403 {object} dto.ErrorResponse
+// @Failure     404 {object} dto.ErrorResponse
+// @Failure     409 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Security    BearerAuth
+// @Router      /admin/categories/{id} [put]
 func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -103,42 +135,29 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 		return
 	}
 
-	cur, err := h.categoryService.GetCategoryByID(ctx, id)
+	updated, err := h.categoryService.UpdateCategory(ctx, id, &req)
 	if err != nil {
 		httpErrors.HandleError(c, err)
 		return
 	}
 
-	name := cur.Name
-	if req.Name != nil {
-		name = *req.Name
-	}
-	desc := cur.Description
-	if req.Description != nil {
-		desc = req.Description
-	}
-
-	entity := &entities.Category{
-		ID:          cur.ID,
-		UUID:        uuid.MustParse(cur.UUID),
-		Name:        name,
-		Description: desc,
-		CreatedAt:   cur.CreatedAt,
-		UpdatedAt:   cur.UpdatedAt,
-	}
-
-	updated, err := h.categoryService.UpdateCategory(ctx, entity)
-	if err != nil {
-		httpErrors.HandleError(c, err)
-		return
-	}
-
-	resp := mappers.ToCategoryResponse(updated)
-	resp.ProductCount = cur.ProductCount
-
-	c.JSON(200, resp)
+	c.JSON(200, updated)
 }
 
+// DeleteCategory godoc
+// @Summary     Delete category
+// @Description Deletes category by identifier
+// @Tags        admin/categories
+// @Produce     json
+// @Param       id path int true "Category ID"
+// @Success     204 {string} string "No Content"
+// @Failure     400 {object} dto.ErrorResponse
+// @Failure     401 {object} dto.ErrorResponse
+// @Failure     403 {object} dto.ErrorResponse
+// @Failure     404 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Security    BearerAuth
+// @Router      /admin/categories/{id} [delete]
 func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
 	ctx := c.Request.Context()
 	idStr := c.Param("id")

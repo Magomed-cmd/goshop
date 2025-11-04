@@ -28,6 +28,18 @@ func NewUserHandler(s serviceports.UserService, logger *zap.Logger) *UserHandler
 	}
 }
 
+// Register godoc
+// @Summary     Register user
+// @Description Registers a new user and returns JWT token
+// @Tags        auth
+// @Accept      json
+// @Produce     json
+// @Param       request body dto.RegisterRequest true "Registration payload"
+// @Success     201 {object} dto.AuthResponse
+// @Failure     400 {object} dto.ErrorResponse
+// @Failure     409 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Router      /auth/register [post]
 func (h *UserHandler) Register(c *gin.Context) {
 
 	var req dto.RegisterRequest
@@ -58,6 +70,18 @@ func (h *UserHandler) Register(c *gin.Context) {
 	c.JSON(201, resp)
 }
 
+// Login godoc
+// @Summary     Login user
+// @Description Authenticates user credentials and returns JWT token
+// @Tags        auth
+// @Accept      json
+// @Produce     json
+// @Param       request body dto.LoginRequest true "Login payload"
+// @Success     200 {object} dto.AuthResponse
+// @Failure     400 {object} dto.ErrorResponse
+// @Failure     401 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Router      /auth/login [post]
 func (h *UserHandler) Login(c *gin.Context) {
 
 	var req dto.LoginRequest
@@ -88,6 +112,17 @@ func (h *UserHandler) Login(c *gin.Context) {
 	c.JSON(200, resp)
 }
 
+// GetProfile godoc
+// @Summary     Get profile
+// @Description Returns the current user's profile
+// @Tags        profile
+// @Produce     json
+// @Success     200 {object} dto.UserProfile
+// @Failure     401 {object} dto.ErrorResponse
+// @Failure     404 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Security    BearerAuth
+// @Router      /api/v1/profile [get]
 func (h *UserHandler) GetProfile(c *gin.Context) {
 
 	userID, exists := middleware.GetUserID(c)
@@ -105,6 +140,19 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 	c.JSON(200, profile)
 }
 
+// UpdateProfile godoc
+// @Summary     Update profile
+// @Description Updates the authenticated user's profile
+// @Tags        profile
+// @Accept      json
+// @Produce     json
+// @Param       request body dto.UpdateProfileRequest true "Profile payload"
+// @Success     200 {object} map[string]string
+// @Failure     400 {object} dto.ErrorResponse
+// @Failure     401 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Security    BearerAuth
+// @Router      /api/v1/profile [put]
 func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
@@ -128,6 +176,19 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	c.JSON(200, gin.H{"message": "Profile updated successfully"})
 }
 
+// UploadAvatar godoc
+// @Summary     Upload avatar
+// @Description Uploads or replaces the authenticated user's avatar
+// @Tags        profile
+// @Accept      multipart/form-data
+// @Produce     json
+// @Param       avatar formData file true "Avatar image"
+// @Success     200 {object} map[string]string
+// @Failure     400 {object} dto.ErrorResponse
+// @Failure     401 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Security    BearerAuth
+// @Router      /api/v1/profile/avatar [put]
 func (h *UserHandler) UploadAvatar(c *gin.Context) {
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
@@ -239,6 +300,17 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 	c.JSON(200, gin.H{"message": "Avatar uploaded successfully", "imageURL": url})
 }
 
+// GetAvatar godoc
+// @Summary     Get avatar
+// @Description Returns a signed URL to the authenticated user's avatar
+// @Tags        profile
+// @Produce     json
+// @Success     200 {object} map[string]string
+// @Failure     401 {object} dto.ErrorResponse
+// @Failure     404 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Security    BearerAuth
+// @Router      /api/v1/avatar [get]
 func (h *UserHandler) GetAvatar(c *gin.Context) {
 	ctx := c.Request.Context()
 

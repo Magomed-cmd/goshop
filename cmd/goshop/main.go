@@ -1,9 +1,16 @@
 package main
 
-import (
-	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
+// @title        Goshop API
+// @version      1.0
+// @description  REST API for the Goshop e-commerce platform.
+// @BasePath     /
+// @schemes      https http
+// @securityDefinitions.apikey BearerAuth
+// @in          header
+// @name        Authorization
 
+import (
+	_ "goshop/docs"
 	storageadapter "goshop/internal/adapters/output/storage"
 	"goshop/internal/config"
 	"goshop/internal/infrastructure"
@@ -11,6 +18,9 @@ import (
 	redisdb "goshop/internal/infrastructure/database/redis"
 	"goshop/internal/logger"
 	"goshop/internal/oauth/google"
+
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 func main() {

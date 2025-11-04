@@ -92,7 +92,11 @@ func (s *CategoryService) GetCategoryByID(ctx context.Context, id int64) (*dto.C
 	return &response, nil
 }
 
-func (s *CategoryService) CreateCategory(ctx context.Context, req *dto.CreateCategoryRequest) (*entities.Category, error) {
+func (s *CategoryService) CreateCategory(ctx context.Context, req *dto.CreateCategoryRequest) (*dto.CategoryResponse, error) {
+	if req == nil {
+		return nil, errors.ErrInvalidInput
+	}
+
 	now := time.Now()
 
 	category := &entities.Category{
@@ -109,24 +113,53 @@ func (s *CategoryService) CreateCategory(ctx context.Context, req *dto.CreateCat
 	if err := s.categoryCache.DeleteAllCategories(ctx); err != nil {
 		s.logger.Warn("failed to delete all categories from cache after create", zap.Error(err))
 	}
-	return category, nil
+
+	resp := mappers.ToCategoryResponse(category)
+	return &resp, nil
 }
 
-func (s *CategoryService) UpdateCategory(ctx context.Context, category *entities.Category) (*entities.Category, error) {
-	if category == nil {
-		return nil, errors.ErrInvalidCategoryData
-	}
-	if category.ID <= 0 {
+func (s *CategoryService) UpdateCategory(ctx context.Context, id int64, req *dto.UpdateCategoryRequest) (*dto.CategoryResponse, error) {
+	if id <= 0 {
 		return nil, errors.ErrInvalidInput
 	}
-	if category.Name == "" {
-		return nil, errors.ErrInvalidCategoryData
-	}
-	if category.Description == nil {
+	if req == nil {
 		return nil, errors.ErrInvalidCategoryData
 	}
 
-	updated, err := s.categoryRepo.UpdateCategory(ctx, category)
+	current, err := s.categoryRepo.GetCategoryByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if current == nil {
+		return nil, errors.ErrCategoryNotFound
+	}
+
+	name := current.Name
+	if req.Name != nil {
+		name = *req.Name
+	}
+	if name == "" {
+		return nil, errors.ErrInvalidCategoryData
+	}
+
+	description := current.Description
+	if req.Description != nil {
+		description = req.Description
+	}
+	if description == nil {
+		return nil, errors.ErrInvalidCategoryData
+	}
+
+	entity := &entities.Category{
+		ID:          current.ID,
+		UUID:        current.UUID,
+		Name:        name,
+		Description: description,
+		CreatedAt:   current.CreatedAt,
+		UpdatedAt:   current.UpdatedAt,
+	}
+
+	updated, err := s.categoryRepo.UpdateCategory(ctx, entity)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +172,10 @@ func (s *CategoryService) UpdateCategory(ctx context.Context, category *entities
 		s.logger.Warn("failed to delete all categories from cache after update", zap.Error(err))
 	}
 
-	return updated, nil
+	resp := mappers.ToCategoryResponse(updated)
+	resp.ProductCount = int(current.ProductCount)
+
+	return &resp, nil
 }
 
 func (s *CategoryService) DeleteCategory(ctx context.Context, id int64) error {

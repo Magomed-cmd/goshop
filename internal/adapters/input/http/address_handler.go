@@ -21,6 +21,21 @@ func NewAddressHandler(s serviceports.AddressService) *AddressHandler {
 	}
 }
 
+// CreateAddress godoc
+// @Summary     Create address
+// @Description Creates a new address for the authenticated user
+// @Tags        addresses
+// @Accept      json
+// @Produce     json
+// @Param       request body dto.CreateAddressRequest true "Address data"
+// @Success     201 {object} dto.AddressResponse
+// @Failure     400 {object} dto.ErrorResponse
+// @Failure     401 {object} dto.ErrorResponse
+// @Failure     403 {object} dto.ErrorResponse
+// @Failure     409 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Security    BearerAuth
+// @Router      /api/v1/addresses [post]
 func (h *AddressHandler) CreateAddress(c *gin.Context) {
 
 	ctx := c.Request.Context()
@@ -45,6 +60,16 @@ func (h *AddressHandler) CreateAddress(c *gin.Context) {
 	c.JSON(201, resp)
 }
 
+// GetUserAddresses godoc
+// @Summary     List addresses
+// @Description Returns all addresses for the authenticated user
+// @Tags        addresses
+// @Produce     json
+// @Success     200 {array} dto.AddressResponse
+// @Failure     401 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Security    BearerAuth
+// @Router      /api/v1/addresses [get]
 func (h *AddressHandler) GetUserAddresses(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -63,6 +88,20 @@ func (h *AddressHandler) GetUserAddresses(c *gin.Context) {
 	c.JSON(200, resp)
 }
 
+// GetAddressByID godoc
+// @Summary     Get address
+// @Description Returns address details for the authenticated user
+// @Tags        addresses
+// @Produce     json
+// @Param       id path int true "Address ID"
+// @Success     200 {object} dto.AddressResponse
+// @Failure     400 {object} dto.ErrorResponse
+// @Failure     401 {object} dto.ErrorResponse
+// @Failure     403 {object} dto.ErrorResponse
+// @Failure     404 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Security    BearerAuth
+// @Router      /api/v1/addresses/{id} [get]
 func (h *AddressHandler) GetAddressByID(c *gin.Context) {
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
@@ -85,6 +124,22 @@ func (h *AddressHandler) GetAddressByID(c *gin.Context) {
 	c.JSON(200, resp)
 }
 
+// UpdateAddress godoc
+// @Summary     Update address
+// @Description Updates an existing address belonging to the authenticated user
+// @Tags        addresses
+// @Accept      json
+// @Produce     json
+// @Param       id path int true "Address ID"
+// @Param       request body dto.UpdateAddressRequest true "Address data"
+// @Success     200 {object} dto.AddressResponse
+// @Failure     400 {object} dto.ErrorResponse
+// @Failure     401 {object} dto.ErrorResponse
+// @Failure     403 {object} dto.ErrorResponse
+// @Failure     404 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Security    BearerAuth
+// @Router      /api/v1/addresses/{id} [put]
 func (h *AddressHandler) UpdateAddress(c *gin.Context) {
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
@@ -113,6 +168,20 @@ func (h *AddressHandler) UpdateAddress(c *gin.Context) {
 	c.JSON(200, resp)
 }
 
+// DeleteAddress godoc
+// @Summary     Delete address
+// @Description Deletes an address belonging to the authenticated user
+// @Tags        addresses
+// @Produce     json
+// @Param       id path int true "Address ID"
+// @Success     204 {string} string "No Content"
+// @Failure     400 {object} dto.ErrorResponse
+// @Failure     401 {object} dto.ErrorResponse
+// @Failure     403 {object} dto.ErrorResponse
+// @Failure     404 {object} dto.ErrorResponse
+// @Failure     500 {object} dto.ErrorResponse
+// @Security    BearerAuth
+// @Router      /api/v1/addresses/{id} [delete]
 func (h *AddressHandler) DeleteAddress(c *gin.Context) {
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
