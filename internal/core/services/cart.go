@@ -9,9 +9,7 @@ import (
 
 	"goshop/internal/core/domain/entities"
 	errors2 "goshop/internal/core/domain/errors"
-	"goshop/internal/core/mappers"
 	"goshop/internal/core/ports/repositories"
-	"goshop/internal/dto"
 )
 
 type CartService struct {
@@ -26,7 +24,7 @@ func NewCartService(cartRepo repositories.CartRepository, productRepo repositori
 	}
 }
 
-func (s *CartService) GetCart(ctx context.Context, userID int64) (*dto.CartResponse, error) {
+func (s *CartService) GetCart(ctx context.Context, userID int64) (*entities.Cart, error) {
 	cart, err := s.cartRepo.GetUserCart(ctx, userID)
 	if err != nil {
 		if errors.Is(err, errors2.ErrCartNotFound) {
@@ -39,20 +37,19 @@ func (s *CartService) GetCart(ctx context.Context, userID int64) (*dto.CartRespo
 		}
 	}
 
-	response := mappers.ToCartResponse(cart)
-	if response == nil {
+	if cart == nil {
 		return nil, errors2.ErrCartNotFound
 	}
 
-	return response, nil
+	return cart, nil
 }
 
-func (s *CartService) AddItem(ctx context.Context, userID int64, req *dto.AddToCartRequest) error {
-	if req.Quantity <= 0 {
+func (s *CartService) AddItem(ctx context.Context, userID int64, productID int64, quantity int) error {
+	if quantity <= 0 {
 		return errors2.ErrInvalidQuantity
 	}
 
-	product, err := s.productRepo.GetProductByID(ctx, req.ProductID)
+	product, err := s.productRepo.GetProductByID(ctx, productID)
 	if err != nil {
 		if errors.Is(err, errors2.ErrProductNotFound) {
 			return errors2.ErrProductNotFound
@@ -60,7 +57,7 @@ func (s *CartService) AddItem(ctx context.Context, userID int64, req *dto.AddToC
 		return err
 	}
 
-	if product.Stock < req.Quantity {
+	if product.Stock < quantity {
 		return errors2.ErrInsufficientStock
 	}
 
@@ -76,7 +73,7 @@ func (s *CartService) AddItem(ctx context.Context, userID int64, req *dto.AddToC
 		}
 	}
 
-	return s.cartRepo.AddItem(ctx, cart.ID, req.ProductID, req.Quantity)
+	return s.cartRepo.AddItem(ctx, cart.ID, productID, quantity)
 }
 
 func (s *CartService) UpdateItem(ctx context.Context, userID int64, productID int64, quantity int) error {

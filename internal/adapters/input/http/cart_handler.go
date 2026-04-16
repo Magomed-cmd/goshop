@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	httpErrors "goshop/internal/adapters/input/http/errors"
+	"goshop/internal/core/mappers"
 	serviceports "goshop/internal/core/ports/services"
 	"goshop/internal/dto"
 )
@@ -41,7 +42,7 @@ func (h *CartHandler) GetCart(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, cart)
+	c.JSON(200, mappers.ToCartResponse(cart))
 }
 
 // AddItem godoc
@@ -69,7 +70,7 @@ func (h *CartHandler) AddItem(c *gin.Context) {
 		return
 	}
 
-	err := h.cartService.AddItem(ctx, userID, &req)
+	err := h.cartService.AddItem(ctx, userID, req.ProductID, req.Quantity)
 	if err != nil {
 		httpErrors.HandleError(c, err)
 		return

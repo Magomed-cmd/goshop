@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	httpErrors "goshop/internal/adapters/input/http/errors"
+	"goshop/internal/core/mappers"
 	serviceports "goshop/internal/core/ports/services"
 	"goshop/internal/dto"
 	"goshop/internal/middleware"
@@ -51,13 +52,13 @@ func (h *AddressHandler) CreateAddress(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.addressService.CreateAddress(ctx, userID, &req)
+	resp, err := h.addressService.CreateAddress(ctx, userID, req.Address, req.City, req.PostalCode, req.Country)
 	if err != nil {
 		httpErrors.HandleError(c, err)
 		return
 	}
 
-	c.JSON(201, resp)
+	c.JSON(201, mappers.ToAddressResponse(resp))
 }
 
 // GetUserAddresses godoc
@@ -85,7 +86,11 @@ func (h *AddressHandler) GetUserAddresses(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, resp)
+	response := make([]*dto.AddressResponse, 0, len(resp))
+	for _, addr := range resp {
+		response = append(response, mappers.ToAddressResponse(addr))
+	}
+	c.JSON(200, response)
 }
 
 // GetAddressByID godoc
@@ -121,7 +126,7 @@ func (h *AddressHandler) GetAddressByID(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, resp)
+	c.JSON(200, mappers.ToAddressResponse(resp))
 }
 
 // UpdateAddress godoc
@@ -159,13 +164,13 @@ func (h *AddressHandler) UpdateAddress(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.addressService.UpdateAddress(c.Request.Context(), userID, int64(addressID), &req)
+	resp, err := h.addressService.UpdateAddress(c.Request.Context(), userID, int64(addressID), req.Address, req.City, req.PostalCode, req.Country)
 	if err != nil {
 		httpErrors.HandleError(c, err)
 		return
 	}
 
-	c.JSON(200, resp)
+	c.JSON(200, mappers.ToAddressResponse(resp))
 }
 
 // DeleteAddress godoc

@@ -5,18 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"goshop/internal/core/domain/entities"
-	errors2 "goshop/internal/core/domain/errors"
-	"goshop/internal/core/mappers"
+	domainerrors "goshop/internal/core/domain/errors"
+	"goshop/internal/core/domain/vo"
 	"goshop/internal/core/ports/repositories"
 	storageports "goshop/internal/core/ports/storage"
-	"goshop/internal/dto"
+	dtx "goshop/internal/core/ports/transaction"
 	"goshop/internal/oauth/google"
 	"goshop/internal/utils"
 )
@@ -29,16 +28,26 @@ const (
 type UserService struct {
 	roleRepo     repositories.RoleRepository
 	userRepo     repositories.UserRepository
+	uow          dtx.UnitOfWork
 	jwtSecretKey string
 	bcryptCost   int
 	ImgStorage   storageports.ImgStorage
 	logger       *zap.Logger
 }
 
-func NewUserService(roleRepo repositories.RoleRepository, userRepo repositories.UserRepository, jwtSecret string, bcryptCost int, imgStorage storageports.ImgStorage, logger *zap.Logger) *UserService {
+func NewUserService(
+	roleRepo repositories.RoleRepository,
+	userRepo repositories.UserRepository,
+	uow dtx.UnitOfWork,
+	jwtSecret string,
+	bcryptCost int,
+	imgStorage storageports.ImgStorage,
+	logger *zap.Logger,
+) *UserService {
 	return &UserService{
 		roleRepo:     roleRepo,
 		userRepo:     userRepo,
+		uow:          uow,
 		jwtSecretKey: jwtSecret,
 		bcryptCost:   bcryptCost,
 		ImgStorage:   imgStorage,
@@ -46,189 +55,173 @@ func NewUserService(roleRepo repositories.RoleRepository, userRepo repositories.
 	}
 }
 
-func (s *UserService) Register(ctx context.Context, req *dto.RegisterRequest) (*entities.User, string, error) {
-	s.logger.Info("UserService Register started", zap.String("email", req.Email))
-
-	s.logger.Debug("Checking if user exists", zap.String("email", req.Email))
-	if err := s.CheckUserExists(ctx, req.Email); err != nil {
-		s.logger.Error("User exists check failed", zap.Error(err), zap.String("email", req.Email))
-		return nil, "", err
-	}
-
-	s.logger.Debug("Getting user role", zap.String("role", defaultUserRole))
-	role, err := s.roleRepo.GetByName(ctx, defaultUserRole)
+func (s *UserService) Register(ctx context.Context, email, password string, name, phone *string) (*entities.User, string, error) {
+	emailVO, err := vo.NewEmail(email)
 	if err != nil {
-		s.logger.Error("Failed to get user role", zap.Error(err), zap.String("role", defaultUserRole))
 		return nil, "", err
 	}
 
-	s.logger.Debug("Creating user", zap.String("email", req.Email), zap.Int64("role_id", role.ID))
-	user, err := s.CreateUser(ctx, req, role.ID)
+	rawPassword, err := vo.NewRawPassword(password)
 	if err != nil {
-		s.logger.Error("Failed to create user", zap.Error(err), zap.String("email", req.Email))
-		return nil, "", err
+		return nil, "", domainerrors.ErrInvalidInput
 	}
 
-	_, err = s.userRepo.SaveAvatar(ctx, &entities.UserAvatar{
-		ID:        0,
-		UserID:    user.ID,
-		ImageURL:  defaultImgURL,
-		UUID:      uuid.New().String(),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+	var user *entities.User
+	var role *entities.Role
+	err = s.withinWriteUOW(ctx, func(repos dtx.Repositories) error {
+		if err := s.checkUserExistsWithRepo(ctx, repos.Users(), emailVO.String()); err != nil {
+			return err
+		}
+
+		role, err = repos.Roles().GetByName(ctx, defaultUserRole)
+		if err != nil {
+			return err
+		}
+
+		user, err = s.createUserWithRepo(ctx, repos.Users(), emailVO, rawPassword, role.ID, name, phone)
+		if err != nil {
+			return err
+		}
+
+		now := time.Now()
+		_, err = repos.Users().SaveAvatar(ctx, &entities.UserAvatar{
+			ID:        0,
+			UserID:    user.ID,
+			ImageURL:  defaultImgURL,
+			UUID:      uuid.New().String(),
+			CreatedAt: now,
+			UpdatedAt: now,
+		})
+		if err != nil {
+			return domainerrors.ErrAvatarUploadFail
+		}
+
+		return nil
 	})
 	if err != nil {
-		s.logger.Error("Error to saving of user avatar")
-		return nil, "", errors2.ErrAvatarUploadFail
-	}
-	user.Role = role
-
-	s.logger.Debug("Generating JWT token", zap.Int64("user_id", user.ID))
-	token, err := utils.GenerateJWT(user.ID, user.Email, role.Name, s.jwtSecretKey)
-	if err != nil {
-		s.logger.Error("Failed to generate JWT token", zap.Error(err), zap.Int64("user_id", user.ID))
+		s.logger.Error("User registration failed", zap.Error(err), zap.String("email", email))
 		return nil, "", err
 	}
 
-	s.logger.Info("User registered successfully", zap.Int64("user_id", user.ID), zap.String("email", req.Email))
+	user.AttachRole(role)
+
+	token, err := utils.GenerateJWT(user.ID, user.Email, role.Name, s.jwtSecretKey)
+	if err != nil {
+		return nil, "", err
+	}
+
 	return user, token, nil
 }
 
-func (s *UserService) Login(ctx context.Context, req *dto.LoginRequest) (*entities.User, string, error) {
-	s.logger.Info("UserService Login started", zap.String("email", req.Email))
-
-	s.logger.Debug("Getting user by email", zap.String("email", req.Email))
-	existingUser, err := s.userRepo.GetUserByEmail(ctx, req.Email)
+func (s *UserService) Login(ctx context.Context, email, password string) (*entities.User, string, error) {
+	emailVO, err := vo.NewEmail(email)
 	if err != nil {
-		s.logger.Error("Failed to get user by email", zap.Error(err), zap.String("email", req.Email))
 		return nil, "", err
 	}
-
-	s.logger.Debug("Validating password", zap.String("email", req.Email))
-	err = utils.ValidatePassword(existingUser.PasswordHash, req.Password)
+	rawPassword, err := vo.NewRawPassword(password)
 	if err != nil {
-		s.logger.Warn("Invalid password provided", zap.String("email", req.Email))
-		return nil, "", errors2.ErrInvalidPassword
+		return nil, "", domainerrors.ErrInvalidPassword
 	}
 
-	if existingUser.Role == nil {
-		s.logger.Debug("Loading user role", zap.Int64("role_id", *existingUser.RoleID))
-		role, err := s.roleRepo.GetByID(ctx, *existingUser.RoleID)
-		if err != nil {
-			s.logger.Error("Failed to get role by ID", zap.Error(err), zap.Int64("role_id", *existingUser.RoleID))
-			return nil, "", err
+	var existingUser *entities.User
+	err = s.withinReadUOW(ctx, func(repos dtx.Repositories) error {
+		var innerErr error
+		existingUser, innerErr = repos.Users().GetUserByEmail(ctx, emailVO.String())
+		if innerErr != nil {
+			return innerErr
 		}
-		existingUser.Role = role
-	}
 
-	s.logger.Debug("Generating JWT token", zap.Int64("user_id", existingUser.ID))
-	token, err := utils.GenerateJWT(existingUser.ID, existingUser.Email, existingUser.Role.Name, s.jwtSecretKey)
+		if existingUser.Role == nil && existingUser.RoleID != nil {
+			existingUser.Role, innerErr = repos.Roles().GetByID(ctx, *existingUser.RoleID)
+			if innerErr != nil {
+				return innerErr
+			}
+		}
+
+		return nil
+	})
 	if err != nil {
-		s.logger.Error("Failed to generate JWT token", zap.Error(err), zap.Int64("user_id", existingUser.ID))
 		return nil, "", err
 	}
 
-	s.logger.Info("User logged in successfully", zap.Int64("user_id", existingUser.ID), zap.String("email", req.Email))
+	if err = existingUser.VerifyPassword(rawPassword); err != nil {
+		return nil, "", err
+	}
+
+	roleName := ""
+	if existingUser.Role != nil {
+		roleName = existingUser.Role.Name
+	}
+
+	token, err := utils.GenerateJWT(existingUser.ID, existingUser.Email, roleName, s.jwtSecretKey)
+	if err != nil {
+		return nil, "", err
+	}
+
 	return existingUser, token, nil
 }
 
-func (s *UserService) GetUserProfile(ctx context.Context, userID int64) (*dto.UserProfile, error) {
-	s.logger.Debug("Getting user profile", zap.Int64("user_id", userID))
+func (s *UserService) GetUserProfile(ctx context.Context, userID int64) (*entities.User, error) {
+	var user *entities.User
+	var userRole *entities.Role
+	err := s.withinReadUOW(ctx, func(repos dtx.Repositories) error {
+		var innerErr error
+		user, innerErr = repos.Users().GetUserByID(ctx, userID)
+		if innerErr != nil {
+			return innerErr
+		}
 
-	user, err := s.userRepo.GetUserByID(ctx, userID)
+		userRole, innerErr = repos.Roles().GetByID(ctx, *user.RoleID)
+		return innerErr
+	})
 	if err != nil {
-		s.logger.Error("Failed to get user by ID", zap.Error(err), zap.Int64("user_id", userID))
 		return nil, err
 	}
 
-	s.logger.Debug("Getting user role", zap.Int64("user_id", userID), zap.Int64("role_id", *user.RoleID))
-	userRole, err := s.roleRepo.GetByID(ctx, *user.RoleID)
-	if err != nil {
-		s.logger.Error("Failed to get role by ID", zap.Error(err), zap.Int64("role_id", *user.RoleID))
-		return nil, err
-	}
-
-	profile := mappers.ToUserProfile(user, userRole.Name)
-
-	s.logger.Debug("User profile retrieved successfully", zap.Int64("user_id", userID), zap.String("role", userRole.Name))
-	return &profile, nil
+	user.AttachRole(userRole)
+	return user, nil
 }
 
-func (s *UserService) UpdateProfile(ctx context.Context, userID int64, req *dto.UpdateProfileRequest) error {
-	s.logger.Debug("Updating user profile", zap.Int64("user_id", userID), zap.Any("request", req))
+func (s *UserService) UpdateProfile(ctx context.Context, userID int64, name, phone *string) error {
+	return s.withinWriteUOW(ctx, func(repos dtx.Repositories) error {
+		user, err := repos.Users().GetUserByID(ctx, userID)
+		if err != nil {
+			return err
+		}
 
-	if req.Name == nil && req.Phone == nil {
-		s.logger.Warn("No fields provided for update", zap.Int64("user_id", userID))
-		return errors2.ErrInvalidInput
-	}
+		if err = user.ApplyProfilePatch(name, phone); err != nil {
+			return err
+		}
 
-	s.logger.Debug("Calling repository to update profile", zap.Int64("user_id", userID))
-	err := s.userRepo.UpdateUserProfile(ctx, userID, req.Name, req.Phone)
-	if err != nil {
-		s.logger.Error("Failed to update user profile", zap.Error(err), zap.Int64("user_id", userID))
-		return err
-	}
-
-	s.logger.Info("User profile updated successfully", zap.Int64("user_id", userID))
-	return nil
+		return repos.Users().UpdateUserProfile(ctx, userID, user.Name, user.Phone)
+	})
 }
 
 func (s *UserService) CheckUserExists(ctx context.Context, email string) error {
-	s.logger.Debug("Checking if user exists", zap.String("email", email))
-
-	existingUser, err := s.userRepo.GetUserByEmail(ctx, email)
-	if err != nil {
-		if errors.Is(err, errors2.ErrUserNotFound) {
-			s.logger.Debug("User does not exist - OK to register", zap.String("email", email))
-			return nil
-		}
-		s.logger.Error("Error checking user existence", zap.Error(err), zap.String("email", email))
-		return err
-	}
-
-	if existingUser != nil {
-		s.logger.Warn("User already exists", zap.String("email", email))
-		return errors2.ErrEmailExists
-	}
-
-	s.logger.Debug("User does not exist - OK to register", zap.String("email", email))
-	return nil
+	return s.withinReadUOW(ctx, func(repos dtx.Repositories) error {
+		return s.checkUserExistsWithRepo(ctx, repos.Users(), email)
+	})
 }
 
-func (s *UserService) CreateUser(ctx context.Context, req *dto.RegisterRequest, roleID int64) (*entities.User, error) {
-	s.logger.Debug("Creating new user", zap.String("email", req.Email), zap.Int64("role_id", roleID))
-
-	s.logger.Debug("Generating UUID")
-	uuidV1, err := uuid.NewUUID()
+func (s *UserService) CreateUser(ctx context.Context, email, password string, roleID int64, name, phone *string) (*entities.User, error) {
+	emailVO, err := vo.NewEmail(email)
 	if err != nil {
-		s.logger.Error("Failed to generate UUID", zap.Error(err))
 		return nil, err
 	}
-
-	s.logger.Debug("Hashing password", zap.Int("bcrypt_cost", s.bcryptCost))
-	hashedPassword, err := utils.HashPasswordWithCost(req.Password, s.bcryptCost)
+	rawPassword, err := vo.NewRawPassword(password)
 	if err != nil {
-		s.logger.Error("Failed to hash password", zap.Error(err))
+		return nil, domainerrors.ErrInvalidInput
+	}
+
+	var user *entities.User
+	err = s.withinWriteUOW(ctx, func(repos dtx.Repositories) error {
+		var innerErr error
+		user, innerErr = s.createUserWithRepo(ctx, repos.Users(), emailVO, rawPassword, roleID, name, phone)
+		return innerErr
+	})
+	if err != nil {
 		return nil, err
 	}
-
-	user := &entities.User{
-		UUID:         uuidV1,
-		Email:        req.Email,
-		PasswordHash: hashedPassword,
-		Name:         req.Name,
-		Phone:        req.Phone,
-		RoleID:       &roleID,
-		CreatedAt:    time.Now(),
-	}
-
-	s.logger.Debug("Saving user to database", zap.String("email", req.Email))
-	if err := s.userRepo.CreateUser(ctx, user); err != nil {
-		s.logger.Error("Failed to save user to database", zap.Error(err), zap.String("email", req.Email))
-		return nil, err
-	}
-
-	s.logger.Info("User created successfully", zap.Int64("user_id", user.ID), zap.String("email", req.Email))
 	return user, nil
 }
 
@@ -242,7 +235,7 @@ func (s *UserService) UploadAvatar(ctx context.Context, reader io.ReadCloser, si
 
 	if userID < 1 {
 		s.logger.Error("Invalid user ID", zap.Int64("user_id", userID))
-		return "", errors2.ErrInvalidUserID
+		return "", domainerrors.ErrInvalidUserID
 	}
 
 	userAvatarInfo := &entities.UserAvatar{
@@ -265,8 +258,12 @@ func (s *UserService) UploadAvatar(ctx context.Context, reader io.ReadCloser, si
 	s.logger.Info("Image uploaded successfully", zap.String("image_url", userAvatarInfo.ImageURL))
 
 	s.logger.Debug("Saving avatar info to database", zap.Int64("user_id", userID))
-	id, err := s.userRepo.SaveAvatar(ctx, userAvatarInfo)
-
+	var id int
+	err = s.withinWriteUOW(ctx, func(repos dtx.Repositories) error {
+		var innerErr error
+		id, innerErr = repos.Users().SaveAvatar(ctx, userAvatarInfo)
+		return innerErr
+	})
 	if err != nil {
 		s.logger.Error("Failed to save avatar info to database", zap.Error(err))
 		return "", err
@@ -274,16 +271,20 @@ func (s *UserService) UploadAvatar(ctx context.Context, reader io.ReadCloser, si
 	s.logger.Info("Avatar info saved to database", zap.Int64("avatar_id", int64(id)))
 
 	userAvatarInfo.ID = int64(id)
-
 	return userAvatarInfo.ImageURL, nil
 }
 
 func (s *UserService) GetAvatar(ctx context.Context, userID int) (string, error) {
 	s.logger.Debug("Getting avatar", zap.Int("user_id", userID))
 
-	avatar, err := s.userRepo.GetAvatar(ctx, userID)
+	var avatar *entities.UserAvatar
+	err := s.withinReadUOW(ctx, func(repos dtx.Repositories) error {
+		var innerErr error
+		avatar, innerErr = repos.Users().GetAvatar(ctx, userID)
+		return innerErr
+	})
 	if err != nil {
-		if errors.Is(err, errors2.ErrNotFound) {
+		if errors.Is(err, domainerrors.ErrNotFound) {
 			s.logger.Info("No avatar found, using default", zap.Int("user_id", userID))
 			return s.ImgStorage.GetImageURL("avatars/default/default_avatar.jpg"), nil
 		}
@@ -296,23 +297,36 @@ func (s *UserService) GetAvatar(ctx context.Context, userID int) (string, error)
 }
 
 func (s *UserService) OAuthLogin(ctx context.Context, userInfo *google.UserInfo) (*entities.User, string, error) {
-	existingUser, err := s.userRepo.GetUserByEmail(ctx, userInfo.Email)
+	if userInfo == nil {
+		return nil, "", domainerrors.ErrInvalidInput
+	}
+
+	emailVO, err := vo.NewEmail(userInfo.Email)
 	if err != nil {
-		if !errors.Is(err, errors2.ErrUserNotFound) {
+		return nil, "", err
+	}
+
+	var existingUser *entities.User
+	err = s.withinReadUOW(ctx, func(repos dtx.Repositories) error {
+		var innerErr error
+		existingUser, innerErr = repos.Users().GetUserByEmail(ctx, emailVO.String())
+		return innerErr
+	})
+	if err != nil {
+		if !errors.Is(err, domainerrors.ErrUserNotFound) {
 			s.logger.Error("database error during user lookup", zap.Error(err))
 			return nil, "", err
 		}
 
-		newUser, err := s.createOAuthUser(ctx, userInfo)
-		if err != nil {
-			return nil, "", err
+		newUser, createErr := s.createOAuthUser(ctx, emailVO, userInfo)
+		if createErr != nil {
+			return nil, "", createErr
 		}
 
-		token, err := s.generateTokenForUser(newUser)
-		if err != nil {
-			return nil, "", err
+		token, tokenErr := s.generateTokenForUser(newUser)
+		if tokenErr != nil {
+			return nil, "", tokenErr
 		}
-
 		return newUser, token, nil
 	}
 
@@ -333,49 +347,126 @@ func (s *UserService) generateTokenForUser(user *entities.User) (string, error) 
 	token, err := utils.GenerateJWT(user.ID, user.Email, roleName, s.jwtSecretKey)
 	if err != nil {
 		s.logger.Error("failed to generate JWT token", zap.Error(err), zap.Int64("user_id", user.ID))
-		return "", errors2.ErrInvalidInput
+		return "", domainerrors.ErrInvalidInput
 	}
 	return token, nil
 }
 
-func (s *UserService) createOAuthUser(ctx context.Context, userInfo *google.UserInfo) (*entities.User, error) {
+func (s *UserService) createOAuthUser(ctx context.Context, emailVO vo.Email, userInfo *google.UserInfo) (*entities.User, error) {
+	var createdUser *entities.User
+	var role *entities.Role
 
-	role, err := s.roleRepo.GetByName(ctx, defaultUserRole)
+	err := s.withinWriteUOW(ctx, func(repos dtx.Repositories) error {
+		var err error
+		role, err = repos.Roles().GetByName(ctx, defaultUserRole)
+		if err != nil {
+			return err
+		}
+
+		createdUser, err = entities.NewOAuthUser(emailVO, role.ID, &userInfo.Name)
+		if err != nil {
+			return err
+		}
+
+		if err = repos.Users().CreateUser(ctx, createdUser); err != nil {
+			return err
+		}
+
+		now := time.Now()
+		_, err = repos.Users().SaveAvatar(ctx, &entities.UserAvatar{
+			UserID:    createdUser.ID,
+			ImageURL:  defaultImgURL,
+			UUID:      uuid.New().String(),
+			CreatedAt: now,
+			UpdatedAt: now,
+		})
+		if err != nil {
+			return domainerrors.ErrAvatarUploadFail
+		}
+
+		return nil
+	})
 	if err != nil {
-		s.logger.Error("failed to get default role", zap.Error(err))
+		s.logger.Error("failed to create oauth user", zap.Error(err))
+		if errors.Is(err, domainerrors.ErrEmailExists) {
+			return nil, domainerrors.ErrEmailExists
+		}
 		return nil, err
 	}
 
-	name := userInfo.Name
-	newUser := &entities.User{
-		UUID:         uuid.New(),
-		Email:        userInfo.Email,
-		Name:         &name,
-		PasswordHash: "",
-		Phone:        nil,
-		RoleID:       &role.ID,
-	}
-
-	err = s.userRepo.CreateUser(ctx, newUser)
-	if err != nil {
-		s.logger.Error("failed to create oauth user", zap.Error(err))
-		if strings.Contains(err.Error(), "already exists") {
-			return nil, errors2.ErrEmailExists
-		}
-		return nil, errors2.ErrInvalidInput
-	}
-
-	_, err = s.userRepo.SaveAvatar(ctx, &entities.UserAvatar{
-		UserID:    newUser.ID,
-		ImageURL:  defaultImgURL,
-		UUID:      uuid.New().String(),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	})
-	if err != nil {
-		s.logger.Warn("failed to create default avatar for oauth user", zap.Error(err))
-	}
-
-	newUser.Role = role
-	return newUser, nil
+	createdUser.AttachRole(role)
+	return createdUser, nil
 }
+
+func (s *UserService) checkUserExistsWithRepo(ctx context.Context, userRepo repositories.UserRepository, email string) error {
+	existingUser, err := userRepo.GetUserByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, domainerrors.ErrUserNotFound) {
+			return nil
+		}
+		return err
+	}
+	if existingUser != nil {
+		return domainerrors.ErrEmailExists
+	}
+	return nil
+}
+
+func (s *UserService) createUserWithRepo(
+	ctx context.Context,
+	userRepo repositories.UserRepository,
+	emailVO vo.Email,
+	rawPassword vo.RawPassword,
+	roleID int64,
+	name, phone *string,
+) (*entities.User, error) {
+	hashedPassword, err := utils.HashPasswordWithCost(rawPassword.String(), s.bcryptCost)
+	if err != nil {
+		return nil, err
+	}
+
+	user, err := entities.NewUserForRegistration(emailVO, hashedPassword, roleID, name, phone, time.Now())
+	if err != nil {
+		return nil, err
+	}
+
+	if err = userRepo.CreateUser(ctx, user); err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func (s *UserService) withinWriteUOW(
+	ctx context.Context,
+	fn func(repos dtx.Repositories) error,
+) error {
+	if s.uow == nil {
+		return fn(&fallbackRepos{users: s.userRepo, roles: s.roleRepo})
+	}
+	return s.uow.Do(ctx, fn)
+}
+
+func (s *UserService) withinReadUOW(
+	ctx context.Context,
+	fn func(repos dtx.Repositories) error,
+) error {
+	if s.uow == nil {
+		return fn(&fallbackRepos{users: s.userRepo, roles: s.roleRepo})
+	}
+	return s.uow.DoRead(ctx, fn)
+}
+
+type fallbackRepos struct {
+	users repositories.UserRepository
+	roles repositories.RoleRepository
+}
+
+func (f *fallbackRepos) Users() repositories.UserRepository           { return f.users }
+func (f *fallbackRepos) Roles() repositories.RoleRepository           { return f.roles }
+func (f *fallbackRepos) Addresses() repositories.AddressRepository    { return nil }
+func (f *fallbackRepos) Categories() repositories.CategoryRepository  { return nil }
+func (f *fallbackRepos) Products() repositories.ProductRepository     { return nil }
+func (f *fallbackRepos) Carts() repositories.CartRepository           { return nil }
+func (f *fallbackRepos) Orders() repositories.OrderRepository         { return nil }
+func (f *fallbackRepos) OrderItems() repositories.OrderItemRepository { return nil }
+func (f *fallbackRepos) Reviews() repositories.ReviewRepository       { return nil }

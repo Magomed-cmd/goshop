@@ -7,5 +7,5 @@ import (
 )
 
 type Runner interface {
-	WithinTransaction(ctx context.Context, fn func(ctx context.Context, conn portrepo.DBConn) error) error
+	WithinTransaction(ctx context.Context, fn func(conn portrepo.DBConn) error) error
 }

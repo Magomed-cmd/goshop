@@ -3,13 +3,13 @@ package services
 import (
 	"context"
 
-	"goshop/internal/dto"
+	"goshop/internal/core/domain/entities"
 )
 
 type CategoryService interface {
-	GetAllCategories(ctx context.Context) (*dto.CategoriesListResponse, error)
-	GetCategoryByID(ctx context.Context, id int64) (*dto.CategoryResponse, error)
-	CreateCategory(ctx context.Context, req *dto.CreateCategoryRequest) (*dto.CategoryResponse, error)
-	UpdateCategory(ctx context.Context, id int64, req *dto.UpdateCategoryRequest) (*dto.CategoryResponse, error)
+	GetAllCategories(ctx context.Context) ([]*entities.CategoryWithCount, error)
+	GetCategoryByID(ctx context.Context, id int64) (*entities.CategoryWithCount, error)
+	CreateCategory(ctx context.Context, name string, description *string) (*entities.Category, error)
+	UpdateCategory(ctx context.Context, id int64, name *string, description *string) (*entities.CategoryWithCount, error)
 	DeleteCategory(ctx context.Context, id int64) error
 }

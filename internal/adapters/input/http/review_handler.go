@@ -9,6 +9,7 @@ import (
 	httpErrors "goshop/internal/adapters/input/http/errors"
 	errors2 "goshop/internal/core/domain/errors"
 	"goshop/internal/core/domain/types"
+	"goshop/internal/core/mappers"
 	serviceports "goshop/internal/core/ports/services"
 	"goshop/internal/dto"
 	"goshop/internal/middleware"
@@ -55,13 +56,14 @@ func (h *ReviewHandler) CreateReview(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.reviewService.CreateReview(ctx, &req, userID)
+	resp, err := h.reviewService.CreateReview(ctx, userID, req.ProductID, req.Rating, req.Comment)
 	if err != nil {
 		httpErrors.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, resp)
+	response := mappers.ToReviewResponse(resp)
+	c.JSON(http.StatusCreated, response)
 }
 
 // GetReviews godoc
@@ -89,13 +91,13 @@ func (h *ReviewHandler) GetReviews(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.reviewService.GetReviewsWithFilters(ctx, filters)
+	reviews, totalCount, err := h.reviewService.GetReviewsWithFilters(ctx, filters)
 	if err != nil {
 		httpErrors.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, mappers.ToReviewsListResponse(reviews, totalCount, filters.Page, filters.Limit))
 }
 
 // GetReviewByID godoc
@@ -125,7 +127,8 @@ func (h *ReviewHandler) GetReviewByID(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, resp)
+	response := mappers.ToReviewResponse(resp)
+	c.JSON(http.StatusOK, response)
 }
 
 // UpdateReview godoc
@@ -167,7 +170,7 @@ func (h *ReviewHandler) UpdateReview(c *gin.Context) {
 		return
 	}
 
-	err = h.reviewService.UpdateReview(ctx, userID, reviewID, req)
+	err = h.reviewService.UpdateReview(ctx, userID, reviewID, req.Rating, req.Comment)
 	if err != nil {
 		httpErrors.HandleError(c, err)
 		return
@@ -236,11 +239,11 @@ func (h *ReviewHandler) GetProductReviewStats(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.reviewService.GetReviewStats(ctx, productID)
+	totalReviews, averageRating, ratingCounts, err := h.reviewService.GetReviewStats(ctx, productID)
 	if err != nil {
 		httpErrors.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, mappers.ToReviewStatsResponse(totalReviews, averageRating, ratingCounts))
 }

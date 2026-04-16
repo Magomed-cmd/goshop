@@ -50,7 +50,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 		return
 	}
 
-	result, token, err := h.service.Register(ctx, &req)
+	result, token, err := h.service.Register(ctx, req.Email, req.Password, req.Name, req.Phone)
 	if err != nil {
 		httpErrors.HandleError(c, err)
 		return
@@ -92,7 +92,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
-	result, token, err := h.service.Login(ctx, &req)
+	result, token, err := h.service.Login(ctx, req.Email, req.Password)
 	if err != nil {
 		httpErrors.HandleError(c, err)
 		return
@@ -137,7 +137,11 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 		httpErrors.HandleError(c, err)
 		return
 	}
-	c.JSON(200, profile)
+	roleName := ""
+	if profile.Role != nil {
+		roleName = profile.Role.Name
+	}
+	c.JSON(200, mappers.ToUserProfile(profile, roleName))
 }
 
 // UpdateProfile godoc
@@ -168,7 +172,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.UpdateProfile(ctx, userID, &req); err != nil {
+	if err := h.service.UpdateProfile(ctx, userID, req.Name, req.Phone); err != nil {
 		httpErrors.HandleError(c, err)
 		return
 	}

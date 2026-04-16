@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	httpErrors "goshop/internal/adapters/input/http/errors"
+	"goshop/internal/core/mappers"
 	serviceports "goshop/internal/core/ports/services"
 	"goshop/internal/dto"
 )
@@ -38,7 +39,7 @@ func (h *CategoryHandler) GetAllCategories(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, resp)
+	c.JSON(200, mappers.ToCategoriesListResponse(resp))
 }
 
 // GetCategoryByID godoc
@@ -67,7 +68,9 @@ func (h *CategoryHandler) GetCategoryByID(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, category)
+	response := mappers.ToCategoryResponse(&category.Category)
+	response.ProductCount = int(category.ProductCount)
+	c.JSON(200, response)
 }
 
 // CreateCategory godoc
@@ -94,13 +97,14 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 		return
 	}
 
-	createdCategory, err := h.categoryService.CreateCategory(ctx, &req)
+	createdCategory, err := h.categoryService.CreateCategory(ctx, req.Name, req.Description)
 	if err != nil {
 		httpErrors.HandleError(c, err)
 		return
 	}
 
-	c.JSON(201, createdCategory)
+	response := mappers.ToCategoryResponse(createdCategory)
+	c.JSON(201, response)
 }
 
 // UpdateCategory godoc
@@ -135,13 +139,15 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 		return
 	}
 
-	updated, err := h.categoryService.UpdateCategory(ctx, id, &req)
+	updated, err := h.categoryService.UpdateCategory(ctx, id, req.Name, req.Description)
 	if err != nil {
 		httpErrors.HandleError(c, err)
 		return
 	}
 
-	c.JSON(200, updated)
+	response := mappers.ToCategoryResponse(&updated.Category)
+	response.ProductCount = int(updated.ProductCount)
+	c.JSON(200, response)
 }
 
 // DeleteCategory godoc

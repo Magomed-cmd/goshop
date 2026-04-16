@@ -34,10 +34,19 @@ func NewUserRepository(conn portrepo.DBConn, logger *zap.Logger) *UserRepository
 }
 
 func (r *UserRepository) CreateUser(ctx context.Context, user *entities.User) error {
+	name := ""
+	if user.Name != nil {
+		name = *user.Name
+	}
+	roleID := int64(0)
+	if user.RoleID != nil {
+		roleID = *user.RoleID
+	}
+
 	r.logger.Debug("Creating user in database",
 		zap.String("email", user.Email),
-		zap.String("name", *user.Name),
-		zap.Int64("role_id", *user.RoleID))
+		zap.String("name", name),
+		zap.Int64("role_id", roleID))
 
 	query := `
        INSERT INTO users (uuid, email, password_hash, name, phone, role_id, created_at) 
@@ -53,15 +62,15 @@ func (r *UserRepository) CreateUser(ctx context.Context, user *entities.User) er
 		r.logger.Error("Failed to create user in database",
 			zap.Error(err),
 			zap.String("email", user.Email),
-			zap.String("name", *user.Name),
-			zap.Int64("role_id", *user.RoleID))
+			zap.String("name", name),
+			zap.Int64("role_id", roleID))
 		return err
 	}
 
 	r.logger.Info("User created successfully in database",
 		zap.Int64("user_id", user.ID),
 		zap.String("email", user.Email),
-		zap.String("name", *user.Name))
+		zap.String("name", name))
 
 	return nil
 }

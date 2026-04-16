@@ -18,7 +18,7 @@ func New(pool *pgxpool.Pool) *Runner {
 	return &Runner{pool: pool}
 }
 
-func (r *Runner) WithinTransaction(ctx context.Context, fn func(ctx context.Context, conn portrepo.DBConn) error) (err error) {
+func (r *Runner) WithinTransaction(ctx context.Context, fn func(conn portrepo.DBConn) error) (err error) {
 	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return err
@@ -33,7 +33,7 @@ func (r *Runner) WithinTransaction(ctx context.Context, fn func(ctx context.Cont
 		}
 	}()
 
-	if err = fn(ctx, tx); err != nil {
+	if err = fn(tx); err != nil {
 		return err
 	}
 

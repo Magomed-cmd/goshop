@@ -7,6 +7,7 @@ import (
 	storageadapter "goshop/internal/adapters/output/storage"
 	"goshop/internal/config"
 	"goshop/internal/core/services"
+	txpgx "goshop/internal/infrastructure/transaction/pgx"
 	"goshop/internal/oauth/google"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -29,6 +30,7 @@ func InitApp(
 
 	repoFactory := databaseadapter.NewFactory(db, logger)
 	repositories := repoFactory.WithPool()
+	uow := txpgx.NewUnitOfWork(db, repoFactory)
 
 	productCache := cacheadapter.NewProductCache(rdb, logger)
 	categoryCache := cacheadapter.NewCategoryCache(rdb, logger)
@@ -37,11 +39,27 @@ func InitApp(
 	imageStorage := storageadapter.NewImgStorage(minioClient, cfg.S3.Bucket, cfg.S3.Region)
 
 	categoryService := services.NewCategoryService(repositories.Categories, categoryCache, logger)
-	userService := services.NewUserService(repositories.Roles, repositories.Users, cfg.JWT.Secret, cfg.Security.BcryptCost, imageStorage, logger)
+	userService := services.NewUserService(
+		repositories.Roles,
+		repositories.Users,
+		uow,
+		cfg.JWT.Secret,
+		cfg.Security.BcryptCost,
+		imageStorage,
+		logger,
+	)
 	addressService := services.NewAddressService(repositories.Addresses)
 	productService := services.NewProductService(repositories.Products, repositories.Categories, imageStorage, productCache, logger)
 	cartService := services.NewCartService(repositories.Carts, repositories.Products)
-	orderService := services.NewOrderService(repositories.Orders, repositories.Carts, repositories.Users, repositories.Addresses, repositories.OrderItems, logger)
+	orderService := services.NewOrderService(
+		repositories.Orders,
+		repositories.Carts,
+		repositories.Users,
+		repositories.Addresses,
+		repositories.OrderItems,
+		uow,
+		logger,
+	)
 	reviewService := services.NewReviewsService(repositories.Reviews, repositories.Users, repositories.Products, reviewCache, logger)
 
 	userHandler := httpadapter.NewUserHandler(userService, logger)

@@ -9,14 +9,8 @@ import (
 
 	"goshop/internal/core/domain/entities"
 	"goshop/internal/core/domain/errors"
-	"goshop/internal/core/mappers"
 	cacheports "goshop/internal/core/ports/cache"
 	"goshop/internal/core/ports/repositories"
-	"goshop/internal/dto"
-)
-
-const (
-	GetAllCategoriesTTL = 5 * time.Minute
 )
 
 type CategoryService struct {
@@ -33,45 +27,14 @@ func NewCategoryService(categoryRepo repositories.CategoryRepository, categoryCa
 	}
 }
 
-func (s *CategoryService) GetAllCategories(ctx context.Context) (*dto.CategoriesListResponse, error) {
-
-	categoriesCache, err := s.categoryCache.GetAllCategories(ctx)
-	if err != nil {
-		s.logger.Warn("Failed to get categories from cache", zap.Error(err))
-		return nil, err
-	} else if categoriesCache != nil {
-		s.logger.Debug("Returning categories from cache")
-		return categoriesCache, nil
-	}
-
-	categories, err := s.categoryRepo.GetAllCategories(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	resp := mappers.ToCategoriesListResponse(categories)
-
-	if err = s.categoryCache.SetAllCategories(ctx, resp, GetAllCategoriesTTL); err != nil {
-		s.logger.Warn("failed to set all categories in cache", zap.Error(err))
-	}
-
-	return resp, nil
+func (s *CategoryService) GetAllCategories(ctx context.Context) ([]*entities.CategoryWithCount, error) {
+	return s.categoryRepo.GetAllCategories(ctx)
 }
 
-func (s *CategoryService) GetCategoryByID(ctx context.Context, id int64) (*dto.CategoryResponse, error) {
+func (s *CategoryService) GetCategoryByID(ctx context.Context, id int64) (*entities.CategoryWithCount, error) {
 
 	if id <= 0 {
 		return nil, errors.ErrInvalidInput
-	}
-
-	if categoryCached, err := s.categoryCache.GetCategory(ctx, id); err != nil {
-		s.logger.Warn(
-			"failed to get category from cache",
-			zap.Int64("category_id", id),
-			zap.Error(err),
-		)
-	} else if categoryCached != nil {
-		return categoryCached, nil
 	}
 
 	category, err := s.categoryRepo.GetCategoryByID(ctx, id)
@@ -81,19 +44,11 @@ func (s *CategoryService) GetCategoryByID(ctx context.Context, id int64) (*dto.C
 	if category == nil {
 		return nil, errors.ErrCategoryNotFound
 	}
-
-	response := mappers.ToCategoryResponse(&category.Category)
-	response.ProductCount = int(category.ProductCount)
-
-	err = s.categoryCache.SetCategory(ctx, &response, 5*time.Minute)
-	if err != nil {
-		s.logger.Error("failed to set category in cache", zap.Error(err))
-	}
-	return &response, nil
+	return category, nil
 }
 
-func (s *CategoryService) CreateCategory(ctx context.Context, req *dto.CreateCategoryRequest) (*dto.CategoryResponse, error) {
-	if req == nil {
+func (s *CategoryService) CreateCategory(ctx context.Context, name string, description *string) (*entities.Category, error) {
+	if name == "" {
 		return nil, errors.ErrInvalidInput
 	}
 
@@ -101,8 +56,8 @@ func (s *CategoryService) CreateCategory(ctx context.Context, req *dto.CreateCat
 
 	category := &entities.Category{
 		UUID:        uuid.New(),
-		Name:        req.Name,
-		Description: req.Description,
+		Name:        name,
+		Description: description,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
@@ -114,15 +69,14 @@ func (s *CategoryService) CreateCategory(ctx context.Context, req *dto.CreateCat
 		s.logger.Warn("failed to delete all categories from cache after create", zap.Error(err))
 	}
 
-	resp := mappers.ToCategoryResponse(category)
-	return &resp, nil
+	return category, nil
 }
 
-func (s *CategoryService) UpdateCategory(ctx context.Context, id int64, req *dto.UpdateCategoryRequest) (*dto.CategoryResponse, error) {
+func (s *CategoryService) UpdateCategory(ctx context.Context, id int64, name, description *string) (*entities.CategoryWithCount, error) {
 	if id <= 0 {
 		return nil, errors.ErrInvalidInput
 	}
-	if req == nil {
+	if name == nil && description == nil {
 		return nil, errors.ErrInvalidCategoryData
 	}
 
@@ -134,27 +88,27 @@ func (s *CategoryService) UpdateCategory(ctx context.Context, id int64, req *dto
 		return nil, errors.ErrCategoryNotFound
 	}
 
-	name := current.Name
-	if req.Name != nil {
-		name = *req.Name
+	currentName := current.Name
+	if name != nil {
+		currentName = *name
 	}
-	if name == "" {
+	if currentName == "" {
 		return nil, errors.ErrInvalidCategoryData
 	}
 
-	description := current.Description
-	if req.Description != nil {
-		description = req.Description
+	currentDescription := current.Description
+	if description != nil {
+		currentDescription = description
 	}
-	if description == nil {
+	if currentDescription == nil {
 		return nil, errors.ErrInvalidCategoryData
 	}
 
 	entity := &entities.Category{
 		ID:          current.ID,
 		UUID:        current.UUID,
-		Name:        name,
-		Description: description,
+		Name:        currentName,
+		Description: currentDescription,
 		CreatedAt:   current.CreatedAt,
 		UpdatedAt:   current.UpdatedAt,
 	}
@@ -172,10 +126,7 @@ func (s *CategoryService) UpdateCategory(ctx context.Context, id int64, req *dto
 		s.logger.Warn("failed to delete all categories from cache after update", zap.Error(err))
 	}
 
-	resp := mappers.ToCategoryResponse(updated)
-	resp.ProductCount = int(current.ProductCount)
-
-	return &resp, nil
+	return &entities.CategoryWithCount{Category: *updated, ProductCount: current.ProductCount}, nil
 }
 
 func (s *CategoryService) DeleteCategory(ctx context.Context, id int64) error {

@@ -8,6 +8,7 @@ import (
 
 	httpErrors "goshop/internal/adapters/input/http/errors"
 	"goshop/internal/core/domain/types"
+	"goshop/internal/core/mappers"
 	serviceports "goshop/internal/core/ports/services"
 	"goshop/internal/dto"
 	"goshop/internal/middleware"
@@ -53,13 +54,13 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.CreateOrder(ctx, userID, req)
+	resp, err := h.service.CreateOrder(ctx, userID, req.AddressID)
 	if err != nil {
 		httpErrors.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, resp)
+	c.JSON(http.StatusCreated, mappers.ToOrderResponse(resp))
 }
 
 // GetUserOrders godoc
@@ -97,13 +98,13 @@ func (h *OrderHandler) GetUserOrders(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.GetUserOrders(ctx, userID, filters)
+	orders, totalCount, err := h.service.GetUserOrders(ctx, userID, filters)
 	if err != nil {
 		httpErrors.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, mappers.ToOrdersListResponse(orders, totalCount, filters.Page, filters.Limit))
 }
 
 // GetOrderByID godoc
@@ -144,7 +145,7 @@ func (h *OrderHandler) GetOrderByID(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, mappers.ToOrderResponse(resp))
 }
 
 // CancelOrder godoc
@@ -273,11 +274,11 @@ func (h *OrderHandler) GetAllOrders(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.GetAllOrders(ctx, filters)
+	orders, totalCount, err := h.service.GetAllOrders(ctx, filters)
 	if err != nil {
 		httpErrors.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, mappers.ToOrdersListResponse(orders, totalCount, filters.Page, filters.Limit))
 }

@@ -7,7 +7,9 @@ import (
 	"go.uber.org/zap"
 
 	httpErrors "goshop/internal/adapters/input/http/errors"
+	"goshop/internal/core/domain/entities"
 	"goshop/internal/core/domain/types"
+	"goshop/internal/core/mappers"
 	serviceports "goshop/internal/core/ports/services"
 	"goshop/internal/dto"
 )
@@ -51,7 +53,13 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 	}
 
 	h.logger.Debug("Calling productService.CreateProduct", zap.String("product_name", req.Name))
-	result, err := h.productService.CreateProduct(c.Request.Context(), &req)
+	product := &entities.Product{
+		Name:        req.Name,
+		Description: req.Description,
+		Price:       req.Price,
+		Stock:       req.Stock,
+	}
+	result, categories, err := h.productService.CreateProduct(c.Request.Context(), product, req.CategoryIDs)
 	if err != nil {
 		h.logger.Error("CreateProduct service failed", zap.Error(err), zap.String("product_name", req.Name))
 		httpErrors.HandleError(c, err)
@@ -59,7 +67,7 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 	}
 
 	h.logger.Info("CreateProduct successful", zap.Int64("product_id", result.ID), zap.String("product_name", result.Name))
-	c.JSON(http.StatusCreated, result)
+	c.JSON(http.StatusCreated, mappers.ToProductResponse(result, categories, nil))
 }
 
 // GetProducts godoc
@@ -88,15 +96,15 @@ func (h *ProductHandler) GetProducts(c *gin.Context) {
 	}
 
 	h.logger.Debug("Calling productService.GetProducts", zap.Any("filters", filters))
-	result, err := h.productService.GetProducts(c.Request.Context(), filters)
+	products, total, err := h.productService.GetProducts(c.Request.Context(), filters)
 	if err != nil {
 		h.logger.Error("GetProducts service failed", zap.Error(err), zap.Any("filters", filters))
 		httpErrors.HandleError(c, err)
 		return
 	}
 
-	h.logger.Debug("GetProducts successful", zap.Int("products_count", len(result.Products)))
-	c.JSON(http.StatusOK, result)
+	h.logger.Debug("GetProducts successful", zap.Int("products_count", len(products)))
+	c.JSON(http.StatusOK, mappers.ToProductCatalogResponse(products, total, filters.Page, filters.Limit))
 }
 
 // GetProductByID godoc
@@ -121,15 +129,15 @@ func (h *ProductHandler) GetProductByID(c *gin.Context) {
 	}
 
 	h.logger.Debug("Calling productService.GetProductByID", zap.Int64("product_id", id))
-	result, err := h.productService.GetProductByID(c.Request.Context(), id)
+	product, categories, images, err := h.productService.GetProductByID(c.Request.Context(), id)
 	if err != nil {
 		h.logger.Error("GetProductByID service failed", zap.Error(err), zap.Int64("product_id", id))
 		httpErrors.HandleError(c, err)
 		return
 	}
 
-	h.logger.Debug("GetProductByID successful", zap.Int64("product_id", id), zap.String("product_name", result.Name))
-	c.JSON(http.StatusOK, result)
+	h.logger.Debug("GetProductByID successful", zap.Int64("product_id", id), zap.String("product_name", product.Name))
+	c.JSON(http.StatusOK, mappers.ToProductResponse(product, categories, images))
 }
 
 // GetProductsByCategory godoc
@@ -167,15 +175,15 @@ func (h *ProductHandler) GetProductsByCategory(c *gin.Context) {
 	filters.CategoryID = &categoryID
 
 	h.logger.Debug("Calling productService.GetProducts for category", zap.Int64("category_id", categoryID), zap.Any("filters", filters))
-	result, err := h.productService.GetProducts(c.Request.Context(), filters)
+	products, total, err := h.productService.GetProducts(c.Request.Context(), filters)
 	if err != nil {
 		h.logger.Error("GetProductsByCategory service failed", zap.Error(err), zap.Int64("category_id", categoryID))
 		httpErrors.HandleError(c, err)
 		return
 	}
 
-	h.logger.Debug("GetProductsByCategory successful", zap.Int64("category_id", categoryID), zap.Int("products_count", len(result.Products)))
-	c.JSON(http.StatusOK, result)
+	h.logger.Debug("GetProductsByCategory successful", zap.Int64("category_id", categoryID), zap.Int("products_count", len(products)))
+	c.JSON(http.StatusOK, mappers.ToProductCatalogResponse(products, total, filters.Page, filters.Limit))
 }
 
 // UpdateProduct godoc
@@ -213,7 +221,7 @@ func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 	}
 
 	h.logger.Debug("Calling productService.UpdateProduct", zap.Int64("product_id", id), zap.Any("request", req))
-	result, err := h.productService.UpdateProduct(c.Request.Context(), id, &req)
+	result, categories, err := h.productService.UpdateProduct(c.Request.Context(), id, req.Name, req.Description, req.Price, req.Stock, req.CategoryIDs)
 	if err != nil {
 		h.logger.Error("UpdateProduct service failed", zap.Error(err), zap.Int64("product_id", id))
 		httpErrors.HandleError(c, err)
@@ -221,7 +229,7 @@ func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 	}
 
 	h.logger.Info("UpdateProduct successful", zap.Int64("product_id", id), zap.String("product_name", result.Name))
-	c.JSON(http.StatusOK, result)
+	c.JSON(http.StatusOK, mappers.ToProductResponse(result, categories, nil))
 }
 
 // DeleteProduct godoc

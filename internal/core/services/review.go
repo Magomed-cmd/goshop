@@ -10,10 +10,8 @@ import (
 	"goshop/internal/core/domain/entities"
 	"goshop/internal/core/domain/errors"
 	"goshop/internal/core/domain/types"
-	"goshop/internal/core/mappers"
 	cacheports "goshop/internal/core/ports/cache"
 	repositories "goshop/internal/core/ports/repositories"
-	"goshop/internal/dto"
 	"goshop/internal/validation"
 )
 
@@ -39,7 +37,7 @@ func NewReviewsService(reviewRepo repositories.ReviewRepository, userRepository 
 	}
 }
 
-func (s *ReviewService) CreateReview(ctx context.Context, req *dto.CreateReviewRequest, userID int64) (*dto.ReviewResponse, error) {
+func (s *ReviewService) CreateReview(ctx context.Context, userID int64, productID int64, rating int, comment *string) (*entities.Review, error) {
 
 	if userID < 1 {
 		return nil, errors.ErrInvalidUserID
@@ -50,17 +48,17 @@ func (s *ReviewService) CreateReview(ctx context.Context, req *dto.CreateReviewR
 		return nil, errors.ErrUserNotFound
 	}
 
-	product, err := s.productRepo.GetProductByID(ctx, req.ProductID)
+	product, err := s.productRepo.GetProductByID(ctx, productID)
 	if err != nil {
 		return nil, err
 	}
 
 	review := &entities.Review{
 		UUID:      uuid.New(),
-		ProductID: req.ProductID,
+		ProductID: productID,
 		UserID:    userID,
-		Rating:    req.Rating,
-		Comment:   req.Comment,
+		Rating:    rating,
+		Comment:   comment,
 		CreatedAt: time.Now(),
 		User:      user,
 		Product:   product,
@@ -73,34 +71,32 @@ func (s *ReviewService) CreateReview(ctx context.Context, req *dto.CreateReviewR
 
 	review.ID = *reviewID
 
-	resp := mappers.ToReviewResponse(review)
-
-	return &resp, nil
+	return review, nil
 }
 
-func (s *ReviewService) GetReviewsWithFilters(ctx context.Context, filters types.ReviewFilters) (*dto.ReviewsListResponse, error) {
+func (s *ReviewService) GetReviewsWithFilters(ctx context.Context, filters types.ReviewFilters) ([]*entities.Review, int64, error) {
 
 	if filters.UserID == nil || filters.ProductID == nil {
-		return nil, errors.ErrInvalidInput
+		return nil, 0, errors.ErrInvalidInput
 	}
 
 	if err := validation.ValidateReviewFilters(filters); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	user, err := s.userRepo.GetUserByID(ctx, *filters.UserID)
 	if err != nil {
-		return nil, errors.ErrUserNotFound
+		return nil, 0, errors.ErrUserNotFound
 	}
 
 	product, err := s.productRepo.GetProductByID(ctx, *filters.ProductID)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	reviews, totalCount, err := s.reviewRepo.GetReviewsWithFilters(ctx, filters)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	for _, review := range reviews {
@@ -115,24 +111,14 @@ func (s *ReviewService) GetReviewsWithFilters(ctx context.Context, filters types
 		}
 	}
 
-	return mappers.ToReviewsListResponse(reviews, totalCount, filters.Page, filters.Limit), nil
+	return reviews, totalCount, nil
 }
 
-func (s *ReviewService) GetReviewByID(ctx context.Context, reviewID int64) (*dto.ReviewResponse, error) {
+func (s *ReviewService) GetReviewByID(ctx context.Context, reviewID int64) (*entities.Review, error) {
 
 	if reviewID < 1 {
 		return nil, errors.ErrInvalidReviewID
 	}
-
-	cacheReview, err := s.reviewCache.GetReviewByID(ctx, reviewID)
-	if err != nil {
-		s.logger.Warn("failed to get review from cache, fallback to repository",
-			zap.Int64("reviewID", reviewID), zap.Error(err))
-	} else if cacheReview != nil {
-		s.logger.Debug("found review in cache", zap.Int64("reviewID", reviewID))
-		return cacheReview, nil
-	}
-	s.logger.Debug("review not found in cache, fetching from repository", zap.Int64("reviewID", reviewID))
 
 	review, err := s.reviewRepo.GetReviewByID(ctx, reviewID)
 	if err != nil {
@@ -152,25 +138,19 @@ func (s *ReviewService) GetReviewByID(ctx context.Context, reviewID int64) (*dto
 	review.User = user
 	review.Product = product
 
-	resp := mappers.ToReviewResponse(review)
-
-	if err := s.reviewCache.SetReviewByID(ctx, reviewID, &resp, reviewCacheTTL); err != nil {
-		s.logger.Warn("failed to set review in cache", zap.Int64("reviewID", reviewID), zap.Error(err))
-	}
-
-	return &resp, nil
+	return review, nil
 }
 
-func (s *ReviewService) UpdateReview(ctx context.Context, userID int64, reviewID int64, req dto.UpdateReviewRequest) error {
-	if req.Rating == nil && req.Comment == nil {
+func (s *ReviewService) UpdateReview(ctx context.Context, userID int64, reviewID int64, rating *int, comment *string) error {
+	if rating == nil && comment == nil {
 		return errors.ErrNothingToUpdate
 	}
 
-	if req.Rating != nil && (*req.Rating > 5 || *req.Rating < 1) {
+	if rating != nil && (*rating > 5 || *rating < 1) {
 		return errors.ErrInvalidRating
 	}
 
-	if req.Comment != nil && len(*req.Comment) > 1000 {
+	if comment != nil && len(*comment) > 1000 {
 		return errors.ErrInvalidComment
 	}
 
@@ -182,7 +162,7 @@ func (s *ReviewService) UpdateReview(ctx context.Context, userID int64, reviewID
 		return errors.ErrForbidden
 	}
 
-	err = s.reviewRepo.UpdateReview(ctx, reviewID, req.Rating, req.Comment)
+	err = s.reviewRepo.UpdateReview(ctx, reviewID, rating, comment)
 	if err != nil {
 		return err
 	}
@@ -241,15 +221,15 @@ func (s *ReviewService) CheckUserReviewExists(ctx context.Context, userID, produ
 	return exists, nil
 }
 
-func (s *ReviewService) GetReviewStats(ctx context.Context, productID int64) (*dto.ReviewStatsResponse, error) {
+func (s *ReviewService) GetReviewStats(ctx context.Context, productID int64) (int64, float64, map[int]int64, error) {
 	if productID < 1 {
-		return nil, errors.ErrInvalidProductID
+		return 0, 0, nil, errors.ErrInvalidProductID
 	}
 
 	totalReviews, averageRating, ratingCounts, err := s.reviewRepo.GetReviewStats(ctx, productID)
 	if err != nil {
-		return nil, err
+		return 0, 0, nil, err
 	}
 
-	return mappers.ToReviewStatsResponse(totalReviews, averageRating, ratingCounts), nil
+	return totalReviews, averageRating, ratingCounts, nil
 }
