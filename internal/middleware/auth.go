@@ -6,7 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
-	"goshop/internal/utils"
+	"goshop/pkg/jwt"
 )
 
 func JWTMiddleware(jwtSecret string, logger *zap.Logger) gin.HandlerFunc {
@@ -33,7 +33,7 @@ func JWTMiddleware(jwtSecret string, logger *zap.Logger) gin.HandlerFunc {
 			return
 		}
 
-		claims, err := utils.ParseJWT(tokenString, jwtSecret)
+		claims, err := jwt.ParseJWT(tokenString, jwtSecret)
 		if err != nil {
 			logger.Debug("Token parsing failed", zap.Error(err))
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})

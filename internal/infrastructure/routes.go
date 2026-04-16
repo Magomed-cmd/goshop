@@ -64,6 +64,17 @@ func RegisterRoutes(router *gin.Engine, handlers *Handlers, jwtSecret string, lo
 		protected.POST("/reviews", handlers.ReviewHandler.CreateReview)
 		protected.PUT("/reviews/:id", handlers.ReviewHandler.UpdateReview)
 		protected.DELETE("/reviews/:id", handlers.ReviewHandler.DeleteReview)
+
+		protected.GET("/cart", handlers.CartHandler.GetCart)
+		protected.POST("/cart/items", handlers.CartHandler.AddItem)
+		protected.PUT("/cart/items/:product_id", handlers.CartHandler.UpdateItem)
+		protected.DELETE("/cart/items/:product_id", handlers.CartHandler.RemoveItem)
+		protected.DELETE("/cart", handlers.CartHandler.ClearCart)
+
+		protected.POST("/orders", handlers.OrderHandler.CreateOrder)
+		protected.GET("/orders", handlers.OrderHandler.GetUserOrders)
+		protected.GET("/orders/:id", handlers.OrderHandler.GetOrderByID)
+		protected.POST("/orders/:id/cancel", handlers.OrderHandler.CancelOrder)
 	}
 
 	admin := router.Group("/admin")
@@ -82,5 +93,8 @@ func RegisterRoutes(router *gin.Engine, handlers *Handlers, jwtSecret string, lo
 		admin.PUT("/products/:id", handlers.ProductHandler.UpdateProduct)
 		admin.DELETE("/products/:id", handlers.ProductHandler.DeleteProduct)
 		admin.PATCH("/products/:id/toggle", handlers.ProductHandler.ToggleProductStatus)
+
+		admin.PUT("/orders/:id/status", handlers.OrderHandler.UpdateOrderStatus)
+		admin.GET("/orders", handlers.OrderHandler.GetAllOrders)
 	}
 }

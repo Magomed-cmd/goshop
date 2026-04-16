@@ -1,0 +1,144 @@
+@startuml goshop_architecture
+
+skinparam packageStyle folder
+skinparam backgroundColor #FAFAFA
+skinparam shadowing false
+skinparam arrowColor #424242
+
+package "cmd" #FFE082 {
+  component [Main Entry]
+}
+
+package "internal" {
+
+  package "Config and Logger" #E8F5E9 {
+    component [Configuration]
+    component [Logging]
+  }
+
+  package "Presentation Layer" #BBDEFB {
+    package "HTTP Adapters" {
+      component [HTTP Handlers]
+      component [Auth Middleware]
+    }
+    package "External Auth" {
+      component [Google OAuth]
+    }
+    component [DTO Layer]
+  }
+
+  package "Application Layer" #C8E6C9 {
+    package "Business Services" {
+      component [User Service]
+      component [Product Service]
+      component [Order Service]
+      component [Cart Service]
+      component [Review Service]
+      component [Address Service]
+      component [Category Service]
+    }
+    package "Data Transformers" {
+      component [Mappers]
+    }
+  }
+
+  package "Domain Layer" #FFCCBC {
+    package "Business Entities" {
+      component [User Entity]
+      component [Product Entity]
+      component [Order Entity]
+      component [Cart Entity]
+      component [Review Entity]
+      component [Address Entity]
+      component [Category Entity]
+    }
+    package "Domain Building Blocks" {
+      component [Value Objects]
+      component [Domain Errors]
+      component [Types]
+    }
+  }
+
+  package "Ports and Interfaces" #FFF9C4 {
+    package "Repository Ports" {
+      component [User Repo Port]
+      component [Product Repo Port]
+      component [Order Repo Port]
+      component [Cart Repo Port]
+      component [Review Repo Port]
+      component [Address Repo Port]
+      component [Category Repo Port]
+    }
+    package "Infrastructure Ports" {
+      component [Cache Port]
+      component [Storage Port]
+      component [Transaction Port]
+    }
+  }
+
+  package "Infrastructure Layer" #E1BEE7 {
+    package "Database" {
+      component [PostgreSQL Repos]
+    }
+    package "Cache" {
+      component [Redis Cache]
+    }
+    package "Storage" {
+      component [File Storage]
+    }
+    package "Drivers" {
+      component [PostgreSQL Driver]
+      component [Redis Driver]
+    }
+  }
+
+  package "Utilities" #E0E0E0 {
+    component [Helper Functions]
+  }
+}
+
+[Main Entry] --> [Configuration]
+[Main Entry] --> [Logging]
+
+[HTTP Handlers] --> [DTO Layer]
+[DTO Layer] --> [User Service]
+[DTO Layer] --> [Product Service]
+[DTO Layer] --> [Order Service]
+
+[User Service] --> [User Entity]
+[Product Service] --> [Product Entity]
+[Order Service] --> [Order Entity]
+
+[Mappers] --> [DTO Layer]
+[Mappers] --> [User Entity]
+
+[User Service] --> [User Repo Port]
+[Product Service] --> [Product Repo Port]
+[Order Service] --> [Order Repo Port]
+[Cart Service] --> [Cart Repo Port]
+[Review Service] --> [Review Repo Port]
+[Address Service] --> [Address Repo Port]
+[Category Service] --> [Category Repo Port]
+
+[User Service] --> [Cache Port]
+[Product Service] --> [Cache Port]
+[Category Service] --> [Cache Port]
+[Review Service] --> [Cache Port]
+
+[Order Service] --> [Transaction Port]
+
+[User Repo Port] --> [PostgreSQL Repos]
+[Product Repo Port] --> [PostgreSQL Repos]
+[Order Repo Port] --> [PostgreSQL Repos]
+[Cart Repo Port] --> [PostgreSQL Repos]
+[Review Repo Port] --> [PostgreSQL Repos]
+[Address Repo Port] --> [PostgreSQL Repos]
+[Category Repo Port] --> [PostgreSQL Repos]
+
+[Cache Port] --> [Redis Cache]
+[Storage Port] --> [File Storage]
+
+[PostgreSQL Repos] --> [PostgreSQL Driver]
+[Redis Cache] --> [Redis Driver]
+
+@enduml

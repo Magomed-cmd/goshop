@@ -1,0 +1,323 @@
+@startuml
+
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam classAttributeIconSize 0
+skinparam classFontSize 13
+skinparam classFontStyle bold
+skinparam classStereotypeFontSize 11
+skinparam classStereotypeFontStyle italic
+skinparam ArrowColor #444444
+skinparam ArrowThickness 1.5
+skinparam dpi 150
+skinparam nodesep 50
+skinparam ranksep 70
+hide circle
+
+' Цветовые схемы
+skinparam class {
+  BackgroundColor<<request>> #FFF4E6
+  BorderColor<<request>>     #D97706
+  HeaderBackgroundColor<<request>> #FED7AA
+
+  BackgroundColor<<response>> #E0F2FE
+  BorderColor<<response>>     #0284C7
+  HeaderBackgroundColor<<response>> #BAE6FD
+
+  BackgroundColor<<entity>> #F3E8FF
+  BorderColor<<entity>>     #7C3AED
+  HeaderBackgroundColor<<entity>> #DDD6FE
+
+  BackgroundColor<<composite>> #F0FDF4
+  BorderColor<<composite>>    #16A34A
+  HeaderBackgroundColor<<composite>> #DCFCE7
+}
+
+package "User Management" {
+  class RegisterRequest <<request>> {
+    email: string
+    password: string
+    name: *string
+    phone: *string
+  }
+
+  class LoginRequest <<request>> {
+    email: string
+    password: string
+  }
+
+  class UpdateProfileRequest <<request>> {
+    name: *string
+    phone: *string
+  }
+
+  class ChangePasswordRequest <<request>> {
+    current_password: string
+    new_password: string
+  }
+
+  class UserProfile <<response>> {
+    uuid: string
+    email: string
+    name: *string
+    phone: *string
+    role: string
+  }
+
+  class AuthResponse <<composite>> {
+    token: string
+    user: UserProfile
+  }
+}
+
+package "Address Management" {
+  class CreateAddressRequest <<request>> {
+    address: string
+    city: *string
+    postal_code: *string
+    country: *string
+  }
+
+  class UpdateAddressRequest <<request>> {
+    address: *string
+    city: *string
+    postal_code: *string
+    country: *string
+  }
+
+  class AddressResponse <<response>> {
+    id: int64
+    uuid: string
+    address: string
+    city: *string
+    postal_code: *string
+    country: *string
+    created_at: string
+  }
+}
+
+package "Product Catalog" {
+  class CreateProductRequest <<request>> {
+    name: string
+    description: *string
+    price: Decimal
+    stock: int
+    category_ids: []int64
+  }
+
+  class UpdateProductRequest <<request>> {
+    name: *string
+    description: *string
+    price: *Decimal
+    stock: *int
+    category_ids: []int64
+  }
+
+  class ProductResponse <<response>> {
+    id: int64
+    uuid: string
+    name: string
+    description: *string
+    price: string
+    stock: int
+    product_imgs: []ProductImage
+    categories: []CategoryResponse
+    created_at: string
+    updated_at: string
+  }
+
+  class ProductCatalogItem <<response>> {
+    id: int64
+    uuid: string
+    name: string
+    price: string
+    stock: int
+    categories: []CategoryResponse
+  }
+
+  class ProductsListResponse <<composite>> {
+    products: []ProductResponse
+    total: int
+    page: int
+    limit: int
+  }
+
+  class ProductCatalogResponse <<composite>> {
+    products: []ProductCatalogItem
+    total: int
+    page: int
+    limit: int
+  }
+
+  class CreateCategoryRequest <<request>> {
+    name: string
+    description: *string
+  }
+
+  class UpdateCategoryRequest <<request>> {
+    name: *string
+    description: *string
+  }
+
+  class CategoryResponse <<response>> {
+    id: int64
+    uuid: string
+    name: string
+    description: *string
+    created_at: Time
+    updated_at: Time
+    product_count: int
+  }
+
+  class CategoriesListResponse <<composite>> {
+    categories: []CategoryResponse
+    total: int
+  }
+}
+
+package "Shopping Cart" {
+  class AddToCartRequest <<request>> {
+    product_id: int64
+    quantity: int
+  }
+
+  class UpdateCartItemRequest <<request>> {
+    quantity: int
+  }
+
+  class CartItemResponse <<response>> {
+    product_id: int64
+    product_name: string
+    quantity: int
+    price: string
+    subtotal: string
+  }
+
+  class CartResponse <<composite>> {
+    id: int64
+    items: []CartItemResponse
+    total_price: string
+    total_items: int
+  }
+}
+
+package "Orders" {
+  class CreateOrderRequest <<request>> {
+    address_id: *int64
+  }
+
+  class UpdateOrderStatusRequest <<request>> {
+    status: string
+  }
+
+  class OrderItemResponse <<response>> {
+    product_id: int64
+    product_name: string
+    price_at_order: string
+    quantity: int
+    subtotal: string
+  }
+
+  class OrderResponse <<composite>> {
+    id: int64
+    uuid: string
+    user_id: int64
+    address_id: *int64
+    total_price: string
+    status: string
+    created_at: Time
+    updated_at: Time
+    items: []OrderItemResponse
+    address: *AddressResponse
+  }
+
+  class OrdersListResponse <<composite>> {
+    orders: []OrderResponse
+    total_count: int64
+    total_amount: string
+    page: int
+    limit: int
+  }
+}
+
+package "Reviews & Ratings" {
+  class CreateReviewRequest <<request>> {
+    product_id: int64
+    rating: int
+    comment: *string
+  }
+
+  class UpdateReviewRequest <<request>> {
+    rating: *int
+    comment: *string
+  }
+
+  class UserInfo <<response>> {
+    uuid: string
+    name: *string
+  }
+
+  class ProductInfo <<response>> {
+    uuid: string
+    name: string
+  }
+
+  class ReviewResponse <<composite>> {
+    id: int64
+    uuid: string
+    product_id: int64
+    user_id: int64
+    rating: int
+    comment: *string
+    created_at: Time
+    user: *UserInfo
+    product: *ProductInfo
+  }
+
+  class ReviewsListResponse <<composite>> {
+    reviews: []ReviewResponse
+    total_count: int64
+    page: int
+    limit: int
+    average_rating: *float64
+  }
+
+  class ReviewStatsResponse <<composite>> {
+    total_reviews: int64
+    average_rating: float64
+    rating_counts: map[int]int64
+  }
+}
+
+' Связи
+ProductResponse --> CategoryResponse : "contains"
+ProductCatalogItem --> CategoryResponse : "has"
+ProductsListResponse --> ProductResponse : "lists"
+ProductCatalogResponse --> ProductCatalogItem : "lists"
+
+CartResponse --> CartItemResponse : "contains"
+CartItemResponse --> ProductResponse : "references"
+
+OrderResponse --> OrderItemResponse : "contains"
+OrderResponse --> AddressResponse : "uses address"
+OrderItemResponse --> ProductResponse : "references"
+
+ReviewResponse --> UserInfo : "written by"
+ReviewResponse --> ProductInfo : "rates"
+ReviewsListResponse --> ReviewResponse : "lists"
+
+AuthResponse --> UserProfile : "returns"
+
+' Связи между запросами и ответами
+CreateProductRequest -.-> ProductResponse : "creates"
+UpdateProductRequest -.-> ProductResponse : "updates"
+CreateCategoryRequest -.-> CategoryResponse : "creates"
+UpdateCategoryRequest -.-> CategoryResponse : "updates"
+AddToCartRequest -.-> CartResponse : "modifies"
+UpdateCartItemRequest -.-> CartResponse : "modifies"
+CreateOrderRequest -.-> OrderResponse : "creates"
+UpdateOrderStatusRequest -.-> OrderResponse : "updates"
+CreateReviewRequest -.-> ReviewResponse : "creates"
+UpdateReviewRequest -.-> ReviewResponse : "updates"
+
+@enduml

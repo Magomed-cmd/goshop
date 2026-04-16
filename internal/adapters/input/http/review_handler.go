@@ -9,7 +9,7 @@ import (
 	httpErrors "goshop/internal/adapters/input/http/errors"
 	errors2 "goshop/internal/core/domain/errors"
 	"goshop/internal/core/domain/types"
-	"goshop/internal/core/mappers"
+	"goshop/internal/adapters/mappers"
 	serviceports "goshop/internal/core/ports/services"
 	"goshop/internal/dto"
 	"goshop/internal/middleware"

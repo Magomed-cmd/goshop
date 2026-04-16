@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	httpErrors "goshop/internal/adapters/input/http/errors"
-	"goshop/internal/core/mappers"
+	"goshop/internal/adapters/mappers"
 	serviceports "goshop/internal/core/ports/services"
 	"goshop/internal/dto"
 	"goshop/internal/middleware"

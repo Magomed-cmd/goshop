@@ -10,14 +10,14 @@ package main
 // @name        Authorization
 
 import (
-	_ "goshop/docs"
+	_ "goshop/docs/swagger"
 	storageadapter "goshop/internal/adapters/output/storage"
 	"goshop/internal/config"
 	"goshop/internal/infrastructure"
 	"goshop/internal/infrastructure/database/postgres"
 	redisdb "goshop/internal/infrastructure/database/redis"
-	"goshop/internal/logger"
 	"goshop/internal/oauth/google"
+	"goshop/pkg/logger"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"

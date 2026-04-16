@@ -17,7 +17,8 @@ import (
 	storageports "goshop/internal/core/ports/storage"
 	dtx "goshop/internal/core/ports/transaction"
 	"goshop/internal/oauth/google"
-	"goshop/internal/utils"
+	"goshop/pkg/crypto"
+	"goshop/pkg/jwt"
 )
 
 const (
@@ -105,7 +106,7 @@ func (s *UserService) Register(ctx context.Context, email, password string, name
 
 	user.AttachRole(role)
 
-	token, err := utils.GenerateJWT(user.ID, user.Email, role.Name, s.jwtSecretKey)
+	token, err := jwt.GenerateJWT(user.ID, user.Email, role.Name, s.jwtSecretKey)
 	if err != nil {
 		return nil, "", err
 	}
@@ -153,7 +154,7 @@ func (s *UserService) Login(ctx context.Context, email, password string) (*entit
 		roleName = existingUser.Role.Name
 	}
 
-	token, err := utils.GenerateJWT(existingUser.ID, existingUser.Email, roleName, s.jwtSecretKey)
+	token, err := jwt.GenerateJWT(existingUser.ID, existingUser.Email, roleName, s.jwtSecretKey)
 	if err != nil {
 		return nil, "", err
 	}
@@ -344,7 +345,7 @@ func (s *UserService) generateTokenForUser(user *entities.User) (string, error) 
 		roleName = user.Role.Name
 	}
 
-	token, err := utils.GenerateJWT(user.ID, user.Email, roleName, s.jwtSecretKey)
+	token, err := jwt.GenerateJWT(user.ID, user.Email, roleName, s.jwtSecretKey)
 	if err != nil {
 		s.logger.Error("failed to generate JWT token", zap.Error(err), zap.Int64("user_id", user.ID))
 		return "", domainerrors.ErrInvalidInput
@@ -420,7 +421,7 @@ func (s *UserService) createUserWithRepo(
 	roleID int64,
 	name, phone *string,
 ) (*entities.User, error) {
-	hashedPassword, err := utils.HashPasswordWithCost(rawPassword.String(), s.bcryptCost)
+	hashedPassword, err := crypto.HashPasswordWithCost(rawPassword.String(), s.bcryptCost)
 	if err != nil {
 		return nil, err
 	}

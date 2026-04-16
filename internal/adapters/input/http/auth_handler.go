@@ -8,11 +8,11 @@ import (
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
-	"goshop/internal/core/mappers"
+	"goshop/internal/adapters/mappers"
 	serviceports "goshop/internal/core/ports/services"
 	"goshop/internal/dto"
 	"goshop/internal/oauth/google"
-	"goshop/internal/utils"
+	"goshop/pkg/crypto"
 )
 
 type OAuthProvider interface {
@@ -47,7 +47,7 @@ func NewOAuthHandler(googleProvider OAuthProvider, authService serviceports.User
 func (h *OAuthHandler) GoogleLogin(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	state := utils.GenerateState()
+	state := crypto.GenerateState()
 
 	err := h.redis.Set(ctx, "oauth_state:"+state, "1", 10*time.Minute).Err()
 	if err != nil {
